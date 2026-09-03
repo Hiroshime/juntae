@@ -118,7 +118,11 @@ test("cadastro, comunidade e convite funcionam ponta a ponta", async ({ browser,
   await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Owner E2E");
   await page.getByLabel("E-mail").fill(`owner-${unique}@e2e.local`);
-  await page.getByLabel("Senha").fill("senha-e2e-123");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
+  await page.getByLabel("Confirmar senha").fill("senha-diferente-123");
+  await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page.locator(".error[role='alert']")).toHaveText("As senhas não coincidem.");
+  await page.getByLabel("Confirmar senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page).toHaveURL(/\/app\/convites-e2e-/);
   await page.goto("/app");
@@ -156,7 +160,8 @@ test("cadastro, comunidade e convite funcionam ponta a ponta", async ({ browser,
   await memberPage.getByRole("link", { name: "Criar conta" }).click();
   await memberPage.getByLabel("Nome de exibição").fill("Membro E2E");
   await memberPage.getByLabel("E-mail").fill(`member-${unique}@e2e.local`);
-  await memberPage.getByLabel("Senha").fill("senha-e2e-123");
+  await memberPage.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
+  await memberPage.getByLabel("Confirmar senha").fill("senha-e2e-123");
   await memberPage.getByRole("button", { name: "Criar conta" }).click();
   await expect(memberPage.getByRole("heading", { name: communityName })).toBeVisible();
   await memberContext.close();
@@ -179,7 +184,8 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Agenda E2E");
   await page.getByLabel("E-mail").fill(email);
-  await page.getByLabel("Senha").fill("senha-e2e-123");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
+  await page.getByLabel("Confirmar senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page).toHaveURL(/\/app\/convites-e2e-/);
   await page.goto("/app");
@@ -265,7 +271,8 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Eventos E2E");
   await page.getByLabel("E-mail").fill(email);
-  await page.getByLabel("Senha").fill("senha-e2e-123");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
+  await page.getByLabel("Confirmar senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page).toHaveURL(/\/app\/convites-e2e-/);
   await page.goto("/app");
@@ -287,12 +294,15 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   await page.getByLabel("Início").fill(`${bestDate}T19:00`);
   await page.getByLabel(/Término/).fill(`${bestDate}T22:00`);
   await page.getByLabel("Local", { exact: true }).fill("Restaurante E2E");
+  await page.getByLabel("Custo estimado").fill("90");
   await page.getByLabel("Limite de participantes").fill("1");
   await page.getByRole("button", { name: "Criar evento", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: eventName })).toBeVisible();
   await expect(page.getByRole("button", { name: "Compartilhar" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Copiar link" })).toBeVisible();
+  const perConfirmedCost = page.getByText("Por pessoa confirmada").locator("..");
+  await expect(perConfirmedCost).toContainText("Aguardando confirmações");
   const eventPath = new URL(page.url()).pathname;
   await page.context().clearCookies();
   await page.goto(eventPath);
@@ -302,7 +312,7 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
     page.getByText("Ainda não tem conta? Peça um convite a um administrador."),
   ).toBeVisible();
   await page.getByLabel("E-mail").fill(email);
-  await page.getByLabel("Senha").fill("senha-e2e-123");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
   const loginResponsePromise = page.waitForResponse(
     (response) => new URL(response.url()).pathname === "/api/auth/login",
   );
@@ -328,6 +338,7 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   );
   await expect(page.getByText("1 resposta", { exact: false })).toBeVisible();
   await expect(page.getByText("0 vagas restantes")).toBeVisible();
+  await expect(perConfirmedCost).toContainText("R$ 90,00");
 
   await page.getByRole("link", { name: communityName }).click();
   await expect(page.getByRole("heading", { name: "Próximos eventos" })).toBeVisible();
@@ -352,7 +363,8 @@ test("votação de datas, voto e alteração funcionam ponta a ponta", async ({ 
   await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Votante E2E");
   await page.getByLabel("E-mail").fill(email);
-  await page.getByLabel("Senha").fill("senha-e2e-123");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
+  await page.getByLabel("Confirmar senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page).toHaveURL(/\/app\/convites-e2e-/);
   await page.goto("/app");
@@ -403,7 +415,8 @@ test("sorteio de times e histórico funcionam ponta a ponta", async ({ page }) =
   await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Sorteador E2E");
   await page.getByLabel("E-mail").fill(email);
-  await page.getByLabel("Senha").fill("senha-e2e-123");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
+  await page.getByLabel("Confirmar senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page).toHaveURL(/\/app\/convites-e2e-/);
   await page.goto("/app");

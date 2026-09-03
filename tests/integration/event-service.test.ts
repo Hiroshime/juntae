@@ -146,6 +146,8 @@ describe("event services", () => {
     await setEventRsvp(ownerId, communityId, event.id, "GOING");
     const second = await setEventRsvp(memberId, communityId, event.id, "GOING");
     expect(second).toMatchObject({ goingCount: 2, remainingSpots: 0, limitReached: true });
+    const detail = await getEvent(ownerId, communityId, event.id);
+    expect(detail.estimatedCostPerConfirmed).toBe(17.5);
   });
 
   it("impede novas respostas depois do cancelamento sem apagar as anteriores", async () => {

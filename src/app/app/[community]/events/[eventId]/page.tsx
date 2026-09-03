@@ -16,6 +16,10 @@ import { getEvent } from "@/server/services/event-service";
 
 export const dynamic = "force-dynamic";
 
+function formatCurrency(value: number | string, currency: string) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(value));
+}
+
 export default async function EventPage({
   params,
 }: {
@@ -96,15 +100,20 @@ export default async function EventPage({
                   </div>
                 )}
                 {event.estimatedCost && (
-                  <div>
-                    <dt>Custo estimado</dt>
-                    <dd>
-                      {new Intl.NumberFormat("pt-BR", {
-                        style: "currency",
-                        currency: event.currency,
-                      }).format(Number(event.estimatedCost))}
-                    </dd>
-                  </div>
+                  <>
+                    <div>
+                      <dt>Custo estimado</dt>
+                      <dd>{formatCurrency(event.estimatedCost, event.currency)}</dd>
+                    </div>
+                    <div>
+                      <dt>Por pessoa confirmada</dt>
+                      <dd>
+                        {event.estimatedCostPerConfirmed == null
+                          ? "Aguardando confirmações"
+                          : formatCurrency(event.estimatedCostPerConfirmed, event.currency)}
+                      </dd>
+                    </div>
+                  </>
                 )}
                 <div>
                   <dt>Criado por</dt>

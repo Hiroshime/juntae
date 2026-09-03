@@ -16,6 +16,11 @@ export function remainingParticipantSpots(limit: number | null, goingCount: numb
   return limit == null ? null : Math.max(0, limit - goingCount);
 }
 
+export function estimatedCostPerConfirmed(estimatedCost: number | null, goingCount: number) {
+  if (estimatedCost == null || goingCount <= 0) return null;
+  return estimatedCost / goingCount;
+}
+
 export function assertEventAcceptsRsvp(status: "DRAFT" | "PUBLISHED" | "CANCELLED" | "COMPLETED") {
   if (status === "CANCELLED") throw new Error("EVENT_CANCELLED");
   if (status !== "PUBLISHED") throw new Error("EVENT_NOT_PUBLISHED");

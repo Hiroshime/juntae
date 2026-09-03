@@ -17,9 +17,12 @@ export async function POST(request: Request) {
         { status: 400 },
       );
 
-    const { password, ...registration } = parsed.data;
+    const { password } = parsed.data;
     const result = await registerUser({
-      ...registration,
+      email: parsed.data.email,
+      name: parsed.data.name,
+      inviteToken: parsed.data.inviteToken,
+      bootstrapToken: parsed.data.bootstrapToken,
       passwordHash: await hash(password, 12),
     });
     await createSession(result.user.id, result.user.sessionVersion);

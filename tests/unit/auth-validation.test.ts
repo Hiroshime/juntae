@@ -6,6 +6,7 @@ const account = {
   email: "pessoa@example.com",
   name: "Pessoa Convidada",
   password: "senha-segura-123",
+  confirmPassword: "senha-segura-123",
 };
 
 describe("validação de cadastro privado", () => {
@@ -30,6 +31,16 @@ describe("validação de cadastro privado", () => {
     expect(registerSchema.safeParse({ ...account, bootstrapToken: "b".repeat(64) }).success).toBe(
       true,
     );
+  });
+
+  it("recusa cadastro quando a confirmação da senha é diferente", () => {
+    const result = registerSchema.safeParse({
+      ...account,
+      confirmPassword: "outra-senha-segura",
+      inviteToken: "i".repeat(43),
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.message).toBe("As senhas não coincidem.");
   });
 
   it("aceita o bootstrap correto apenas enquanto não existe usuário", () => {

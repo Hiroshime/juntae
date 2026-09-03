@@ -24,6 +24,11 @@ export function RegisterForm({
     setLoading(true);
     setError(null);
     const values = Object.fromEntries(new FormData(event.currentTarget));
+    if (values.password !== values.confirmPassword) {
+      setError("As senhas não coincidem.");
+      setLoading(false);
+      return;
+    }
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -62,6 +67,17 @@ export function RegisterForm({
         <input
           id="password"
           name="password"
+          type="password"
+          autoComplete="new-password"
+          minLength={8}
+          required
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="confirm-password">Confirmar senha</label>
+        <input
+          id="confirm-password"
+          name="confirmPassword"
           type="password"
           autoComplete="new-password"
           minLength={8}

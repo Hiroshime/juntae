@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { EventInput } from "@/lib/validation/event";
 import {
   assertEventAcceptsRsvp,
+  estimatedCostPerConfirmed,
   remainingParticipantSpots,
   summarizeRsvps,
   type RsvpStatus,
@@ -78,9 +79,14 @@ type EventListRecord = Prisma.EventGetPayload<{ select: typeof eventListSelectio
 
 function toEventSummary(event: EventListRecord, userId: string) {
   const rsvpSummary = summarizeRsvps(event.rsvps.map((rsvp) => rsvp.status));
+  const estimatedCost = event.estimatedCost?.toString() ?? null;
   return {
     ...event,
-    estimatedCost: event.estimatedCost?.toString() ?? null,
+    estimatedCost,
+    estimatedCostPerConfirmed: estimatedCostPerConfirmed(
+      estimatedCost == null ? null : Number(estimatedCost),
+      rsvpSummary.GOING,
+    ),
     rsvpSummary,
     myRsvp: event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null,
     remainingSpots: remainingParticipantSpots(event.participantLimit, rsvpSummary.GOING),
@@ -153,6 +159,7 @@ export async function getEvent(userId: string, communityId: string, eventId: str
     "Evento não encontrado.",
   );
   const rsvpSummary = summarizeRsvps(event.rsvps.map((rsvp) => rsvp.status));
+  const estimatedCost = event.estimatedCost?.toString() ?? null;
   return {
     id: event.id,
     communityId: event.communityId,
@@ -166,7 +173,11 @@ export async function getEvent(userId: string, communityId: string, eventId: str
     locationName: event.locationName,
     locationAddress: event.locationAddress,
     locationUrl: event.locationUrl,
-    estimatedCost: event.estimatedCost?.toString() ?? null,
+    estimatedCost,
+    estimatedCostPerConfirmed: estimatedCostPerConfirmed(
+      estimatedCost == null ? null : Number(estimatedCost),
+      rsvpSummary.GOING,
+    ),
     currency: event.currency,
     participantLimit: event.participantLimit,
     status: event.status,

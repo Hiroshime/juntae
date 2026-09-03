@@ -138,6 +138,7 @@ Gamificação pode existir futuramente, porém não deve bloquear nem poluir a e
 
 - cadastro somente por convite válido, sem vínculo obrigatório com e-mail;
 - código secreto de bootstrap aceito exclusivamente para a primeira conta de uma instalação vazia;
+- confirmação de senha obrigatória no cadastro;
 - login;
 - logout;
 - recuperação de senha, se o mecanismo de autenticação escolhido suportar facilmente;
@@ -303,6 +304,8 @@ Um usuário só pode acessar dados de comunidades das quais é membro.
 4. Publica.
 5. Evento aparece no dashboard.
 6. Membros podem responder “Vou”, “Talvez” ou “Não vou”.
+7. Quando houver custo estimado, a página mostra a estimativa por participante confirmado (`GOING`),
+   recalculada conforme os RSVPs, sem criar cobranças ou registrar pagamentos.
 
 ## 6.5 Criar votação
 
@@ -1630,6 +1633,7 @@ criar votação de datas
 - [ ] Usuário não autenticado não acessa páginas internas.
 - [ ] Cadastro sem convite é recusado após a criação da primeira conta.
 - [ ] Convite válido cria a conta e adiciona o usuário à comunidade atomicamente.
+- [ ] Cadastro exige que senha e confirmação de senha sejam iguais.
 
 ## 29.2 Comunidade
 
@@ -1657,6 +1661,7 @@ criar votação de datas
 - [ ] Evento aparece no dashboard.
 - [ ] Usuário consegue responder GOING/MAYBE/NOT_GOING.
 - [ ] Contagens atualizam corretamente.
+- [ ] Custo estimado por confirmado é exibido e atualizado conforme os RSVPs.
 
 ## 29.6 Votações
 
@@ -2482,7 +2487,8 @@ Para evitar que a IA fique travada em perguntas de produto, utilizar estas decis
 5. Votação não é anônima no MVP.
 6. `UNKNOWN` não conta como disponível.
 7. Override manual prevalece sobre escala.
-8. Eventos podem ter custo estimado, mas não rateio.
+8. Eventos podem exibir o custo estimado dividido pelos confirmados como informação, mas não
+   registram despesas, cobranças, pagamentos ou rateio financeiro no MVP.
 9. Não há chat.
 10. Não há integração oficial com WhatsApp no MVP.
 11. Compartilhamento usa links e Web Share API.
