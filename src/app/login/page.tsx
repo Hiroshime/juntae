@@ -11,13 +11,18 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [registerHref, setRegisterHref] = useState("/register");
+  const [registerHref, setRegisterHref] = useState<string | null>(null);
 
   useEffect(() => {
     setHydrated(true);
     const next = new URLSearchParams(window.location.search).get("next");
     if (next?.startsWith("/") && !next.startsWith("//")) {
-      setRegisterHref(`/register?next=${encodeURIComponent(next)}`);
+      const match = next.match(/^\/join\/([^/?#]+)$/);
+      if (match?.[1]) {
+        setRegisterHref(
+          `/register?invite=${encodeURIComponent(match[1])}&next=${encodeURIComponent(next)}`,
+        );
+      }
     }
   }, []);
 
@@ -70,12 +75,16 @@ export default function LoginPage() {
         <button className="button" type="submit" disabled={loading || !hydrated}>
           {loading ? "Entrando…" : "Entrar"}
         </button>
-        <p className="muted small">
-          Ainda não tem conta?{" "}
-          <Link href={registerHref} style={{ color: "var(--primary)", fontWeight: 700 }}>
-            Cadastre-se
-          </Link>
-        </p>
+        {registerHref ? (
+          <p className="muted small">
+            Ainda não tem conta?{" "}
+            <Link href={registerHref} style={{ color: "var(--primary)", fontWeight: 700 }}>
+              Cadastre-se com este convite
+            </Link>
+          </p>
+        ) : (
+          <p className="muted small">Ainda não tem conta? Peça um convite a um administrador.</p>
+        )}
       </form>
     </AuthLayout>
   );

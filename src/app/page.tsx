@@ -10,9 +10,8 @@ export default function HomePage() {
           <Brand />
           <nav className="nav" aria-label="Navegação principal">
             <ThemeSwitcher />
-            <Link href="/login">Entrar</Link>
-            <Link className="button" href="/register">
-              Criar conta
+            <Link className="button" href="/login">
+              Entrar
             </Link>
           </nav>
         </header>
@@ -26,12 +25,10 @@ export default function HomePage() {
               próximo encontro em poucos toques.
             </p>
             <div className="actions">
-              <Link className="button" href="/register">
-                Começar agora
+              <Link className="button" href="/login">
+                Entrar no Juntaê
               </Link>
-              <Link className="button secondary" href="/login">
-                Já tenho uma conta
-              </Link>
+              <span className="pill">Cadastro somente por convite</span>
             </div>
           </div>
           <div className="hero-card" aria-label="Prévia do dashboard">
@@ -55,7 +52,9 @@ export default function HomePage() {
           </div>
         </section>
 
-        <footer className="footer">Um hub privado para organizar os momentos que importam.</footer>
+        <footer className="footer">
+          Um hub privado para organizar os momentos que importam. Novas contas entram por convite.
+        </footer>
       </div>
     </main>
   );

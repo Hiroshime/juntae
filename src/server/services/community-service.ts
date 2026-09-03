@@ -25,7 +25,7 @@ function slugify(value: string) {
   );
 }
 
-function tokenHash(token: string) {
+export function hashInviteToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
@@ -229,7 +229,7 @@ export async function createInvite(actorId: string, communityId: string, input: 
     data: {
       communityId,
       createdById: actorId,
-      tokenHash: tokenHash(token),
+      tokenHash: hashInviteToken(token),
       expiresAt: input.expiresAt,
       maxUses: input.maxUses,
     },
@@ -256,7 +256,7 @@ export async function listInvites(actorId: string, communityId: string) {
   });
 }
 
-function assertInviteUsable(invite: {
+export function assertInviteUsable(invite: {
   status: "ACTIVE" | "REVOKED";
   revokedAt: Date | null;
   expiresAt: Date | null;
@@ -277,7 +277,7 @@ function assertInviteUsable(invite: {
 export async function getInvitePreview(token: string, userId?: string) {
   const invite = assertFound(
     await prisma.invite.findUnique({
-      where: { tokenHash: tokenHash(token) },
+      where: { tokenHash: hashInviteToken(token) },
       include: { community: { select: { id: true, name: true, avatarUrl: true } } },
     }),
     "Convite inválido.",
@@ -293,7 +293,7 @@ export async function getInvitePreview(token: string, userId?: string) {
 }
 
 export async function acceptInvite(userId: string, token: string) {
-  const hash = tokenHash(token);
+  const hash = hashInviteToken(token);
   return prisma.$transaction(
     async (tx) => {
       const invite = assertFound(

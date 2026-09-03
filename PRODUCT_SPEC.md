@@ -136,7 +136,8 @@ Gamificação pode existir futuramente, porém não deve bloquear nem poluir a e
 
 ### Conta e autenticação
 
-- cadastro;
+- cadastro somente por convite válido, sem vínculo obrigatório com e-mail;
+- código secreto de bootstrap aceito exclusivamente para a primeira conta de uma instalação vazia;
 - login;
 - logout;
 - recuperação de senha, se o mecanismo de autenticação escolhido suportar facilmente;
@@ -267,7 +268,7 @@ Um usuário só pode acessar dados de comunidades das quais é membro.
 ## 6.1 Primeiro acesso
 
 1. Usuário abre a aplicação.
-2. Cria conta ou autentica.
+2. Cria conta por um convite válido ou autentica em uma conta existente.
 3. Pode:
    - criar uma nova comunidade; ou
    - entrar através de um convite.
@@ -742,14 +743,20 @@ Token deve:
 - poder ser revogado;
 - opcionalmente ter limite de usos.
 
+Somente `OWNER` e `ADMIN` podem gerar ou revogar convites. O convite não precisa ser vinculado a um
+e-mail específico e autoriza tanto a criação da conta quanto a entrada na comunidade. A criação do
+usuário, da membership e o consumo de um uso do convite devem ocorrer na mesma transação.
+
+Em uma instalação vazia, a primeira conta pode ser criada com um código secreto configurado por
+variável de ambiente. Esse bootstrap deixa de ser aceito assim que existir qualquer usuário.
+
 ## 13.2 Comportamento
 
 Usuário não autenticado:
 
 1. abre convite;
-2. autentica ou cria conta;
-3. retorna ao convite;
-4. entra na comunidade.
+2. autentica ou cria conta usando o próprio convite;
+3. entra na comunidade.
 
 Usuário autenticado:
 
@@ -1327,7 +1334,7 @@ Adicione suas folgas ou sua escala de trabalho.
 ## 23.1 Públicas
 
 - Login
-- Cadastro
+- Cadastro por convite; acesso direto informa que a instância é privada
 - Recuperação de senha, se aplicável
 - Aceitar convite
 
@@ -1621,6 +1628,8 @@ criar votação de datas
 
 - [ ] Usuário consegue entrar e sair.
 - [ ] Usuário não autenticado não acessa páginas internas.
+- [ ] Cadastro sem convite é recusado após a criação da primeira conta.
+- [ ] Convite válido cria a conta e adiciona o usuário à comunidade atomicamente.
 
 ## 29.2 Comunidade
 
@@ -2341,6 +2350,7 @@ Criar `.env.example` semelhante a:
 ```env
 DATABASE_URL=
 AUTH_SECRET=
+REGISTRATION_BOOTSTRAP_TOKEN=
 APP_URL=http://localhost:3000
 DEFAULT_TIMEZONE=America/Sao_Paulo
 ```
@@ -2483,6 +2493,10 @@ Para evitar que a IA fique travada em perguntas de produto, utilizar estas decis
 16. Fotos de evento não fazem parte do MVP.
 17. Eventos não possuem lista de espera no MVP.
 18. Uma votação de datas utiliza datas civis da comunidade e exibe disponibilidade calculada.
+19. Novas contas exigem convite de uma comunidade, sem vínculo obrigatório com e-mail.
+20. Apenas `OWNER` e `ADMIN` geram convites; qualquer usuário autenticado pode criar comunidade.
+21. A primeira conta de uma instalação vazia exige um código secreto de bootstrap e, depois de
+    criada, esse código não autoriza novos cadastros.
 
 ---
 

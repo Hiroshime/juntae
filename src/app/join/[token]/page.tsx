@@ -47,7 +47,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
               </Link>
               <Link
                 className="button secondary"
-                href={`/register?next=${encodeURIComponent(next)}`}
+                href={`/register?invite=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`}
               >
                 Criar conta
               </Link>

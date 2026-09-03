@@ -137,7 +137,10 @@ export function CommunitySettingsForms({
 
       <section className="card">
         <h2>Novo convite</h2>
-        <p className="muted">O token não é armazenado em texto puro e só aparece uma vez.</p>
+        <p className="muted">
+          O link permite criar uma conta ou adicionar uma conta existente. O token não é armazenado
+          em texto puro e só aparece uma vez.
+        </p>
         <form className="form" onSubmit={createInvite}>
           {inviteMessage && (
             <div

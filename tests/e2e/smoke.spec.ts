@@ -1,8 +1,61 @@
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { PrismaClient } from "@prisma/client";
+import { hash } from "bcryptjs";
 
 const browserErrors = new WeakMap<Page, string[]>();
+const database = new PrismaClient();
+const fixtureSuffix = randomUUID();
+let invitationCommunityId = "";
+let invitationAdminId = "";
+
+test.beforeAll(async () => {
+  const admin = await database.user.create({
+    data: {
+      email: `invitation-admin-${fixtureSuffix}@e2e.local`,
+      name: "Administrador de convites E2E",
+      passwordHash: await hash("senha-e2e-123", 4),
+    },
+  });
+  const community = await database.community.create({
+    data: {
+      name: `Convites E2E ${fixtureSuffix}`,
+      slug: `convites-e2e-${fixtureSuffix}`,
+      createdById: admin.id,
+    },
+  });
+  await database.communityMember.create({
+    data: { communityId: community.id, userId: admin.id, role: "OWNER" },
+  });
+  invitationAdminId = admin.id;
+  invitationCommunityId = community.id;
+});
+
+test.afterAll(async () => {
+  if (invitationCommunityId) {
+    await database.community.deleteMany({ where: { id: invitationCommunityId } });
+  }
+  if (invitationAdminId) {
+    await database.user.deleteMany({ where: { id: invitationAdminId } });
+  }
+  await database.$disconnect();
+});
+
+async function openInvitedRegistration(page: Page) {
+  const token = randomBytes(32).toString("base64url");
+  await database.invite.create({
+    data: {
+      communityId: invitationCommunityId,
+      createdById: invitationAdminId,
+      tokenHash: createHash("sha256").update(token).digest("hex"),
+      maxUses: 1,
+    },
+  });
+  await page.goto(`/join/${token}`);
+  await page.getByRole("link", { name: "Criar conta" }).click();
+  await expect(page.getByText("Cadastro por convite")).toBeVisible();
+}
 
 test.beforeEach(async ({ page }) => {
   await page.context().setExtraHTTPHeaders({
@@ -26,11 +79,18 @@ test("landing page is accessible", async ({ page }) => {
   expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
   expect(response?.headers()["x-frame-options"]).toBe("DENY");
   await expect(page.getByRole("heading", { name: "Quando todo mundo pode?" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Criar conta" }).first()).toBeVisible();
+  await expect(page.getByText("Cadastro somente por convite")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Entrar no Juntaê" })).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
+});
+
+test("cadastro direto informa que o acesso é somente por convite", async ({ page }) => {
+  await page.goto("/register");
+  await expect(page.getByRole("heading", { name: "Cadastro somente por convite" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Criar conta" })).toHaveCount(0);
 });
 
 test("tema visual pode ser escolhido e persiste", async ({ page }) => {
@@ -55,12 +115,13 @@ test("cadastro, comunidade e convite funcionam ponta a ponta", async ({ browser,
   const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const communityName = `Turma E2E ${unique}`;
 
-  await page.goto("/register");
+  await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Owner E2E");
   await page.getByLabel("E-mail").fill(`owner-${unique}@e2e.local`);
   await page.getByLabel("Senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app\/convites-e2e-/);
+  await page.goto("/app");
 
   await page.getByRole("button", { name: "Criar comunidade" }).click();
   await page.getByLabel("Nome").fill(communityName);
@@ -97,7 +158,6 @@ test("cadastro, comunidade e convite funcionam ponta a ponta", async ({ browser,
   await memberPage.getByLabel("E-mail").fill(`member-${unique}@e2e.local`);
   await memberPage.getByLabel("Senha").fill("senha-e2e-123");
   await memberPage.getByRole("button", { name: "Criar conta" }).click();
-  await memberPage.getByRole("button", { name: "Entrar na comunidade" }).click();
   await expect(memberPage.getByRole("heading", { name: communityName })).toBeVisible();
   await memberContext.close();
 
@@ -116,11 +176,13 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   const email = `agenda-${unique}@e2e.local`;
   const communityName = `Agenda E2E ${unique}`;
 
-  await page.goto("/register");
+  await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Agenda E2E");
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page).toHaveURL(/\/app\/convites-e2e-/);
+  await page.goto("/app");
   await page.getByRole("button", { name: "Criar comunidade" }).click();
   await page.getByLabel("Nome").fill(communityName);
   await page.getByRole("button", { name: "Criar comunidade", exact: true }).last().click();
@@ -200,11 +262,13 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   const communityName = `Eventos E2E ${unique}`;
   const eventName = `Jantar E2E ${unique}`;
 
-  await page.goto("/register");
+  await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Eventos E2E");
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page).toHaveURL(/\/app\/convites-e2e-/);
+  await page.goto("/app");
   await page.getByRole("button", { name: "Criar comunidade" }).click();
   await page.getByLabel("Nome").fill(communityName);
   await page.getByRole("button", { name: "Criar comunidade", exact: true }).last().click();
@@ -234,10 +298,9 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   await page.goto(eventPath);
   await expect(page).toHaveURL(/\/login\?next=/);
   expect(new URL(page.url()).searchParams.get("next")).toBe(eventPath);
-  await expect(page.getByRole("link", { name: "Cadastre-se" })).toHaveAttribute(
-    "href",
-    `/register?next=${encodeURIComponent(eventPath)}`,
-  );
+  await expect(
+    page.getByText("Ainda não tem conta? Peça um convite a um administrador."),
+  ).toBeVisible();
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("senha-e2e-123");
   const loginResponsePromise = page.waitForResponse(
@@ -286,11 +349,13 @@ test("votação de datas, voto e alteração funcionam ponta a ponta", async ({ 
   const communityName = `Votações E2E ${unique}`;
   const pollName = `Melhor data E2E ${unique}`;
 
-  await page.goto("/register");
+  await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Votante E2E");
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page).toHaveURL(/\/app\/convites-e2e-/);
+  await page.goto("/app");
   await page.getByRole("button", { name: "Criar comunidade" }).click();
   await page.getByLabel("Nome").fill(communityName);
   await page.getByRole("button", { name: "Criar comunidade", exact: true }).last().click();
@@ -335,11 +400,13 @@ test("sorteio de times e histórico funcionam ponta a ponta", async ({ page }) =
   const email = `randomizer-${unique}@e2e.local`;
   const communityName = `Sorteios E2E ${unique}`;
 
-  await page.goto("/register");
+  await openInvitedRegistration(page);
   await page.getByLabel("Nome de exibição").fill("Sorteador E2E");
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("senha-e2e-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page).toHaveURL(/\/app\/convites-e2e-/);
+  await page.goto("/app");
   await page.getByRole("button", { name: "Criar comunidade" }).click();
   await page.getByLabel("Nome").fill(communityName);
   await page.getByRole("button", { name: "Criar comunidade", exact: true }).last().click();

@@ -2,7 +2,7 @@
 
 Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** O primeiro módulo pós-MVP adiciona sorteios e distribuições recreativas reutilizáveis pela comunidade.
 
-O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e compartilhar links privados com retorno automático ao destino depois do login.
+O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e compartilhar links privados. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
 
 ## Requisitos
 
@@ -32,6 +32,10 @@ npm run dev:local
 Abra [http://localhost:3000](http://localhost:3000).
 
 O seed cria a comunidade `Juntaê`, oito usuários, escalas de demonstração, overrides, eventos, votações e um sorteio salvo com datas calculadas em relação ao dia da execução. Para entrar com um usuário de demonstração, use qualquer e-mail `@juntae.local` criado no seed (por exemplo, `ana@juntae.local`) e a senha `demo1234`. Ao ser executado sobre uma instalação anterior, o seed migra os registros de demonstração `@galera.local` e o slug `galera` sem trocar seus IDs.
+
+Em um banco vazio, abra `/register` e informe o `REGISTRATION_BOOTSTRAP_TOKEN` para criar a primeira
+conta. O código inicial deixa de funcionar assim que existir um usuário. Depois, crie uma comunidade
+e use **Configurações → Gerar link de convite**; somente owners e administradores podem convidar.
 
 Para encerrar o banco local:
 
@@ -92,6 +96,7 @@ publicará `SEU_USUARIO/juntae:0.1.0` e `SEU_USUARIO/juntae:latest`. Fazer push 
 cp .env.zima.example .env.zima
 openssl rand -hex 32
 openssl rand -base64 48
+openssl rand -hex 32
 ```
 
 Edite `.env.zima`:
@@ -99,6 +104,7 @@ Edite `.env.zima`:
 - `JUNTAE_IMAGE`: imagem e versão publicadas no Docker Hub;
 - `POSTGRES_PASSWORD`: primeiro valor gerado, em hexadecimal para ser seguro dentro da URL;
 - `AUTH_SECRET`: segundo valor gerado;
+- `REGISTRATION_BOOTSTRAP_TOKEN`: terceiro valor, usado somente para criar a primeira conta de um banco vazio;
 - `APP_URL`: URL exata usada no navegador, como `http://192.168.1.50:3080` ou um domínio HTTPS;
 - `JUNTAE_DATA_PATH`: diretório persistente do ZimaOS, por padrão `/DATA/AppData/juntae`.
 
@@ -120,6 +126,9 @@ docker compose \
 No ZimaOS, abra **App Center → Install a Customized App → Import → Docker Compose**, cole o conteúdo
 de `juntae-zima.yml`, revise a porta `3080` e instale. Quando os containers `postgres` e `app`
 estiverem saudáveis, acesse a URL definida em `APP_URL`.
+
+Na primeira instalação, abra `<APP_URL>/register`, crie a conta inicial com o código de bootstrap e
+então crie a primeira comunidade. O código não autoriza nenhuma outra conta após esse cadastro.
 
 Depois da importação, remova `juntae-zima.yml` da máquina local porque seus segredos ficaram
 materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup protegido.
@@ -160,13 +169,14 @@ npm run db:reset         # apaga e recria o banco local
 
 Copie `.env.example` para `.env`. Não comite `.env` nem valores reais.
 
-| Variável           | Uso                                                             |
-| ------------------ | --------------------------------------------------------------- |
-| `DATABASE_URL`     | URL PostgreSQL usada pelo Prisma                                |
-| `POSTGRES_PORT`    | porta local publicada pelo Docker Compose, padrão `5433`        |
-| `AUTH_SECRET`      | segredo de assinatura das sessões; use pelo menos 32 caracteres |
-| `APP_URL`          | URL pública/local da aplicação                                  |
-| `DEFAULT_TIMEZONE` | timezone IANA padrão, inicialmente `America/Sao_Paulo`          |
+| Variável                       | Uso                                                                   |
+| ------------------------------ | --------------------------------------------------------------------- |
+| `DATABASE_URL`                 | URL PostgreSQL usada pelo Prisma                                      |
+| `POSTGRES_PORT`                | porta local publicada pelo Docker Compose, padrão `5433`              |
+| `AUTH_SECRET`                  | segredo de assinatura das sessões; use pelo menos 32 caracteres       |
+| `REGISTRATION_BOOTSTRAP_TOKEN` | código secreto aceito somente para a primeira conta de um banco vazio |
+| `APP_URL`                      | URL pública/local da aplicação                                        |
+| `DEFAULT_TIMEZONE`             | timezone IANA padrão, inicialmente `America/Sao_Paulo`                |
 
 ## Arquitetura
 
@@ -187,15 +197,17 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 
 ## Funcionalidades da Fase 1
 
-- cadastro, login, sessão protegida e logout;
+- cadastro somente por convite, login, sessão protegida e logout;
+- bootstrap protegido por código secreto exclusivamente para a primeira conta da instalação;
 - rate limiting persistente nos endpoints sensíveis e validação de origem em mutações;
 - edição de nome, avatar, timezone, senha e nome específico por comunidade;
 - criação e listagem de múltiplas comunidades por usuário;
 - papéis `OWNER`, `ADMIN` e `MEMBER` com autorização server-side;
 - proteção contra auto-remoção, alteração do próprio papel e comunidade sem owner;
 - listagem e remoção de membros sem expor e-mails desnecessariamente;
-- convites imprevisíveis, persistidos somente como hash, com expiração, revogação e limite de usos;
-- retorno ao convite ou a qualquer página privada compartilhada após cadastro/login e entrada transacional na comunidade.
+- convites sem vínculo obrigatório com e-mail, imprevisíveis, persistidos somente como hash, com expiração, revogação e limite de usos;
+- criação da conta, membership e consumo do convite na mesma transação;
+- qualquer usuário cadastrado pode criar comunidades; somente owners e administradores podem gerar ou revogar convites.
 
 ## Funcionalidades das Fases 2 e 3 — disponibilidade do grupo
 

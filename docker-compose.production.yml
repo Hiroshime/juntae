@@ -25,6 +25,7 @@ services:
     environment:
       DATABASE_URL: postgresql://juntae:${POSTGRES_PASSWORD}@postgres:5432/juntae?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET}
+      REGISTRATION_BOOTSTRAP_TOKEN: ${REGISTRATION_BOOTSTRAP_TOKEN:?Defina REGISTRATION_BOOTSTRAP_TOKEN}
       APP_URL: ${APP_URL:?Defina APP_URL}
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-America/Sao_Paulo}
     depends_on:

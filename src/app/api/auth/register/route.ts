@@ -1,10 +1,10 @@
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { createSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
 import { registerSchema } from "@/lib/validation/auth";
 import { assertSameOrigin, routeErrorResponse } from "@/lib/http/route";
 import { clientIdentifier, enforceRateLimit } from "@/lib/http/rate-limit";
+import { registerUser } from "@/server/services/auth-service";
 
 export async function POST(request: Request) {
   try {
@@ -17,17 +17,17 @@ export async function POST(request: Request) {
         { status: 400 },
       );
 
-    const { email, name, password } = parsed.data;
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (exists)
-      return NextResponse.json({ error: "Este e-mail já está cadastrado." }, { status: 409 });
-
-    const user = await prisma.user.create({
-      data: { email, name, passwordHash: await hash(password, 12) },
+    const { password, ...registration } = parsed.data;
+    const result = await registerUser({
+      ...registration,
+      passwordHash: await hash(password, 12),
     });
-    await createSession(user.id, user.sessionVersion);
+    await createSession(result.user.id, result.user.sessionVersion);
     return NextResponse.json(
-      { user: { id: user.id, name: user.name, email: user.email } },
+      {
+        user: { id: result.user.id, name: result.user.name, email: result.user.email },
+        community: result.community,
+      },
       { status: 201 },
     );
   } catch (error) {

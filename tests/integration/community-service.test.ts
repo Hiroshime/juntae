@@ -15,6 +15,7 @@ import {
   updateOwnCommunityProfile,
 } from "@/server/services/community-service";
 import { changePassword, getProfile, updateProfile } from "@/server/services/profile-service";
+import { registerUser } from "@/server/services/auth-service";
 
 describe.sequential("phase one services", () => {
   const suffix = randomUUID();
@@ -89,6 +90,88 @@ describe.sequential("phase one services", () => {
     expect(await listCommunityMembers(ownerId, communityId)).toHaveLength(2);
   });
 
+  it("cria conta somente com convite e já adiciona o novo usuário à comunidade", async () => {
+    const email = `invited-${suffix}@test.local`;
+    const { token, invite } = await createInvite(ownerId, communityId, {
+      expiresAt: new Date(Date.now() + 60_000),
+      maxUses: 1,
+    });
+
+    const registration = await registerUser({
+      email,
+      name: "Convidado Teste",
+      passwordHash: await hash("senha-convidado-123", 4),
+      inviteToken: token,
+    });
+
+    expect(registration.community?.id).toBe(communityId);
+    await expect(
+      prisma.communityMember.findUnique({
+        where: {
+          communityId_userId: { communityId, userId: registration.user.id },
+        },
+      }),
+    ).resolves.toMatchObject({ role: "MEMBER" });
+    await expect(prisma.invite.findUnique({ where: { id: invite.id } })).resolves.toMatchObject({
+      useCount: 1,
+    });
+
+    await expect(
+      registerUser({
+        email: `without-invite-${suffix}@test.local`,
+        name: "Sem Convite",
+        passwordHash: "hash-de-teste",
+      }),
+    ).rejects.toMatchObject({ code: "INVITE_REQUIRED", status: 403 });
+
+    await prisma.user.delete({ where: { id: registration.user.id } });
+  });
+
+  it("não permite que cadastros concorrentes excedam o limite do convite", async () => {
+    const { token, invite } = await createInvite(ownerId, communityId, {
+      expiresAt: new Date(Date.now() + 60_000),
+      maxUses: 1,
+    });
+    const registrations = await Promise.allSettled(
+      ["a", "b"].map((prefix) =>
+        registerUser({
+          email: `concurrent-${prefix}-${suffix}@test.local`,
+          name: `Concorrente ${prefix}`,
+          passwordHash: "hash-de-teste",
+          inviteToken: token,
+        }),
+      ),
+    );
+
+    expect(registrations.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(registrations.filter((result) => result.status === "rejected")).toHaveLength(1);
+    await expect(prisma.invite.findUnique({ where: { id: invite.id } })).resolves.toMatchObject({
+      useCount: 1,
+    });
+    expect(
+      await prisma.user.count({
+        where: { email: { startsWith: "concurrent-", endsWith: `-${suffix}@test.local` } },
+      }),
+    ).toBe(1);
+    await prisma.user.deleteMany({
+      where: { email: { startsWith: "concurrent-", endsWith: `-${suffix}@test.local` } },
+    });
+  });
+
+  it("permite que qualquer usuário cadastrado crie outra comunidade", async () => {
+    const community = await createCommunity(memberId, {
+      name: `Comunidade do membro ${suffix}`,
+      description: null,
+      avatarUrl: null,
+    });
+    await expect(
+      prisma.communityMember.findUnique({
+        where: { communityId_userId: { communityId: community.id, userId: memberId } },
+      }),
+    ).resolves.toMatchObject({ role: "OWNER" });
+    await prisma.community.delete({ where: { id: community.id } });
+  });
+
   it("impede membro comum de editar a comunidade", async () => {
     await expect(
       updateCommunity(memberId, communityId, {
@@ -96,6 +179,9 @@ describe.sequential("phase one services", () => {
         description: null,
         avatarUrl: null,
       }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      createInvite(memberId, communityId, { expiresAt: null, maxUses: 1 }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
