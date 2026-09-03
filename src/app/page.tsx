@@ -1,15 +1,15 @@
 import Link from "next/link";
+import { Brand } from "@/components/brand";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export default function HomePage() {
   return (
     <main className="shell">
       <div className="container">
         <header className="topbar">
-          <Link className="brand" href="/">
-            <span className="brand-mark">G</span>
-            <span>Galera</span>
-          </Link>
+          <Brand />
           <nav className="nav" aria-label="Navegação principal">
+            <ThemeSwitcher />
             <Link href="/login">Entrar</Link>
             <Link className="button" href="/register">
               Criar conta
@@ -20,10 +20,10 @@ export default function HomePage() {
         <section className="hero">
           <div>
             <div className="eyebrow">Organização sem caos no grupo</div>
-            <h1>Quando a galera está livre?</h1>
+            <h1>Quando todo mundo pode?</h1>
             <p className="lead">
-              O Galera conecta disponibilidade, eventos e votações para vocês combinarem o próximo
-              encontro em poucos toques.
+              O Juntaê conecta disponibilidade, eventos e votações para o seu grupo combinar o
+              próximo encontro em poucos toques.
             </p>
             <div className="actions">
               <Link className="button" href="/register">

@@ -1279,6 +1279,10 @@ A interface deve ser:
 - acessível;
 - responsiva.
 
+A identidade visual deve oferecer os temas Juntaê, Clássico, Solar e Oceano. A escolha do usuário
+deve ser persistida localmente e aplicada antes da renderização para evitar troca perceptível de
+paleta durante o carregamento.
+
 ## 22.2 Componentes importantes
 
 - cards;
@@ -1306,7 +1310,7 @@ Exemplo para eventos:
 
 ```text
 Nenhum evento marcado ainda.
-Crie o primeiro encontro da galera.
+Crie o primeiro encontro do grupo.
 ```
 
 Exemplo para disponibilidade:
@@ -1492,7 +1496,7 @@ Não bloquear o MVP por PWA.
 Criar comunidade:
 
 ```text
-Galera
+Juntaê
 ```
 
 Criar pelo menos 8 usuários de demonstração.
@@ -2661,7 +2665,7 @@ Uma boa implementação deve tornar natural o seguinte fluxo:
 
 > “Queremos fazer alguma coisa juntos.”
 >
-> → plataforma mostra quando a maior parte da galera está livre  
+> → plataforma mostra quando a maior parte do grupo está livre
 > → alguém cria uma votação ou evento  
 > → todos respondem em poucos segundos  
 > → o grupo se organiza sem precisar procurar centenas de mensagens no WhatsApp.

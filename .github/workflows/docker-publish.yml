@@ -56,8 +56,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ vars.DOCKERHUB_USERNAME }}/galera:${{ steps.version.outputs.value }}
-            ${{ vars.DOCKERHUB_USERNAME }}/galera:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/juntae:${{ steps.version.outputs.value }}
+            ${{ vars.DOCKERHUB_USERNAME }}/juntae:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: true

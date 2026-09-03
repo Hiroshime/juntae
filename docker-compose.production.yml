@@ -1,17 +1,17 @@
-name: galera
+name: juntae
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: galera
-      POSTGRES_USER: galera
+      POSTGRES_DB: juntae
+      POSTGRES_USER: juntae
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
     volumes:
-      - ${GALERA_DATA_PATH:-/DATA/AppData/galera}/postgres:/var/lib/postgresql/data
+      - ${JUNTAE_DATA_PATH:-/DATA/AppData/juntae}/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U galera -d galera"]
+      test: ["CMD-SHELL", "pg_isready -U juntae -d juntae"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -19,11 +19,11 @@ services:
       - internal
 
   app:
-    image: ${GALERA_IMAGE:?Defina GALERA_IMAGE}
+    image: ${JUNTAE_IMAGE:?Defina JUNTAE_IMAGE}
     restart: unless-stopped
     init: true
     environment:
-      DATABASE_URL: postgresql://galera:${POSTGRES_PASSWORD}@postgres:5432/galera?schema=public
+      DATABASE_URL: postgresql://juntae:${POSTGRES_PASSWORD}@postgres:5432/juntae?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET}
       APP_URL: ${APP_URL:?Defina APP_URL}
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-America/Sao_Paulo}
@@ -31,7 +31,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - ${GALERA_PORT:-3080}:3000
+      - ${JUNTAE_PORT:-3080}:3000
     healthcheck:
       test:
         [

@@ -3,7 +3,8 @@ import { getEnv } from "@/lib/env";
 import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 
-const SESSION_COOKIE = "galera_session";
+const SESSION_COOKIE = "juntae_session";
+const LEGACY_SESSION_COOKIE = "galera_session";
 
 function secretKey() {
   return new TextEncoder().encode(getEnv().AUTH_SECRET);
@@ -25,21 +26,27 @@ export async function createSession(userId: string, knownSessionVersion?: number
     .sign(secretKey());
 
   const secure = getEnv().APP_URL.startsWith("https://");
-  (await cookies()).set(SESSION_COOKIE, token, {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure,
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
+  cookieStore.delete(LEGACY_SESSION_COOKIE);
 }
 
 export async function clearSession() {
-  (await cookies()).delete(SESSION_COOKIE);
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE);
+  cookieStore.delete(LEGACY_SESSION_COOKIE);
 }
 
 export async function getSessionUser() {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token =
+    cookieStore.get(SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_SESSION_COOKIE)?.value;
   if (!token) return null;
 
   try {

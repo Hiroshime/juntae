@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export function AppHeader({
   user,
@@ -85,10 +86,13 @@ export function AppHeader({
     <>
       <header className="topbar app-topbar">
         <Link className="brand" href={community ? `/app/${community.slug}` : "/app"}>
-          <span className="brand-mark">G</span>
-          <span>{community?.name ?? "Galera"}</span>
+          <span className="brand-mark" aria-hidden="true">
+            Jê
+          </span>
+          <span>{community?.name ?? "Juntaê"}</span>
         </Link>
         <nav className="nav app-nav" aria-label="Navegação da conta">
+          <ThemeSwitcher />
           {community && role !== "MEMBER" && (
             <Link
               aria-current={isCurrent(`/app/${community.slug}/settings`) ? "page" : undefined}

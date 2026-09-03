@@ -11,14 +11,14 @@ import { generateRandomResult } from "../src/server/domain/randomizer";
 const prisma = new PrismaClient();
 
 const demoUsers = [
-  ["ana@galera.local", "Ana"],
-  ["bruno@galera.local", "Bruno"],
-  ["carla@galera.local", "Carla"],
-  ["daniel@galera.local", "Daniel"],
-  ["eduarda@galera.local", "Eduarda"],
-  ["felipe@galera.local", "Felipe"],
-  ["gabriela@galera.local", "Gabriela"],
-  ["henrique@galera.local", "Henrique"],
+  ["ana", "Ana"],
+  ["bruno", "Bruno"],
+  ["carla", "Carla"],
+  ["daniel", "Daniel"],
+  ["eduarda", "Eduarda"],
+  ["felipe", "Felipe"],
+  ["gabriela", "Gabriela"],
+  ["henrique", "Henrique"],
 ] as const;
 
 async function main() {
@@ -30,27 +30,44 @@ async function main() {
   const passwordHash = await bcrypt.hash("demo1234", 12);
   const users = [];
 
-  for (const [email, name] of demoUsers) {
+  for (const [username, name] of demoUsers) {
+    const email = `${username}@juntae.local`;
+    const legacyEmail = `${username}@galera.local`;
+    const existing =
+      (await prisma.user.findUnique({ where: { email } })) ??
+      (await prisma.user.findUnique({ where: { email: legacyEmail } }));
     users.push(
-      await prisma.user.upsert({
-        where: { email },
-        update: { name, passwordHash },
-        create: { email, name, passwordHash },
-      }),
+      existing
+        ? await prisma.user.update({
+            where: { id: existing.id },
+            data: { email, name, passwordHash },
+          })
+        : await prisma.user.create({ data: { email, name, passwordHash } }),
     );
   }
 
   const owner = users[0];
-  const community = await prisma.community.upsert({
-    where: { slug: "galera" },
-    update: { name: "Galera", createdById: owner.id },
-    create: {
-      name: "Galera",
-      slug: "galera",
-      description: "A comunidade de demonstração.",
-      createdById: owner.id,
-    },
-  });
+  const existingCommunity =
+    (await prisma.community.findUnique({ where: { slug: "juntae" } })) ??
+    (await prisma.community.findUnique({ where: { slug: "galera" } }));
+  const community = existingCommunity
+    ? await prisma.community.update({
+        where: { id: existingCommunity.id },
+        data: {
+          name: "Juntaê",
+          slug: "juntae",
+          description: "A comunidade de demonstração do Juntaê.",
+          createdById: owner.id,
+        },
+      })
+    : await prisma.community.create({
+        data: {
+          name: "Juntaê",
+          slug: "juntae",
+          description: "A comunidade de demonstração do Juntaê.",
+          createdById: owner.id,
+        },
+      });
 
   for (const [index, user] of users.entries()) {
     await prisma.communityMember.upsert({
@@ -217,7 +234,7 @@ async function main() {
     },
     {
       title: "Qual data funciona melhor?",
-      description: "Vote nas datas possíveis e compare a disponibilidade da galera.",
+      description: "Vote nas datas possíveis e compare a disponibilidade do grupo.",
       type: "DATE_OPTIONS" as const,
       options: [date(17), date(18), date(24)],
     },

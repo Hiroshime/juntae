@@ -2,6 +2,8 @@ import Link from "next/link";
 import { JoinActions } from "@/features/communities/join-actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { getInvitePreview } from "@/server/services/community-service";
+import { Brand } from "@/components/brand";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +16,10 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     return (
       <main className="auth-wrap">
         <section className="auth-card card join-card">
-          <Link className="brand" href="/">
-            <span className="brand-mark">G</span>
-            <span>Galera</span>
-          </Link>
+          <div className="auth-brand-row">
+            <Brand />
+            <ThemeSwitcher />
+          </div>
           <div className="community-icon large">
             {preview.community.name.charAt(0).toUpperCase()}
           </div>
@@ -58,10 +60,10 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     return (
       <main className="auth-wrap">
         <section className="auth-card card">
-          <Link className="brand" href="/">
-            <span className="brand-mark">G</span>
-            <span>Galera</span>
-          </Link>
+          <div className="auth-brand-row">
+            <Brand />
+            <ThemeSwitcher />
+          </div>
           <h1>Convite indisponível</h1>
           <p className="muted">
             Este link é inválido, expirou, foi revogado ou atingiu o limite de usos.

@@ -53,6 +53,6 @@ export function formatRandomizerResultText(
     result.selected.forEach((entry) => lines.push(`⭐ ${entry.label}`));
     lines.push("");
   }
-  lines.push("Gerado pela plataforma Galera.");
+  lines.push("Gerado pelo Juntaê.");
   return lines.join("\n").trim();
 }

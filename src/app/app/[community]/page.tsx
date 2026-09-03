@@ -51,7 +51,7 @@ export default async function CommunityPage({
               <h1>{membership.community.name}</h1>
               <p className="lead">
                 {membership.community.description ??
-                  "Os próximos encontros, decisões e melhores dias da galera."}
+                  "Os próximos encontros, decisões e melhores dias da comunidade."}
               </p>
             </div>
             <div className="actions compact-actions dashboard-primary-actions">
@@ -131,7 +131,7 @@ export default async function CommunityPage({
             <section className="card dashboard-list-card" aria-labelledby="upcoming-events-title">
               <div className="card-header">
                 <div>
-                  <div className="eyebrow">Agenda da galera</div>
+                  <div className="eyebrow">Agenda da comunidade</div>
                   <h2 id="upcoming-events-title">Próximos eventos</h2>
                 </div>
                 <Link className="small" href={`/app/${slug}/events`}>

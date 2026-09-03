@@ -47,7 +47,7 @@ export default async function PollsPage({
           <div className="page-heading">
             <div>
               <div className="eyebrow">Votações</div>
-              <h1>Decidir com a galera</h1>
+              <h1>Decidir em conjunto</h1>
               <p className="lead">
                 Escolha opções, atividades ou as melhores datas em poucos toques.
               </p>

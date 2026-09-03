@@ -137,7 +137,7 @@ export default async function CommunityCalendarPage({
           <div className="page-heading">
             <div>
               <div className="eyebrow">Calendário da comunidade</div>
-              <h1>Quando a galera está livre?</h1>
+              <h1>Quando todo mundo pode?</h1>
               <p className="lead">
                 Compare escalas e ocorrências manuais sem tratar ausência de informação como
                 disponibilidade.

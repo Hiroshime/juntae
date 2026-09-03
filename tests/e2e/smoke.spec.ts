@@ -25,12 +25,30 @@ test("landing page is accessible", async ({ page }) => {
   expect(response?.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
   expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
   expect(response?.headers()["x-frame-options"]).toBe("DENY");
-  await expect(page.getByRole("heading", { name: "Quando a galera está livre?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Quando todo mundo pode?" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Criar conta" }).first()).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
+});
+
+test("tema visual pode ser escolhido e persiste", async ({ page }) => {
+  await page.goto("/");
+  const picker = page.locator(".theme-picker");
+  await picker.locator("summary").click();
+  await picker.getByRole("button", { name: "Clássico" }).click();
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "classic");
+  expect(
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue("--primary").trim(),
+    ),
+  ).toBe("#4d35ba");
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "classic");
+  await expect(picker.locator("summary")).toHaveAttribute("title", "Tema: Clássico");
 });
 
 test("cadastro, comunidade e convite funcionam ponta a ponta", async ({ browser, page }) => {
@@ -143,7 +161,7 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   await expect(overrideRow.getByText("Férias", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Calendário" }).click();
-  await expect(page.getByRole("heading", { name: "Quando a galera está livre?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Quando todo mundo pode?" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Mês", exact: true })).toHaveAttribute(
     "aria-current",
     "page",
@@ -327,7 +345,7 @@ test("sorteio de times e histórico funcionam ponta a ponta", async ({ page }) =
   await page.getByRole("button", { name: "Criar comunidade", exact: true }).last().click();
 
   await page.getByRole("link", { name: "Sorteios", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Sorteia aí, Galera" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sorteia aí, Juntaê" })).toBeVisible();
   await page.getByLabel("Fonte").selectOption("MANUAL");
   await page.getByLabel("Um nome por linha").fill("Ana\nBruno\nCarla\nDaniel");
   await page.getByLabel("Quantidade de times").fill("2");

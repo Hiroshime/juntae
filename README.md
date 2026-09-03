@@ -1,6 +1,6 @@
-# Galera
+# Juntaê
 
-Galera é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** O primeiro módulo pós-MVP adiciona sorteios e distribuições recreativas reutilizáveis pela comunidade.
+Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** O primeiro módulo pós-MVP adiciona sorteios e distribuições recreativas reutilizáveis pela comunidade.
 
 O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e compartilhar links privados com retorno automático ao destino depois do login.
 
@@ -31,7 +31,7 @@ npm run dev:local
 
 Abra [http://localhost:3000](http://localhost:3000).
 
-O seed cria a comunidade `Galera`, oito usuários, escalas de demonstração, overrides, eventos, votações e um sorteio salvo com datas calculadas em relação ao dia da execução. Para entrar com um usuário de demonstração, use qualquer e-mail `@galera.local` criado no seed (por exemplo, `ana@galera.local`) e a senha `demo1234`.
+O seed cria a comunidade `Juntaê`, oito usuários, escalas de demonstração, overrides, eventos, votações e um sorteio salvo com datas calculadas em relação ao dia da execução. Para entrar com um usuário de demonstração, use qualquer e-mail `@juntae.local` criado no seed (por exemplo, `ana@juntae.local`) e a senha `demo1234`. Ao ser executado sobre uma instalação anterior, o seed migra os registros de demonstração `@galera.local` e o slug `galera` sem trocar seus IDs.
 
 Para encerrar o banco local:
 
@@ -39,7 +39,7 @@ Para encerrar o banco local:
 docker compose down
 ```
 
-Os dados persistem no volume Docker `galera-postgres-data`. Para removê-los conscientemente e recriar o banco:
+Os dados persistem no volume Docker legado `galera-postgres-data`, cujo nome foi mantido para não abandonar bancos locais criados antes do rebranding. Para removê-los conscientemente e recriar o banco:
 
 ```bash
 docker compose down -v
@@ -58,7 +58,7 @@ Autentique-se e crie um builder multi-arquitetura uma única vez:
 
 ```bash
 docker login
-docker buildx create --name galera-builder --use
+docker buildx create --name juntae-builder --use
 docker buildx inspect --bootstrap
 ```
 
@@ -67,8 +67,8 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/galera:0.1.0 \
-  --tag docker.io/SEU_USUARIO/galera:latest \
+  --tag docker.io/SEU_USUARIO/juntae:0.1.0 \
+  --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
 
@@ -82,7 +82,7 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
 Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.1.0` e execute. O workflow
-publicará `SEU_USUARIO/galera:0.1.0` e `SEU_USUARIO/galera:latest`. Fazer push de uma tag Git como
+publicará `SEU_USUARIO/juntae:0.1.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
 `v0.1.1` também publica automaticamente as tags `0.1.1` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
@@ -95,11 +95,11 @@ openssl rand -base64 48
 
 Edite `.env.zima`:
 
-- `GALERA_IMAGE`: imagem e versão publicadas no Docker Hub;
+- `JUNTAE_IMAGE`: imagem e versão publicadas no Docker Hub;
 - `POSTGRES_PASSWORD`: primeiro valor gerado, em hexadecimal para ser seguro dentro da URL;
 - `AUTH_SECRET`: segundo valor gerado;
 - `APP_URL`: URL exata usada no navegador, como `http://192.168.1.50:3080` ou um domínio HTTPS;
-- `GALERA_DATA_PATH`: diretório persistente do ZimaOS, por padrão `/DATA/AppData/galera`.
+- `JUNTAE_DATA_PATH`: diretório persistente do ZimaOS, por padrão `/DATA/AppData/juntae`.
 
 O PostgreSQL não publica nenhuma porta no host. A aplicação acessa o banco internamente pelo nome
 `postgres`, nunca por `localhost`.
@@ -113,23 +113,23 @@ compartilhado:
 docker compose \
   --env-file .env.zima \
   --file docker-compose.production.yml \
-  config > galera-zima.yml
+  config > juntae-zima.yml
 ```
 
 No ZimaOS, abra **App Center → Install a Customized App → Import → Docker Compose**, cole o conteúdo
-de `galera-zima.yml`, revise a porta `3080` e instale. Quando os containers `postgres` e `app`
+de `juntae-zima.yml`, revise a porta `3080` e instale. Quando os containers `postgres` e `app`
 estiverem saudáveis, acesse a URL definida em `APP_URL`.
 
-Depois da importação, remova `galera-zima.yml` da máquina local porque seus segredos ficaram
+Depois da importação, remova `juntae-zima.yml` da máquina local porque seus segredos ficaram
 materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup protegido.
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.1.1`, altere `GALERA_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.1.1`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
-O diretório `${GALERA_DATA_PATH}/postgres` mantém o banco entre recriações dos containers. Além do
+O diretório `${JUNTAE_DATA_PATH}/postgres` mantém o banco entre recriações dos containers. Além do
 backup desse diretório pelo ZimaOS, mantenha dumps periódicos do PostgreSQL; copiar os arquivos do
 banco enquanto ele está escrevendo não substitui um dump consistente.
 
@@ -256,7 +256,8 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 
 ## Funcionalidades da Fase 7 — refinamento de interface
 
-- identidade visual com superfícies em tons de violeta, maior contraste, hierarquia mais clara e estados interativos consistentes;
+- identidade visual própria do Juntaê em verde-petróleo, coral e superfícies claras de alto contraste, com hierarquia e estados interativos consistentes;
+- seletor acessível entre os temas Juntaê, Clássico, Solar e Oceano, com preferência persistida no navegador e aplicada antes da renderização;
 - calendário consolidado com visualização mensal ou em lista, navegação entre meses e seleção detalhada de cada dia;
 - níveis de disponibilidade identificados por cor, números, textos e legenda, sem depender exclusivamente da cor;
 - criação de evento ou votação diretamente do dia selecionado no calendário;

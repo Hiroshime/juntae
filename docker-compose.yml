@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: galera-postgres
+    container_name: juntae-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: galera

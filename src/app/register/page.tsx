@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Brand } from "@/components/brand";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -43,10 +45,10 @@ export default function RegisterPage() {
   return (
     <main className="auth-wrap">
       <section className="auth-card card">
-        <Link className="brand" href="/">
-          <span className="brand-mark">G</span>
-          <span>Galera</span>
-        </Link>
+        <div className="auth-brand-row">
+          <Brand />
+          <ThemeSwitcher />
+        </div>
         <h1>Crie sua conta</h1>
         <p className="muted">Comece a organizar os próximos encontros.</p>
         <form className="form" onSubmit={submit}>

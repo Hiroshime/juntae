@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Brand } from "@/components/brand";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function LoginPage() {
   return (
     <AuthLayout
       title="Bem-vindo de volta"
-      subtitle="Entre para continuar organizando a sua galera."
+      subtitle="Entre para continuar organizando os encontros do seu grupo."
     >
       <form className="form" onSubmit={submit}>
         {error && (
@@ -91,10 +93,10 @@ function AuthLayout({
   return (
     <main className="auth-wrap">
       <section className="auth-card card">
-        <Link className="brand" href="/">
-          <span className="brand-mark">G</span>
-          <span>Galera</span>
-        </Link>
+        <div className="auth-brand-row">
+          <Brand />
+          <ThemeSwitcher />
+        </div>
         <h1>{title}</h1>
         <p className="muted">{subtitle}</p>
         {children}

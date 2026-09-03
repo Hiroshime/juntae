@@ -19,7 +19,7 @@ describe("event services", () => {
   let communityId = "";
 
   const baseInput = {
-    title: "Cinema da galera",
+    title: "Cinema do grupo",
     description: "Sessão noturna",
     startsAt: "2030-09-10T22:00:00.000Z",
     endsAt: "2030-09-11T01:00:00.000Z",

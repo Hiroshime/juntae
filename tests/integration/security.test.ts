@@ -13,8 +13,8 @@ describe.sequential("security controls", () => {
   });
 
   it("rejeita mutação enviada por outra origem", () => {
-    const request = new Request("https://galera.local/api/users/me", {
-      headers: { host: "galera.local", origin: "https://malicioso.local" },
+    const request = new Request("https://juntae.local/api/users/me", {
+      headers: { host: "juntae.local", origin: "https://malicioso.local" },
     });
     expect(() => assertSameOrigin(request)).toThrowError(
       expect.objectContaining({ code: "INVALID_ORIGIN", status: 403 }),

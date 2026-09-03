@@ -43,7 +43,7 @@ export default async function RandomizersPage({
           <div className="page-heading randomizer-heading">
             <div>
               <div className="eyebrow">Geradores</div>
-              <h1>Sorteia aí, Galera</h1>
+              <h1>Sorteia aí, Juntaê</h1>
               <p className="lead">
                 Monte times, distribua caronas e tarefas ou escolha qualquer coisa com regras claras
                 e poucos toques.

@@ -21,7 +21,9 @@ export default async function AppHomePage() {
             <div>
               <div className="eyebrow">Suas comunidades</div>
               <h1>Olá, {user.name.split(" ")[0]} 👋</h1>
-              <p className="lead">Escolha uma comunidade ou crie um novo espaço para a galera.</p>
+              <p className="lead">
+                Escolha uma comunidade ou crie um novo espaço para o seu grupo.
+              </p>
             </div>
             <CreateCommunityForm />
           </div>
@@ -39,7 +41,7 @@ export default async function AppHomePage() {
                 </div>
                 <h2>{community.name}</h2>
                 <p className="muted">
-                  {community.description ?? "Organize a agenda da sua galera."}
+                  {community.description ?? "Organize a agenda da sua comunidade."}
                 </p>
                 <div className="community-meta">
                   <span>{community._count.members} membros</span>

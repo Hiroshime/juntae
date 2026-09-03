@@ -47,7 +47,7 @@ export default async function EventsPage({
           <div className="page-heading">
             <div>
               <div className="eyebrow">Eventos</div>
-              <h1>Planos da galera</h1>
+              <h1>Planos do grupo</h1>
               <p className="lead">Crie encontros e acompanhe quem vai, talvez vá ou não vai.</p>
             </div>
             <Link className="button" href={`/app/${slug}/events/new`}>

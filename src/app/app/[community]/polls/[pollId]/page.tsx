@@ -55,7 +55,7 @@ export default async function PollPage({
             )}
             <ShareActions
               path={`/app/${slug}/polls/${poll.id}`}
-              text={`🗳️ ${poll.title}\n${poll.totalVoters} ${poll.totalVoters === 1 ? "pessoa já votou" : "pessoas já votaram"}${poll.closesAt ? `\nPrazo: ${formatPollDeadline(poll.closesAt, user.timezone)}` : ""}\n\nVote com a galera:`}
+              text={`🗳️ ${poll.title}\n${poll.totalVoters} ${poll.totalVoters === 1 ? "pessoa já votou" : "pessoas já votaram"}${poll.closesAt ? `\nPrazo: ${formatPollDeadline(poll.closesAt, user.timezone)}` : ""}\n\nVote com o grupo:`}
               title={poll.title}
             />
           </div>

@@ -45,7 +45,7 @@ export default async function NewPollPage({
           <div className="page-heading">
             <div>
               <div className="eyebrow">Nova votação</div>
-              <h1>O que a galera prefere?</h1>
+              <h1>O que o grupo prefere?</h1>
               <p className="lead">Todo membro pode criar uma votação para a comunidade.</p>
             </div>
           </div>
