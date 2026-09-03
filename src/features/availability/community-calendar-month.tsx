@@ -1,0 +1,228 @@
+"use client";
+
+import type { AvailabilityStatus } from "@prisma/client";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { Avatar } from "@/components/avatar";
+import {
+  availabilityStatusLabels,
+  availabilityStatusSymbols,
+  statusClass,
+} from "@/features/availability/status";
+import { civilDateRange, parseCivilDate } from "@/lib/dates/civil-date";
+
+export type CommunityCalendarDay = {
+  date: string;
+  members: Array<{
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+    status: AvailabilityStatus;
+  }>;
+  summary: {
+    fullAvailableCount: number;
+    partialAvailableCount: number;
+    workingCount: number;
+    unavailableCount: number;
+    unknownCount: number;
+    totalMembers: number;
+    score: number;
+  };
+};
+
+const statusOrder: AvailabilityStatus[] = [
+  "AVAILABLE",
+  "DAY_OFF",
+  "VACATION",
+  "PARTIALLY_AVAILABLE",
+  "WORKING",
+  "UNAVAILABLE",
+  "UNKNOWN",
+];
+
+const longDate = new Intl.DateTimeFormat("pt-BR", {
+  weekday: "long",
+  day: "2-digit",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function formatLongDate(date: string) {
+  const formatted = longDate.format(parseCivilDate(date));
+  return formatted.charAt(0).toLocaleUpperCase("pt-BR") + formatted.slice(1);
+}
+
+function availabilityLevel(day: CommunityCalendarDay) {
+  if (!day.summary.totalMembers || day.summary.unknownCount === day.summary.totalMembers) {
+    return "unknown";
+  }
+  const ratio =
+    (day.summary.fullAvailableCount + day.summary.partialAvailableCount * 0.5) /
+    day.summary.totalMembers;
+  if (ratio >= 0.7) return "high";
+  if (ratio >= 0.4) return "medium";
+  return "low";
+}
+
+function dayAriaLabel(day: CommunityCalendarDay) {
+  const date = formatLongDate(day.date);
+  return `${date}: ${day.summary.fullAvailableCount} completamente disponíveis, ${day.summary.partialAvailableCount} parcialmente disponíveis, ${day.summary.unknownCount} sem informação`;
+}
+
+export function CommunityCalendarMonth({
+  days,
+  monthStart,
+  monthEnd,
+  today,
+  communitySlug,
+}: {
+  days: CommunityCalendarDay[];
+  monthStart: string;
+  monthEnd: string;
+  today: string;
+  communitySlug: string;
+}) {
+  const dayMap = useMemo(() => new Map(days.map((day) => [day.date, day])), [days]);
+  const initialDate = dayMap.has(today) ? today : days[0]?.date;
+  const [selectedDate, setSelectedDate] = useState<string | undefined>(initialDate);
+  const selectedDay = selectedDate ? dayMap.get(selectedDate) : undefined;
+  const monthDates = civilDateRange(monthStart, monthEnd);
+  const leadingDays = (parseCivilDate(monthStart).getUTCDay() + 6) % 7;
+
+  return (
+    <section className="calendar-month-section" aria-labelledby="month-calendar-title">
+      <h2 className="sr-only" id="month-calendar-title">
+        Calendário mensal de disponibilidade
+      </h2>
+      <div className="calendar-month-weekdays" aria-hidden="true">
+        {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
+          <span key={weekday}>{weekday}</span>
+        ))}
+      </div>
+      <ol className="calendar-month-grid" aria-label="Dias do mês">
+        {Array.from({ length: leadingDays }, (_, index) => (
+          <li aria-hidden="true" className="calendar-month-blank" key={`blank-${index}`} />
+        ))}
+        {monthDates.map((date) => {
+          const day = dayMap.get(date);
+          if (!day) {
+            return (
+              <li
+                aria-label={`${formatLongDate(date)}: fora dos filtros`}
+                className="calendar-month-filtered"
+                key={date}
+              >
+                <span aria-hidden="true">
+                  <strong>{Number(date.slice(-2))}</strong>
+                  <small>—</small>
+                </span>
+              </li>
+            );
+          }
+          const selected = selectedDate === date;
+          return (
+            <li key={date}>
+              <button
+                aria-label={dayAriaLabel(day)}
+                aria-pressed={selected}
+                className={`calendar-month-day level-${availabilityLevel(day)}${date === today ? " is-today" : ""}`}
+                onClick={() => setSelectedDate(date)}
+                type="button"
+              >
+                <span className="calendar-month-number">{Number(date.slice(-2))}</span>
+                <strong>
+                  {day.summary.fullAvailableCount}/{day.summary.totalMembers}
+                </strong>
+                <small>livres</small>
+                {day.summary.partialAvailableCount > 0 && (
+                  <span className="calendar-month-partial">
+                    +{day.summary.partialAvailableCount} parcial
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="calendar-month-legend" aria-label="Legenda do calendário">
+        <span>
+          <i className="legend-high" />
+          Alta disponibilidade
+        </span>
+        <span>
+          <i className="legend-medium" />
+          Disponibilidade média
+        </span>
+        <span>
+          <i className="legend-low" />
+          Baixa disponibilidade
+        </span>
+        <span>
+          <i className="legend-unknown" />
+          Sem informação
+        </span>
+      </div>
+
+      {selectedDay ? (
+        <section className="calendar-selected-day" aria-live="polite">
+          <div className="calendar-selected-heading">
+            <div>
+              <div className="eyebrow">Detalhes do dia</div>
+              <h2>{formatLongDate(selectedDay.date)}</h2>
+              <p className="muted small">
+                Score {selectedDay.summary.score} · {selectedDay.summary.totalMembers}{" "}
+                {selectedDay.summary.totalMembers === 1 ? "membro" : "membros"} no cálculo
+              </p>
+            </div>
+            <div className="actions compact-actions">
+              <Link
+                className="button secondary"
+                href={`/app/${communitySlug}/events/new?date=${selectedDay.date}`}
+              >
+                Criar evento
+              </Link>
+              <Link
+                className="button ghost"
+                href={`/app/${communitySlug}/polls/new?date=${selectedDay.date}`}
+              >
+                Criar votação
+              </Link>
+            </div>
+          </div>
+          <div className="calendar-selected-groups">
+            {statusOrder.map((status) => {
+              const members = selectedDay.members.filter((member) => member.status === status);
+              if (!members.length) return null;
+              return (
+                <section className="day-status-group" key={status}>
+                  <h3>
+                    <span className={`availability-badge ${statusClass(status)}`}>
+                      <span aria-hidden="true">{availabilityStatusSymbols[status]}</span>{" "}
+                      {availabilityStatusLabels[status]}
+                    </span>
+                    <span>{members.length}</span>
+                  </h3>
+                  <div className="day-members">
+                    {members.map((member) => (
+                      <div className="day-member" key={member.id}>
+                        <Avatar name={member.name} url={member.avatarUrl} size="small" />
+                        <span>{member.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </section>
+      ) : (
+        <div className="empty-state compact calendar-filter-empty" role="status">
+          <strong>Nenhum dia deste mês atende aos filtros.</strong>
+          <span className="muted small">Ajuste o mínimo de pessoas ou remova filtros.</span>
+        </div>
+      )}
+    </section>
+  );
+}

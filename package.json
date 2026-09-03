@@ -1,0 +1,55 @@
+{
+  "name": "galera-community-platform",
+  "version": "0.1.0",
+  "private": true,
+  "overrides": {
+    "deepmerge-ts": "^8.0.0",
+    "postcss": "^8.5.26"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "dev:local": "docker compose up -d --wait && npm run db:migrate && next dev",
+    "setup:local": "docker compose up -d --wait && npm run db:generate && npm run db:migrate && npm run db:seed",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check package.json tsconfig.json next-env.d.ts next.config.ts eslint.config.mjs .prettierrc.json vitest.config.ts playwright.config.ts docker-compose.yml docker-compose.production.yml README.md src prisma tests .github",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.4.2",
+    "jose": "^6.0.11",
+    "next": "^15.5.6",
+    "prisma": "^6.19.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^15.5.6",
+    "prettier": "^3.6.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

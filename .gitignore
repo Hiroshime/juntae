@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.next-*/
+out/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.local
+.env.*.local
+.env.zima
+.env.production
+*.log
+*.tsbuildinfo
+prisma/dev.db

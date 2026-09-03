@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CommunityRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum ScheduleRuleType {
+  WEEKLY
+  CYCLE
+}
+
+enum ScheduleRuleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  PARTIALLY_AVAILABLE
+  WORKING
+  DAY_OFF
+  VACATION
+  UNAVAILABLE
+  UNKNOWN
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum RsvpStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
+enum PollType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  DATE_OPTIONS
+}
+
+enum PollStatus {
+  OPEN
+  CLOSED
+}
+
+enum RandomizerPresetType {
+  TEAMS
+  GROUPS
+  CARS
+  ASSIGN_ITEMS
+  PICK_PEOPLE
+  PICK_ITEM
+  RANDOM_ORDER
+  PAIRS
+}
+
+model User {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  email               String                 @unique @db.VarChar(320)
+  passwordHash        String                 @db.VarChar(255)
+  name                String                 @db.VarChar(80)
+  avatarUrl           String?                @db.Text
+  timezone            String                 @default("America/Sao_Paulo") @db.VarChar(64)
+  sessionVersion      Int                    @default(0)
+  createdAt           DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime               @updatedAt @db.Timestamptz(6)
+  communitiesCreated  Community[]            @relation("CommunityCreator")
+  memberships         CommunityMember[]
+  invitesCreated      Invite[]               @relation("InviteCreator")
+  scheduleRules       ScheduleRule[]
+  availabilityEntries AvailabilityOverride[]
+  eventsCreated       Event[]                @relation("EventCreator")
+  eventRsvps          EventRsvp[]
+  pollsCreated        Poll[]                 @relation("PollCreator")
+  pollVotes           PollVote[]
+  randomizerRuns      RandomizerRun[]
+}
+
+model RateLimitBucket {
+  key       String   @id @db.VarChar(64)
+  count     Int      @default(0)
+  resetsAt  DateTime @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([resetsAt])
+}
+
+model Community {
+  id             String                 @id @default(uuid()) @db.Uuid
+  name           String                 @db.VarChar(120)
+  slug           String                 @unique @db.VarChar(80)
+  description    String?                @db.Text
+  avatarUrl      String?                @db.Text
+  createdById    String                 @db.Uuid
+  createdAt      DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @db.Timestamptz(6)
+  createdBy      User                   @relation("CommunityCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members        CommunityMember[]
+  invites        Invite[]
+  schedules      ScheduleRule[]
+  availability   AvailabilityOverride[]
+  events         Event[]
+  polls          Poll[]
+  randomizerRuns RandomizerRun[]
+
+  @@index([createdById])
+}
+
+model CommunityMember {
+  communityId String        @db.Uuid
+  userId      String        @db.Uuid
+  displayName String?       @db.VarChar(80)
+  role        CommunityRole @default(MEMBER)
+  joinedAt    DateTime      @default(now()) @db.Timestamptz(6)
+  community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([communityId, userId])
+  @@index([userId])
+}
+
+model Invite {
+  id          String       @id @default(uuid()) @db.Uuid
+  communityId String       @db.Uuid
+  tokenHash   String       @unique @db.VarChar(128)
+  createdById String       @db.Uuid
+  expiresAt   DateTime?    @db.Timestamptz(6)
+  maxUses     Int?
+  useCount    Int          @default(0)
+  revokedAt   DateTime?    @db.Timestamptz(6)
+  status      InviteStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  community   Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy   User         @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([communityId])
+}
+
+model ScheduleRule {
+  id            String             @id @default(uuid()) @db.Uuid
+  communityId   String             @db.Uuid
+  userId        String             @db.Uuid
+  name          String             @db.VarChar(120)
+  ruleType      ScheduleRuleType
+  anchorDate    DateTime?          @db.Date
+  workDays      Int?
+  restDays      Int?
+  weeklyPattern Json?
+  startDate     DateTime           @db.Date
+  endDate       DateTime?          @db.Date
+  status        ScheduleRuleStatus @default(ACTIVE)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(6)
+  community     Community          @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, startDate])
+  @@index([userId, startDate])
+  @@index([communityId, userId, status, startDate])
+}
+
+model AvailabilityOverride {
+  id          String             @id @default(uuid()) @db.Uuid
+  communityId String             @db.Uuid
+  userId      String             @db.Uuid
+  startAt     DateTime           @db.Timestamptz(6)
+  endAt       DateTime           @db.Timestamptz(6)
+  allDay      Boolean            @default(false)
+  status      AvailabilityStatus
+  note        String?            @db.Text
+  createdAt   DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(6)
+  community   Community          @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, startAt])
+  @@index([userId, startAt])
+  @@index([communityId, userId, startAt, endAt])
+}
+
+model Event {
+  id               String      @id @default(uuid()) @db.Uuid
+  communityId      String      @db.Uuid
+  createdById      String      @db.Uuid
+  title            String      @db.VarChar(160)
+  description      String?     @db.Text
+  startsAt         DateTime    @db.Timestamptz(6)
+  endsAt           DateTime?   @db.Timestamptz(6)
+  allDay           Boolean     @default(false)
+  timezone         String      @default("America/Sao_Paulo") @db.VarChar(64)
+  locationName     String?     @db.VarChar(160)
+  locationAddress  String?     @db.Text
+  locationUrl      String?     @db.Text
+  estimatedCost    Decimal?    @db.Decimal(10, 2)
+  currency         String      @default("BRL") @db.Char(3)
+  participantLimit Int?
+  status           EventStatus @default(PUBLISHED)
+  createdAt        DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime    @updatedAt @db.Timestamptz(6)
+  community        Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy        User        @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  rsvps            EventRsvp[]
+
+  @@index([communityId, startsAt])
+  @@index([communityId, status, startsAt])
+}
+
+model EventRsvp {
+  eventId   String     @db.Uuid
+  userId    String     @db.Uuid
+  status    RsvpStatus
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId])
+}
+
+model Poll {
+  id              String       @id @default(uuid()) @db.Uuid
+  communityId     String       @db.Uuid
+  createdById     String       @db.Uuid
+  title           String       @db.VarChar(160)
+  description     String?      @db.Text
+  type            PollType
+  allowVoteChange Boolean      @default(true)
+  closesAt        DateTime?    @db.Timestamptz(6)
+  status          PollStatus   @default(OPEN)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(6)
+  community       Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy       User         @relation("PollCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  options         PollOption[]
+  votes           PollVote[]
+
+  @@index([communityId, status])
+  @@index([communityId, status, closesAt])
+}
+
+model PollOption {
+  id        String     @id @default(uuid()) @db.Uuid
+  pollId    String     @db.Uuid
+  label     String     @db.VarChar(160)
+  sortOrder Int        @default(0)
+  dateValue DateTime?  @db.Date
+  metadata  Json?
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes     PollVote[]
+
+  @@index([pollId, sortOrder])
+}
+
+model PollVote {
+  id        String     @id @default(uuid()) @db.Uuid
+  pollId    String     @db.Uuid
+  optionId  String     @db.Uuid
+  userId    String     @db.Uuid
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([pollId, userId])
+  @@index([pollId, optionId])
+}
+
+model RandomizerRun {
+  id            String               @id @default(uuid()) @db.Uuid
+  communityId   String               @db.Uuid
+  createdById   String               @db.Uuid
+  presetType    RandomizerPresetType
+  title         String?              @db.VarChar(160)
+  configuration Json
+  inputSnapshot Json
+  result        Json
+  createdAt     DateTime             @default(now()) @db.Timestamptz(6)
+  community     Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy     User                 @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([communityId, createdAt])
+  @@index([createdById])
+}

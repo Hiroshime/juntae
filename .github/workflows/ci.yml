@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: galera_test
+          POSTGRES_USER: galera
+          POSTGRES_PASSWORD: galera
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U galera -d galera_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://galera:galera@localhost:5432/galera_test?schema=public
+      AUTH_SECRET: ci-secret-that-is-long-enough-for-tests-123456
+      APP_URL: http://localhost:3000
+      DEFAULT_TIMEZONE: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

@@ -1,0 +1,55 @@
+name: galera
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: galera
+      POSTGRES_USER: galera
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+    volumes:
+      - ${GALERA_DATA_PATH:-/DATA/AppData/galera}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U galera -d galera"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - internal
+
+  app:
+    image: ${GALERA_IMAGE:?Defina GALERA_IMAGE}
+    restart: unless-stopped
+    init: true
+    environment:
+      DATABASE_URL: postgresql://galera:${POSTGRES_PASSWORD}@postgres:5432/galera?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET}
+      APP_URL: ${APP_URL:?Defina APP_URL}
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-America/Sao_Paulo}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - ${GALERA_PORT:-3080}:3000
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+      - default
+
+networks:
+  internal:
+    internal: true
