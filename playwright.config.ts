@@ -2,7 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: true,
+  // These end-to-end flows share one application server and database.
+  // Running them sequentially keeps stateful workflows deterministic.
+  fullyParallel: false,
   timeout: 60_000,
   reporter: "list",
   use: {
