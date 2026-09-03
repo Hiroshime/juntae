@@ -12,16 +12,16 @@ RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL=postgresql://juntae:build-only@localhost:5432/juntae?schema=public
-ENV AUTH_SECRET=build-only-secret-with-at-least-32-characters
-ENV APP_URL=http://localhost:3000
 ENV DEFAULT_TIMEZONE=America/Sao_Paulo
 
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 
 RUN npm run db:generate
-RUN npm run build
+RUN DATABASE_URL=postgresql://juntae:build-only@localhost:5432/juntae?schema=public \
+  AUTH_SECRET=build-only-secret-with-at-least-32-characters \
+  APP_URL=http://localhost:3000 \
+  npm run build
 
 FROM node:22-alpine AS runner
 

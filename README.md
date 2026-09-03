@@ -75,7 +75,8 @@ docker buildx build \
 Se o repositório no Docker Hub for privado, o Docker do ZimaOS também precisará estar autenticado.
 Para uma instalação doméstica simples, um repositório público evita essa etapa.
 
-Como alternativa, o workflow `Publicar imagem Docker` faz o build multi-arquitetura no GitHub. No
+Como alternativa, o workflow `Publicar imagem Docker` distribui o build entre runners `amd64` e
+`arm64` nativos do GitHub e publica uma única imagem multi-arquitetura no Docker Hub. No
 repositório GitHub, configure em **Settings → Secrets and variables → Actions**:
 
 - variável `DOCKERHUB_USERNAME` com seu usuário;
