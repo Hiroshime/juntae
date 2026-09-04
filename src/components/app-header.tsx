@@ -61,6 +61,12 @@ export function AppHeader({
           children: true,
         },
         {
+          href: `/app/${community.slug}/cost-shares`,
+          label: "Rateios",
+          icon: "÷",
+          children: true,
+        },
+        {
           href: `/app/${community.slug}/members`,
           label: "Membros",
           icon: "●",
@@ -93,6 +99,9 @@ export function AppHeader({
         </Link>
         <nav className="nav app-nav" aria-label="Navegação da conta">
           <ThemeSwitcher />
+          <Link className={`about-link${community ? " community-about-link" : ""}`} href="/sobre">
+            Sobre
+          </Link>
           {community && role !== "MEMBER" && (
             <Link
               aria-current={isCurrent(`/app/${community.slug}/settings`) ? "page" : undefined}
@@ -148,11 +157,13 @@ export function AppHeader({
                 <Link href={`/app/${community.slug}/agenda`}>Calendário da comunidade</Link>
                 <Link href={`/app/${community.slug}/agenda/schedules`}>Escalas</Link>
                 <Link href={`/app/${community.slug}/randomizers`}>Sorteios e geradores</Link>
+                <Link href={`/app/${community.slug}/cost-shares`}>Rateios e despesas</Link>
                 <Link href={`/app/${community.slug}/members`}>Membros</Link>
                 {role !== "MEMBER" && (
                   <Link href={`/app/${community.slug}/settings`}>Configurações</Link>
                 )}
                 <Link href="/settings/profile">Meu perfil</Link>
+                <Link href="/sobre">Sobre o Juntaê</Link>
                 <button disabled={loggingOut} onClick={logout} type="button">
                   {loggingOut ? "Saindo…" : "Sair"}
                 </button>

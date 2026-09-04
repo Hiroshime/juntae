@@ -1,8 +1,13 @@
 # Juntaê
 
-Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** O primeiro módulo pós-MVP adiciona sorteios e distribuições recreativas reutilizáveis pela comunidade.
+Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis e rateios de despesas com vários compradores.
 
 O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e compartilhar links privados. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
+
+A página pública `/sobre` apresenta autoria, versão instalada, repositórios oficiais e um histórico
+das mudanças escrito para usuários finais. Ao preparar uma versão, atualize `package.json` e adicione
+a nova entrada no início de `src/content/changelog.ts`; o teste unitário impede que os dois fiquem
+fora de sincronia.
 
 ## Requisitos
 
@@ -71,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.1.3 \
+  --tag docker.io/SEU_USUARIO/juntae:0.2.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -86,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.1.3` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.1.3` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.1.3` também publica automaticamente as tags `0.1.3` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.2.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.2.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.2.0` também publica automaticamente as tags `0.2.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -135,7 +140,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.1.3`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.2.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -191,7 +196,7 @@ O projeto usa um monólito modular full-stack:
 - `prisma/seed.ts`: dados de demonstração, mantidos fora das migrations;
 - `tests/unit`, `tests/integration`, `tests/e2e`: testes por camada.
 
-O núcleo modela usuários, comunidades, memberships, convites, escalas, overrides, eventos, RSVP, votações, opções, votos e snapshots de sorteios salvos. Timestamps são armazenados em UTC; datas civis de escala e opções de data usam `DATE` no PostgreSQL. O timezone inicial é explícito e configurável.
+O núcleo modela usuários, comunidades, memberships, convites, escalas, overrides, feriados, eventos, RSVP, votações, opções, votos, snapshots de sorteios e rateios de despesas. Timestamps são armazenados em UTC; datas civis de escala, feriados, compras e opções de data usam `DATE` no PostgreSQL. O timezone inicial é explícito e configurável.
 
 Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `secure` em HTTPS. Senhas são armazenadas somente como hash bcrypt; trocar a senha invalida as demais sessões. O rate limit dos endpoints sensíveis é atômico e persistido no PostgreSQL, funcionando entre múltiplas instâncias. A aplicação também envia CSP, HSTS, proteção contra framing e outros headers defensivos. A autorização não depende da interface: os helpers server-side verificam membership e papel antes de qualquer consulta ou mutação privada.
 
@@ -215,6 +220,9 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - ocorrências manuais de dia inteiro ou intervalo, incluindo disponibilidade, trabalho, folga, férias e indisponibilidade;
 - escalas semanais com padrão configurável para os sete dias;
 - ciclos genéricos N×M, incluindo 12×36, 4×2, 5×1 e 6×1;
+- feriados comunitários administráveis e identificados nas visões mensal e em lista, sem presumir que
+  toda pessoa em escala está de folga;
+- folgas extras pessoais por data ou intervalo, com observação e precedência sobre a escala recorrente;
 - prévia da escala antes da persistência, edição completa, ativação, pausa e remoção;
 - edição e remoção de ocorrências manuais de dia inteiro ou intervalos;
 - precedência determinística `override manual > escala recorrente > UNKNOWN`;
@@ -294,6 +302,19 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - salvamento opcional com snapshots imutáveis, página permanente, histórico e exclusão autorizada;
 - autorização por comunidade e validação server-side tanto na geração quanto no salvamento.
 
+## Rateios — módulo pós-MVP
+
+- rateios independentes ou vinculados opcionalmente a eventos;
+- participantes confirmados no evento pré-selecionados, com ajuste manual antes da criação;
+- múltiplas compras e múltiplos pagadores no mesmo rateio;
+- divisão igual em centavos, com reconciliação exata de restos e sem perda de valor;
+- saldo individual com total pago, cota devida e valor a pagar ou receber;
+- lista líquida e reduzida de transferências indicando quem paga quem;
+- participantes lançam as próprias compras; criador, owner e administrador podem lançar em nome de
+  qualquer participante;
+- fechamento e reabertura autorizados, com bloqueio de alterações enquanto fechado;
+- cálculo informativo, sem processar pagamentos ou armazenar dados bancários.
+
 Rotas principais desta fase:
 
 - `/app`: seleção e criação de comunidades;
@@ -313,8 +334,11 @@ Rotas principais desta fase:
 - `/app/[community]/polls/[pollId]/edit`: edição das configurações autorizadas;
 - `/app/[community]/randomizers`: geradores e histórico opcional de resultados;
 - `/app/[community]/randomizers/[runId]`: snapshot permanente de um resultado salvo;
+- `/app/[community]/cost-shares`: criação e histórico de rateios;
+- `/app/[community]/cost-shares/[costShareId]`: compras, saldos e acerto final do rateio;
 - `/settings/profile`: perfil pessoal e segurança;
 - `/join/[token]`: aceite de convite.
+- `/sobre`: informações do projeto e histórico de versões.
 
 Recuperação de senha por e-mail não foi adicionada porque o projeto ainda não possui provedor de e-mail configurado. A troca autenticada de senha já está disponível no perfil.
 
@@ -331,4 +355,4 @@ Recuperação de senha por e-mail não foi adicionada porque o projeto ainda nã
 
 ## Escopo posterior ao MVP
 
-O módulo prioritário de Geradores Aleatórios do backlog pós-MVP já está implementado. Recuperação de senha por e-mail, PWA/notificações, Games, Caronas, Custos, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios e Rateios do backlog pós-MVP já estão implementados. Recuperação de senha por e-mail, PWA/notificações, Games, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

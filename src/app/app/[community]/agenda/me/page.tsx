@@ -108,12 +108,17 @@ export default async function MyAgendaPage({
                 const status = day.members[0]?.status ?? "UNKNOWN";
                 return (
                   <article
-                    aria-label={`${day.date}: ${availabilityStatusLabels[status]}`}
+                    aria-label={`${day.date}: ${availabilityStatusLabels[status]}${
+                      day.holidays.length ? `, feriado: ${day.holidays.join(", ")}` : ""
+                    }`}
                     className={`calendar-day ${statusClass(status)} ${day.date === today ? "today" : ""}`}
                     key={day.date}
                   >
                     <strong>{Number(day.date.slice(8))}</strong>
                     <span>{availabilityStatusLabels[status]}</span>
+                    {day.holidays.length > 0 && (
+                      <small className="calendar-holiday-label">{day.holidays.join(" · ")}</small>
+                    )}
                   </article>
                 );
               })}

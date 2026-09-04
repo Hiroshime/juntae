@@ -1,10 +1,15 @@
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { ScheduleManager } from "@/features/availability/schedule-manager";
+import { ScheduleExceptions } from "@/features/availability/schedule-exceptions";
 import { civilDateInTimeZone, formatCivilDate } from "@/lib/dates/civil-date";
 import { requirePageUser } from "@/lib/auth/page-session";
-import { listScheduleRules } from "@/server/services/availability-service";
+import {
+  listAvailabilityOverrides,
+  listScheduleRules,
+} from "@/server/services/availability-service";
 import { getMembershipBySlug } from "@/server/services/community-service";
+import { listCommunityHolidays } from "@/server/services/holiday-service";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +22,11 @@ export default async function SchedulesPage({
   const user = await requirePageUser(`/app/${slug}/agenda/schedules`);
   const membership = await getMembershipBySlug(user.id, slug);
   if (!membership) notFound();
-  const schedules = await listScheduleRules(user.id, membership.communityId);
+  const [schedules, holidays, overrides] = await Promise.all([
+    listScheduleRules(user.id, membership.communityId),
+    listCommunityHolidays(user.id, membership.communityId),
+    listAvailabilityOverrides(user.id, membership.communityId),
+  ]);
 
   return (
     <main className="shell">
@@ -36,6 +45,10 @@ export default async function SchedulesPage({
           <ScheduleManager
             communityId={membership.communityId}
             initialDate={civilDateInTimeZone(new Date(), user.timezone)}
+            holidays={holidays.map((holiday) => ({
+              date: formatCivilDate(holiday.date),
+              name: holiday.name,
+            }))}
             schedules={schedules.map((rule) => ({
               id: rule.id,
               name: rule.name,
@@ -48,6 +61,25 @@ export default async function SchedulesPage({
               endDate: rule.endDate ? formatCivilDate(rule.endDate) : null,
               status: rule.status,
             }))}
+          />
+          <ScheduleExceptions
+            canManageHolidays={membership.role === "OWNER" || membership.role === "ADMIN"}
+            communityId={membership.communityId}
+            extraDays={overrides
+              .filter((override) => override.allDay && override.status === "DAY_OFF")
+              .map((override) => ({
+                id: override.id,
+                startAt: override.startAt.toISOString(),
+                endAt: override.endAt.toISOString(),
+                note: override.note,
+              }))}
+            holidays={holidays.map((holiday) => ({
+              id: holiday.id,
+              date: formatCivilDate(holiday.date),
+              name: holiday.name,
+            }))}
+            initialDate={civilDateInTimeZone(new Date(), user.timezone)}
+            timezone={user.timezone}
           />
         </section>
       </div>

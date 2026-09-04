@@ -62,6 +62,9 @@ export default async function EventPage({
               text={`📅 ${event.title}\n🗓️ ${formatEventDate(event)}${event.locationName ? `\n📍 ${event.locationName}` : ""}\n👥 ${event.rsvpSummary.GOING} confirmados\n\nConfirme sua presença:`}
               title={event.title}
             />
+            <Link className="button secondary" href={`/app/${slug}/cost-shares?event=${event.id}`}>
+              Criar rateio
+            </Link>
           </div>
           {event.status === "CANCELLED" && (
             <div className="error event-notice">
@@ -191,6 +194,32 @@ export default async function EventPage({
               </div>
             )}
           </section>
+          {event.costShares.length > 0 && (
+            <section className="participants-section">
+              <div className="card-header">
+                <div>
+                  <div className="eyebrow">Despesas</div>
+                  <h2>Rateios deste evento</h2>
+                </div>
+              </div>
+              <div className="cost-share-list">
+                {event.costShares.map((share) => (
+                  <Link
+                    className="card cost-share-card"
+                    href={`/app/${slug}/cost-shares/${share.id}`}
+                    key={share.id}
+                  >
+                    <h3>{share.title}</h3>
+                    <span
+                      className={`status-dot ${share.status === "OPEN" ? "active" : "inactive"}`}
+                    >
+                      {share.status === "OPEN" ? "Aberto" : "Fechado"}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </section>
       </div>
     </main>

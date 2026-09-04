@@ -297,7 +297,7 @@ export async function getCommunityCalendar(
   const roughOverrideStart = new Date(dateStart.getTime() - 2 * 86_400_000);
   const roughOverrideEnd = new Date(dateEnd.getTime() + 3 * 86_400_000);
 
-  const [allMembers, rules, overrides] = await Promise.all([
+  const [allMembers, rules, overrides, holidays] = await Promise.all([
     prisma.communityMember.findMany({
       where: {
         communityId,
@@ -325,7 +325,18 @@ export async function getCommunityCalendar(
       },
       orderBy: { updatedAt: "desc" },
     }),
+    prisma.communityHoliday.findMany({
+      where: { communityId, date: { gte: dateStart, lte: dateEnd } },
+      orderBy: [{ date: "asc" }, { name: "asc" }],
+      select: { date: true, name: true },
+    }),
   ]);
+
+  const holidaysByDate = new Map<string, string[]>();
+  for (const holiday of holidays) {
+    const date = formatCivilDate(holiday.date);
+    holidaysByDate.set(date, [...(holidaysByDate.get(date) ?? []), holiday.name]);
+  }
 
   const days = civilDateRange(query.startDate, query.endDate).map((date) => {
     const members = allMembers.map((member) => ({
@@ -336,6 +347,7 @@ export async function getCommunityCalendar(
     }));
     return {
       date,
+      holidays: holidaysByDate.get(date) ?? [],
       members,
       summary: summarizeAvailability(
         date,

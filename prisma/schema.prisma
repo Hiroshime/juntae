@@ -73,26 +73,36 @@ enum RandomizerPresetType {
   PAIRS
 }
 
+enum CostShareStatus {
+  OPEN
+  CLOSED
+}
+
 model User {
-  id                  String                 @id @default(uuid()) @db.Uuid
-  email               String                 @unique @db.VarChar(320)
-  passwordHash        String                 @db.VarChar(255)
-  name                String                 @db.VarChar(80)
-  avatarUrl           String?                @db.Text
-  timezone            String                 @default("America/Sao_Paulo") @db.VarChar(64)
-  sessionVersion      Int                    @default(0)
-  createdAt           DateTime               @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime               @updatedAt @db.Timestamptz(6)
-  communitiesCreated  Community[]            @relation("CommunityCreator")
-  memberships         CommunityMember[]
-  invitesCreated      Invite[]               @relation("InviteCreator")
-  scheduleRules       ScheduleRule[]
-  availabilityEntries AvailabilityOverride[]
-  eventsCreated       Event[]                @relation("EventCreator")
-  eventRsvps          EventRsvp[]
-  pollsCreated        Poll[]                 @relation("PollCreator")
-  pollVotes           PollVote[]
-  randomizerRuns      RandomizerRun[]
+  id                       String                 @id @default(uuid()) @db.Uuid
+  email                    String                 @unique @db.VarChar(320)
+  passwordHash             String                 @db.VarChar(255)
+  name                     String                 @db.VarChar(80)
+  avatarUrl                String?                @db.Text
+  timezone                 String                 @default("America/Sao_Paulo") @db.VarChar(64)
+  sessionVersion           Int                    @default(0)
+  createdAt                DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime               @updatedAt @db.Timestamptz(6)
+  communitiesCreated       Community[]            @relation("CommunityCreator")
+  memberships              CommunityMember[]
+  invitesCreated           Invite[]               @relation("InviteCreator")
+  scheduleRules            ScheduleRule[]
+  availabilityEntries      AvailabilityOverride[]
+  eventsCreated            Event[]                @relation("EventCreator")
+  eventRsvps               EventRsvp[]
+  pollsCreated             Poll[]                 @relation("PollCreator")
+  pollVotes                PollVote[]
+  randomizerRuns           RandomizerRun[]
+  holidaysCreated          CommunityHoliday[]     @relation("HolidayCreator")
+  costSharesCreated        CostShare[]            @relation("CostShareCreator")
+  costShareMemberships     CostShareParticipant[]
+  costShareExpensesPaid    CostShareExpense[]     @relation("CostShareExpensePayer")
+  costShareExpensesCreated CostShareExpense[]     @relation("CostShareExpenseCreator")
 }
 
 model RateLimitBucket {
@@ -121,6 +131,8 @@ model Community {
   events         Event[]
   polls          Poll[]
   randomizerRuns RandomizerRun[]
+  holidays       CommunityHoliday[]
+  costShares     CostShare[]
 
   @@index([createdById])
 }
@@ -219,6 +231,7 @@ model Event {
   community        Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
   createdBy        User        @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
   rsvps            EventRsvp[]
+  costShares       CostShare[]
 
   @@index([communityId, startsAt])
   @@index([communityId, status, startsAt])
@@ -235,6 +248,72 @@ model EventRsvp {
 
   @@id([eventId, userId])
   @@index([userId])
+}
+
+model CommunityHoliday {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @db.Uuid
+  createdById String    @db.Uuid
+  name        String    @db.VarChar(120)
+  date        DateTime  @db.Date
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("HolidayCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([communityId, date, name])
+  @@index([communityId, date])
+}
+
+model CostShare {
+  id           String                 @id @default(uuid()) @db.Uuid
+  communityId  String                 @db.Uuid
+  eventId      String?                @db.Uuid
+  createdById  String                 @db.Uuid
+  title        String                 @db.VarChar(160)
+  description  String?                @db.Text
+  currency     String                 @default("BRL") @db.Char(3)
+  status       CostShareStatus        @default(OPEN)
+  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime               @updatedAt @db.Timestamptz(6)
+  community    Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  event        Event?                 @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy    User                   @relation("CostShareCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  participants CostShareParticipant[]
+  expenses     CostShareExpense[]
+
+  @@index([communityId, createdAt])
+  @@index([eventId])
+  @@index([createdById])
+}
+
+model CostShareParticipant {
+  costShareId String    @db.Uuid
+  userId      String    @db.Uuid
+  joinedAt    DateTime  @default(now()) @db.Timestamptz(6)
+  costShare   CostShare @relation(fields: [costShareId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([costShareId, userId])
+  @@index([userId])
+}
+
+model CostShareExpense {
+  id          String    @id @default(uuid()) @db.Uuid
+  costShareId String    @db.Uuid
+  payerId     String    @db.Uuid
+  createdById String    @db.Uuid
+  description String    @db.VarChar(200)
+  amount      Decimal   @db.Decimal(10, 2)
+  purchasedAt DateTime  @db.Date
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+  costShare   CostShare @relation(fields: [costShareId], references: [id], onDelete: Cascade)
+  payer       User      @relation("CostShareExpensePayer", fields: [payerId], references: [id], onDelete: Restrict)
+  createdBy   User      @relation("CostShareExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([costShareId, purchasedAt])
+  @@index([payerId])
+  @@index([createdById])
 }
 
 model Poll {

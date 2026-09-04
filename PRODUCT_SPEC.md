@@ -524,6 +524,16 @@ Não esconder o cálculo do usuário.
 - membros específicos, opcional;
 - atividade/interesse, preparado para fase futura.
 
+## 9.8 Feriados e folgas extras
+
+- `OWNER` e `ADMIN` podem cadastrar e remover feriados da comunidade;
+- feriado é informação de calendário e não muda automaticamente a disponibilidade dos membros,
+  porque escalas como 12×36 podem manter trabalho em feriados;
+- o nome do feriado deve aparecer nas visões mensal e em lista;
+- qualquer membro pode cadastrar uma folga extra própria como override `DAY_OFF` de dia inteiro;
+- folga extra pode cobrir uma data ou intervalo e pode ter observação;
+- folga extra prevalece sobre a escala recorrente conforme a prioridade de overrides.
+
 ---
 
 # 10. Eventos
@@ -797,6 +807,17 @@ erDiagram
 
     COMMUNITY ||--o{ INVITE : has
     USER ||--o{ INVITE : creates
+
+    COMMUNITY ||--o{ COMMUNITY_HOLIDAY : marks
+    USER ||--o{ COMMUNITY_HOLIDAY : creates
+
+    COMMUNITY ||--o{ COST_SHARE : has
+    EVENT o|--o{ COST_SHARE : contextualizes
+    USER ||--o{ COST_SHARE : creates
+    COST_SHARE ||--|{ COST_SHARE_PARTICIPANT : includes
+    USER ||--o{ COST_SHARE_PARTICIPANT : participates
+    COST_SHARE ||--o{ COST_SHARE_EXPENSE : contains
+    USER ||--o{ COST_SHARE_EXPENSE : pays
 ```
 
 ---
@@ -948,6 +969,56 @@ UNIQUE (option_id, user_id)
 ```
 
 Garantir regras adicionais para `SINGLE_CHOICE` na camada de domínio/transação.
+
+## 15.12 community_holidays
+
+```text
+id UUID PK
+community_id UUID FK
+created_by_id UUID FK
+name VARCHAR
+date DATE
+created_at TIMESTAMPTZ
+UNIQUE (community_id, date, name)
+```
+
+## 15.13 cost_shares
+
+```text
+id UUID PK
+community_id UUID FK
+event_id UUID FK nullable
+created_by_id UUID FK
+title VARCHAR
+description TEXT nullable
+currency CHAR(3)
+status ENUM OPEN|CLOSED
+created_at TIMESTAMPTZ
+updated_at TIMESTAMPTZ
+```
+
+## 15.14 cost_share_participants
+
+```text
+cost_share_id UUID FK
+user_id UUID FK
+joined_at TIMESTAMPTZ
+PRIMARY KEY (cost_share_id, user_id)
+```
+
+## 15.15 cost_share_expenses
+
+```text
+id UUID PK
+cost_share_id UUID FK
+payer_id UUID FK
+created_by_id UUID FK
+description VARCHAR
+amount DECIMAL(10,2) positivo
+purchased_at DATE
+created_at TIMESTAMPTZ
+updated_at TIMESTAMPTZ
+```
 
 ---
 
@@ -1340,6 +1411,9 @@ Adicione suas folgas ou sua escala de trabalho.
 - Cadastro por convite; acesso direto informa que a instância é privada
 - Recuperação de senha, se aplicável
 - Aceitar convite
+- Sobre (`/sobre`), contendo autor, versão atual, links oficiais para GitHub e Docker Hub e um
+  changelog em linguagem simples. A versão deve vir do `package.json`, e um teste deve exigir que a
+  entrada mais recente do changelog corresponda a ela.
 
 ## 23.2 Autenticadas
 
@@ -1727,7 +1801,8 @@ Membros solicitam vaga.
 
 ## 30.3 Custos
 
-Evento pode registrar despesas.
+O módulo de rateios é comunitário e pode ser vinculado opcionalmente a um evento. Um rateio sem
+evento também é válido para despesas recorrentes ou encontros informais.
 
 Exemplo:
 
@@ -1740,6 +1815,33 @@ alimentação
 ```
 
 Sistema calcula rateio.
+
+### 30.3.1 Regras do primeiro módulo
+
+- qualquer membro pode criar um rateio;
+- o criador seleciona pelo menos dois participantes da comunidade;
+- ao selecionar um evento, a interface pré-seleciona os participantes com RSVP `GOING`, mas guarda
+  uma lista própria que pode ser ajustada;
+- cada despesa possui descrição, valor, data e uma pessoa pagadora;
+- participantes podem adicionar as próprias compras;
+- criador do rateio, `OWNER` e `ADMIN` podem lançar compra em nome de qualquer participante;
+- somente o pagador, criador do rateio ou administrador pode remover uma despesa;
+- participantes que já possuem despesas não podem ser removidos enquanto essas despesas existirem;
+- rateio `CLOSED` preserva o resultado e bloqueia alterações; o criador ou administrador pode reabrir;
+- todos os itens são divididos igualmente entre os participantes do rateio nesta primeira versão;
+- valores indivisíveis em centavos distribuem o resto deterministicamente, sem perder ou criar valor;
+- o resultado mostra total comprado, cota individual, quanto cada pessoa pagou, saldo e uma lista
+  reduzida de transferências “quem paga quem”;
+- não processar dinheiro nem armazenar dados bancários; o sistema apenas calcula e apresenta o acerto.
+
+### 30.3.2 Permissões
+
+```text
+MEMBER participante -> visualizar e adicionar compra própria
+criador do rateio -> editar participantes, lançar compras e abrir/fechar
+OWNER/ADMIN -> administrar qualquer rateio da comunidade
+membro não participante -> visualizar o rateio da própria comunidade, sem lançar compra
+```
 
 ## 30.4 Interesses
 

@@ -13,6 +13,7 @@ import { civilDateRange, parseCivilDate } from "@/lib/dates/civil-date";
 
 export type CommunityCalendarDay = {
   date: string;
+  holidays: string[];
   members: Array<{
     id: string;
     name: string;
@@ -67,7 +68,8 @@ function availabilityLevel(day: CommunityCalendarDay) {
 
 function dayAriaLabel(day: CommunityCalendarDay) {
   const date = formatLongDate(day.date);
-  return `${date}: ${day.summary.fullAvailableCount} completamente disponíveis, ${day.summary.partialAvailableCount} parcialmente disponíveis, ${day.summary.unknownCount} sem informação`;
+  const holidays = day.holidays.length ? `, feriado: ${day.holidays.join(", ")}` : "";
+  return `${date}: ${day.summary.fullAvailableCount} completamente disponíveis, ${day.summary.partialAvailableCount} parcialmente disponíveis, ${day.summary.unknownCount} sem informação${holidays}`;
 }
 
 export function CommunityCalendarMonth({
@@ -140,6 +142,11 @@ export function CommunityCalendarMonth({
                     +{day.summary.partialAvailableCount} parcial
                   </span>
                 )}
+                {day.holidays.length > 0 && (
+                  <span className="calendar-month-holiday" title={day.holidays.join(", ")}>
+                    Feriado
+                  </span>
+                )}
               </button>
             </li>
           );
@@ -171,6 +178,9 @@ export function CommunityCalendarMonth({
             <div>
               <div className="eyebrow">Detalhes do dia</div>
               <h2>{formatLongDate(selectedDay.date)}</h2>
+              {selectedDay.holidays.length > 0 && (
+                <p className="calendar-holiday-label">🎉 {selectedDay.holidays.join(" · ")}</p>
+              )}
               <p className="muted small">
                 Score {selectedDay.summary.score} · {selectedDay.summary.totalMembers}{" "}
                 {selectedDay.summary.totalMembers === 1 ? "membro" : "membros"} no cálculo

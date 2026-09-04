@@ -336,6 +336,11 @@ export default async function CommunityCalendarPage({
                           }).format(parseCivilDate(day.date))}
                         </strong>
                         <span className="muted small">Score {day.summary.score}</span>
+                        {day.holidays.length > 0 && (
+                          <span className="calendar-holiday-label">
+                            🎉 {day.holidays.join(" · ")}
+                          </span>
+                        )}
                         <span className="muted small">
                           {day.summary.totalMembers}{" "}
                           {day.summary.totalMembers === 1 ? "membro" : "membros"} no cálculo

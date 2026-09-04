@@ -154,6 +154,10 @@ export async function getEvent(userId: string, communityId: string, eventId: str
             },
           },
         },
+        costShares: {
+          orderBy: { updatedAt: "desc" },
+          select: { id: true, title: true, status: true },
+        },
       },
     }),
     "Evento não encontrado.",
@@ -196,6 +200,7 @@ export async function getEvent(userId: string, communityId: string, eventId: str
       avatarUrl: rsvp.user.avatarUrl,
       updatedAt: rsvp.updatedAt,
     })),
+    costShares: event.costShares,
   };
 }
 

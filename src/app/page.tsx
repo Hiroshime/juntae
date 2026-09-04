@@ -10,6 +10,7 @@ export default function HomePage() {
           <Brand />
           <nav className="nav" aria-label="Navegação principal">
             <ThemeSwitcher />
+            <Link href="/sobre">Sobre</Link>
             <Link className="button" href="/login">
               Entrar
             </Link>
@@ -52,8 +53,11 @@ export default function HomePage() {
           </div>
         </section>
 
-        <footer className="footer">
-          Um hub privado para organizar os momentos que importam. Novas contas entram por convite.
+        <footer className="footer home-footer">
+          <span>
+            Um hub privado para organizar os momentos que importam. Novas contas entram por convite.
+          </span>
+          <Link href="/sobre">Sobre o Juntaê</Link>
         </footer>
       </div>
     </main>

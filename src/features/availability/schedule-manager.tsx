@@ -77,10 +77,12 @@ export function ScheduleManager({
   communityId,
   initialDate,
   schedules,
+  holidays,
 }: {
   communityId: string;
   initialDate: string;
   schedules: Rule[];
+  holidays: Array<{ date: string; name: string }>;
 }) {
   const router = useRouter();
   const [ruleType, setRuleType] = useState<"WEEKLY" | "CYCLE">("CYCLE");
@@ -335,6 +337,14 @@ export function ScheduleManager({
               >
                 <span>{day.date.slice(5)}</span>
                 <strong>{availabilityStatusLabels[day.status]}</strong>
+                {holidays.some((holiday) => holiday.date === day.date) && (
+                  <small>
+                    {holidays
+                      .filter((holiday) => holiday.date === day.date)
+                      .map((holiday) => holiday.name)
+                      .join(" · ")}
+                  </small>
+                )}
               </div>
             ))}
           </div>

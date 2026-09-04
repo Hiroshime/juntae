@@ -3,6 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { appInfo } from "@/lib/app-info";
 
 const browserErrors = new WeakMap<Page, string[]>();
 const database = new PrismaClient();
@@ -57,6 +58,12 @@ async function openInvitedRegistration(page: Page) {
   await expect(page.getByText("Cadastro por convite")).toBeVisible();
 }
 
+function addDays(date: string, days: number) {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.context().setExtraHTTPHeaders({
     "x-forwarded-for": `e2e-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -83,8 +90,25 @@ test("landing page is accessible", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Entrar no Juntaê" })).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
-  const accessibility = await new AxeBuilder({ page }).analyze();
-  expect(accessibility.violations).toEqual([]);
+  const landingAccessibility = await new AxeBuilder({ page }).analyze();
+  expect(landingAccessibility.violations).toEqual([]);
+
+  await page.getByRole("link", { name: "Sobre", exact: true }).click();
+  await expect(page).toHaveURL(/\/sobre$/);
+  await expect(page.getByRole("heading", { name: "Informações do projeto" })).toBeVisible();
+  await expect(page.getByText("Luiz Antonio Batista Rossato", { exact: true })).toBeVisible();
+  await expect(page.getByLabel(`Versão atual ${appInfo.version}`)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Histórico de versões" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /github.com\/Hiroshime\/juntae/ })).toHaveAttribute(
+    "href",
+    "https://github.com/Hiroshime/juntae",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  const aboutAccessibility = await new AxeBuilder({ page }).analyze();
+  expect(aboutAccessibility.violations).toEqual([]);
 });
 
 test("cadastro direto informa que o acesso é somente por convite", async ({ page }) => {
@@ -194,14 +218,18 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   await page.getByRole("button", { name: "Criar comunidade", exact: true }).last().click();
 
   await page.getByRole("link", { name: "Escalas" }).click();
-  const initialDate = await page.getByLabel("Data inicial").inputValue();
-  await page.getByLabel("Nome da escala").fill("Plantão 12x36 E2E");
-  await page.getByLabel("Dias trabalhando").fill("1");
-  await page.getByLabel("Dias de folga").fill("1");
-  await page.getByRole("button", { name: "Visualizar prévia" }).click();
+  const scheduleCreateForm = page
+    .locator("form")
+    .filter({ has: page.getByLabel("Nome da escala") })
+    .first();
+  const initialDate = await scheduleCreateForm.getByLabel("Data inicial").inputValue();
+  await scheduleCreateForm.getByLabel("Nome da escala").fill("Plantão 12x36 E2E");
+  await scheduleCreateForm.getByLabel("Dias trabalhando").fill("1");
+  await scheduleCreateForm.getByLabel("Dias de folga").fill("1");
+  await scheduleCreateForm.getByRole("button", { name: "Visualizar prévia" }).click();
   await expect(page.getByLabel("Prévia da escala")).toContainText("Trabalhando");
   await expect(page.getByLabel("Prévia da escala")).toContainText("Folga");
-  await page.getByRole("button", { name: "Criar escala" }).click();
+  await scheduleCreateForm.getByRole("button", { name: "Criar escala" }).click();
   await expect(page.getByText("Escala recorrente criada.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Plantão 12x36 E2E", level: 3 })).toBeVisible();
   await page.getByRole("button", { name: "Editar" }).click();
@@ -213,20 +241,41 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
     page.getByRole("heading", { name: "Plantão 12x36 atualizado", level: 3 }),
   ).toBeVisible();
 
+  const extraDate = addDays(initialDate, 2);
+  const extraDayCard = page
+    .locator("section.card")
+    .filter({ has: page.getByRole("heading", { name: "Minha folga extra" }) });
+  await extraDayCard.getByLabel("Data inicial").fill(extraDate);
+  await extraDayCard.getByLabel("Data final").fill(extraDate);
+  await extraDayCard.getByLabel("Motivo ou observação").fill("Folga prêmio E2E");
+  await extraDayCard.getByRole("button", { name: "Adicionar folga extra" }).click();
+  await expect(page.getByText("Folga extra adicionada à sua agenda.")).toBeVisible();
+
+  const holidayCard = page
+    .locator("section.card")
+    .filter({ has: page.getByRole("heading", { name: "Feriados da comunidade" }) });
+  await holidayCard.getByLabel("Nome").fill("Feriado E2E");
+  await holidayCard.getByLabel("Data").fill(initialDate);
+  await holidayCard.getByRole("button", { name: "Adicionar feriado" }).click();
+  await expect(page.getByText("Feriado adicionado ao calendário.")).toBeVisible();
+
   await page.getByRole("link", { name: "Minha agenda" }).click();
-  await expect(page.getByLabel(`${initialDate}: Trabalhando`)).toBeVisible();
+  await expect(page.getByLabel(new RegExp(`^${initialDate}: Trabalhando`))).toBeVisible();
+  await expect(page.getByLabel(`${extraDate}: Folga`)).toBeVisible();
+  await expect(page.getByText("Feriado E2E")).toBeVisible();
   await page.getByLabel("Data inicial").fill(initialDate);
   await page.getByLabel("Data final").fill(initialDate);
   await page.getByLabel("Observação opcional").fill("Troca de plantão E2E");
   await page.getByRole("button", { name: "Adicionar à agenda" }).click();
-  await expect(page.getByLabel(`${initialDate}: Folga`)).toBeVisible();
-  const overrideRow = page.locator(".override-row").first();
+  await expect(page.getByLabel(new RegExp(`^${initialDate}: Folga`))).toBeVisible();
+  const overrideRow = page.locator(".override-row").filter({ hasText: "Troca de plantão E2E" });
   await overrideRow.getByRole("button", { name: "Editar" }).click();
   await overrideRow.getByLabel("Status").selectOption("VACATION");
   await overrideRow.getByLabel("Observação").fill("Férias E2E");
   await overrideRow.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(page.getByText("Ocorrência atualizada.")).toBeVisible();
-  await expect(overrideRow.getByText("Férias", { exact: true })).toBeVisible();
+  const updatedOverrideRow = page.locator(".override-row").filter({ hasText: "Férias E2E" });
+  await expect(updatedOverrideRow.getByText("Férias", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Calendário" }).click();
   await expect(page.getByRole("heading", { name: "Quando todo mundo pode?" })).toBeVisible();
@@ -260,6 +309,84 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   await database.community.deleteMany({ where: { name: communityName } });
   await database.user.deleteMany({ where: { email } });
   await database.$disconnect();
+});
+
+test("rateio com vários compradores calcula o acerto ponta a ponta", async ({ page }) => {
+  const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const password = "senha-e2e-123";
+  const testDatabase = new PrismaClient();
+  const passwordHash = await hash(password, 4);
+  const users = await Promise.all(
+    ["José E2E", "Luiz E2E", "Maria E2E"].map((name, index) =>
+      testDatabase.user.create({
+        data: {
+          email: `rateio-${index}-${unique}@e2e.local`,
+          name,
+          passwordHash,
+        },
+      }),
+    ),
+  );
+  const community = await testDatabase.community.create({
+    data: {
+      name: `Rateio E2E ${unique}`,
+      slug: `rateio-e2e-${unique}`,
+      createdById: users[0].id,
+      members: {
+        create: users.map((user, index) => ({
+          userId: user.id,
+          role: index === 0 ? "OWNER" : "MEMBER",
+        })),
+      },
+    },
+  });
+
+  await page.goto("/login");
+  await page.getByLabel("E-mail").fill(users[0].email);
+  await page.getByLabel("Senha", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  await page.getByRole("link", { name: new RegExp(community.name) }).click();
+  await expect(page).toHaveURL(new RegExp(`/app/${community.slug}$`));
+  await page.getByRole("link", { name: "Rateios", exact: true }).click();
+
+  await page.getByLabel("Título").fill("Churrasco E2E");
+  await page.getByLabel("Descrição").fill("Compras do fim de semana");
+  for (const user of users) {
+    await page.getByRole("checkbox", { name: user.name }).check();
+  }
+  await page.getByRole("button", { name: "Criar rateio" }).click();
+  await expect(page.getByRole("heading", { name: "Churrasco E2E" })).toBeVisible();
+
+  await page.getByLabel("Item").fill("Carnes");
+  await page.getByLabel("Valor").fill("90");
+  await page.getByLabel("Quem pagou").selectOption({ label: "José E2E" });
+  await page.getByRole("button", { name: "Adicionar compra" }).click();
+  await expect(page.getByText("Compra adicionada e rateio recalculado.")).toBeVisible();
+
+  await page.getByLabel("Item").fill("Bebidas");
+  await page.getByLabel("Valor").fill("60");
+  await page.getByLabel("Quem pagou").selectOption({ label: "Luiz E2E" });
+  await page.getByRole("button", { name: "Adicionar compra" }).click();
+  await expect(page.getByText("Compra adicionada e rateio recalculado.")).toBeVisible();
+
+  await expect(page.getByText("Total comprado").locator("..")).toContainText("R$ 150,00");
+  await expect(page.locator(".settlement-row").filter({ hasText: "José E2E" })).toContainText(
+    "R$ 40,00",
+  );
+  await expect(page.locator(".settlement-row").filter({ hasText: "Luiz E2E" })).toContainText(
+    "R$ 10,00",
+  );
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+
+  await testDatabase.community.delete({ where: { id: community.id } });
+  await testDatabase.user.deleteMany({ where: { id: { in: users.map((user) => user.id) } } });
+  await testDatabase.$disconnect();
 });
 
 test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
