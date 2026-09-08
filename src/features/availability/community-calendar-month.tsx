@@ -164,7 +164,7 @@ export function CommunityCalendarMonth({
                     const summary = day.periodSummaries[key];
                     return (
                       <span
-                        className={`calendar-period-summary level-${availabilityLevel(summary)}`}
+                        className={`calendar-period-summary level-${availabilityLevel(summary)}${key === "ALL" ? " is-all-day" : ""}`}
                         key={key}
                         title={`${label}: ${summary.fullAvailableCount} livres, ${summary.partialAvailableCount} parciais de ${summary.totalMembers}`}
                       >

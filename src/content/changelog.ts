@@ -10,6 +10,18 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.6.0",
+    releasedAt: "2026-09-08",
+    title: "Navegação e calendário mais claros",
+    summary: "Pequenos ajustes visuais ajudam a entender a agenda e circular pelo aplicativo.",
+    highlights: [
+      "O resumo do dia inteiro ganhou mais destaque que os períodos de manhã, tarde e noite.",
+      "A página Sobre mantém o menu da conta para quem já está conectado.",
+      "Ao abrir Sobre dentro de uma comunidade, é possível voltar diretamente para ela.",
+      "Visitantes continuam vendo uma navegação pública simples, agora com acesso direto ao login.",
+    ],
+  },
+  {
     version: "0.5.0",
     releasedAt: "2026-09-08",
     title: "Álbuns nas opções de votação",

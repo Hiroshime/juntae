@@ -1528,6 +1528,25 @@ h2 {
   font-size: 0.54rem;
   font-weight: 800;
 }
+.calendar-period-summary.is-all-day {
+  grid-template-columns: 34px 1fr auto;
+  min-height: 31px;
+  margin-bottom: 2px;
+  border-width: 2px;
+  border-radius: 8px;
+  padding: 5px 7px;
+  box-shadow: 0 2px 5px rgb(var(--shadow-rgb) / 8%);
+}
+.calendar-period-summary.is-all-day > span {
+  font-size: 0.63rem;
+  font-weight: 900;
+}
+.calendar-period-summary.is-all-day > strong {
+  font-size: 0.82rem;
+}
+.calendar-period-summary.is-all-day > small {
+  font-size: 0.58rem;
+}
 .calendar-period-summary.level-high,
 .calendar-selected-periods .level-high {
   border-color: #8dcdb0;
@@ -3713,6 +3732,18 @@ h2 {
   }
   .calendar-period-summary > small {
     display: none;
+  }
+  .calendar-period-summary.is-all-day {
+    grid-template-columns: 20px 1fr;
+    min-height: 26px;
+    margin-bottom: 1px;
+    padding: 4px;
+  }
+  .calendar-period-summary.is-all-day > span {
+    font-size: 0.5rem;
+  }
+  .calendar-period-summary.is-all-day > strong {
+    font-size: 0.66rem;
   }
   .calendar-month-legend {
     gap: 7px 12px;

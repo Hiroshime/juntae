@@ -1,6 +1,6 @@
 {
   "name": "juntae-community-platform",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "overrides": {
     "deepmerge-ts": "^8.0.0",

@@ -1439,6 +1439,9 @@ paleta durante o carregamento.
 - skeleton loading;
 - empty states.
 
+No calendário mensal, o resumo do dia inteiro deve possuir maior destaque visual que os blocos de
+manhã, tarde e noite, sem comprometer a leitura em telas pequenas.
+
 ## 22.3 Cores de status
 
 Não depender exclusivamente de cor.
@@ -1473,7 +1476,9 @@ Adicione suas folgas ou sua escala de trabalho.
 - Aceitar convite
 - Sobre (`/sobre`), contendo autor, versão atual, links oficiais para GitHub e Docker Hub e um
   changelog em linguagem simples. A versão deve vir do `package.json`, e um teste deve exigir que a
-  entrada mais recente do changelog corresponda a ela.
+  entrada mais recente do changelog corresponda a ela. Sem sessão, a página usa a navegação pública;
+  com sessão, preserva a navegação da conta e, quando acessada a partir de uma comunidade, também o
+  contexto e o menu dessa comunidade.
 
 ## 23.2 Autenticadas
 

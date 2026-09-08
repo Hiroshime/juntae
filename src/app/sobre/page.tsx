@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 import { Brand } from "@/components/brand";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { changelog } from "@/content/changelog";
 import { appInfo } from "@/lib/app-info";
+import { getSessionUser } from "@/lib/auth/session";
+import { listUserCommunities } from "@/server/services/community-service";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Sobre",
@@ -21,20 +26,35 @@ function formatReleaseDate(date: string) {
   return dateFormatter.format(new Date(`${date}T12:00:00.000Z`));
 }
 
-export default function AboutPage() {
+export default async function AboutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ community?: string | string[] }>;
+}) {
+  const user = await getSessionUser();
+  const requestedCommunity = (await searchParams).community;
+  const communitySlug = typeof requestedCommunity === "string" ? requestedCommunity : undefined;
+  const memberships = user && communitySlug ? await listUserCommunities(user.id) : [];
+  const membership = memberships.find(({ community }) => community.slug === communitySlug);
+  const authenticatedReturnHref = membership ? `/app/${membership.community.slug}` : "/app";
+
   return (
     <main className="shell">
       <div className="container">
-        <header className="topbar">
-          <Brand />
-          <nav className="nav" aria-label="Navegação da página Sobre">
-            <ThemeSwitcher />
-            <Link href="/">Início</Link>
-            <Link className="button" href="/app">
-              Abrir aplicativo
-            </Link>
-          </nav>
-        </header>
+        {user ? (
+          <AppHeader user={user} community={membership?.community} role={membership?.role} />
+        ) : (
+          <header className="topbar">
+            <Brand />
+            <nav className="nav" aria-label="Navegação da página Sobre">
+              <ThemeSwitcher />
+              <Link href="/">Início</Link>
+              <Link className="button" href="/login">
+                Entrar
+              </Link>
+            </nav>
+          </header>
+        )}
 
         <section className="page about-page">
           <header className="about-hero">
@@ -169,7 +189,13 @@ export default function AboutPage() {
 
         <footer className="footer about-footer">
           <span>Juntaê · desenvolvido por {appInfo.author}</span>
-          <Link href="/">Voltar ao início</Link>
+          {user ? (
+            <Link href={authenticatedReturnHref}>
+              {membership ? "Voltar à comunidade" : "Voltar às comunidades"}
+            </Link>
+          ) : (
+            <Link href="/">Voltar ao início</Link>
+          )}
         </footer>
       </div>
     </main>

@@ -99,6 +99,8 @@ test("landing page is accessible", async ({ page }) => {
   await expect(page.getByText("Luiz Antonio Batista Rossato", { exact: true })).toBeVisible();
   await expect(page.getByLabel(`Versão atual ${appInfo.version}`)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Histórico de versões" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Entrar", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sair" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /github.com\/Hiroshime\/juntae/ })).toHaveAttribute(
     "href",
     "https://github.com/Hiroshime/juntae",
@@ -170,6 +172,15 @@ test("cadastro, comunidade e convite funcionam ponta a ponta", async ({ browser,
     true,
   );
   await page.setViewportSize({ width: 1280, height: 720 });
+
+  await page.getByRole("link", { name: "Sobre", exact: true }).click();
+  await expect(page).toHaveURL(/\/sobre\?community=turma-e2e-/);
+  await expect(page.getByRole("heading", { name: "Informações do projeto" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sair" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegação da comunidade" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Abrir aplicativo" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Voltar à comunidade" }).click();
+  await expect(page.getByRole("heading", { name: communityName })).toBeVisible();
 
   await page.getByRole("link", { name: "Configurações" }).click();
   await page.getByRole("button", { name: "Gerar link de convite" }).click();

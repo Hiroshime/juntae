@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.5.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.6.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.5.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.5.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.5.0` também publica automaticamente as tags `0.5.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.6.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.6.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.6.0` também publica automaticamente as tags `0.6.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -140,7 +140,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.5.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.6.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -232,7 +232,7 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - calendário consolidado acessível apenas aos membros, sem exposição de e-mails;
 - detalhes por dia com membros agrupados por estado e contagens separadas de disponibilidade completa, parcial, trabalho, indisponibilidade e ausência de informação;
 - quadrados do calendário mensal divididos em dia inteiro, manhã, tarde e noite, cada período com
-  contagem e intensidade visual próprias;
+  contagem e intensidade visual próprias, destacando o resumo do dia inteiro;
 - ranking transparente das melhores datas: disponibilidade/folga/férias valem `1`, parcial vale `0,5` e os demais estados valem `0`;
 - presets de manhã (6h–12h), tarde (12h–18h), noite (após 18h) e intervalo personalizado;
 - desempate por score, pessoas completamente disponíveis, menor quantidade de desconhecidos e data;

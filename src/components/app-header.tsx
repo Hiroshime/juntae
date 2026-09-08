@@ -18,6 +18,7 @@ export function AppHeader({
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const aboutHref = community ? `/sobre?community=${encodeURIComponent(community.slug)}` : "/sobre";
   const isCurrent = (href: string, includeChildren = false) =>
     pathname === href || (includeChildren && pathname.startsWith(`${href}/`));
 
@@ -99,7 +100,11 @@ export function AppHeader({
         </Link>
         <nav className="nav app-nav" aria-label="Navegação da conta">
           <ThemeSwitcher />
-          <Link className={`about-link${community ? " community-about-link" : ""}`} href="/sobre">
+          <Link
+            aria-current={isCurrent("/sobre") ? "page" : undefined}
+            className={`about-link${community ? " community-about-link" : ""}`}
+            href={aboutHref}
+          >
             Sobre
           </Link>
           {community && role !== "MEMBER" && (
@@ -163,7 +168,9 @@ export function AppHeader({
                   <Link href={`/app/${community.slug}/settings`}>Configurações</Link>
                 )}
                 <Link href="/settings/profile">Meu perfil</Link>
-                <Link href="/sobre">Sobre o Juntaê</Link>
+                <Link aria-current={isCurrent("/sobre") ? "page" : undefined} href={aboutHref}>
+                  Sobre o Juntaê
+                </Link>
                 <button disabled={loggingOut} onClick={logout} type="button">
                   {loggingOut ? "Saindo…" : "Sair"}
                 </button>
