@@ -1,3 +1,5 @@
+import { civilDateInTimeZone, civilDateRange } from "@/lib/dates/civil-date";
+
 export const rsvpStatuses = ["GOING", "MAYBE", "NOT_GOING"] as const;
 export type RsvpStatus = (typeof rsvpStatuses)[number];
 
@@ -24,4 +26,15 @@ export function estimatedCostPerConfirmed(estimatedCost: number | null, goingCou
 export function assertEventAcceptsRsvp(status: "DRAFT" | "PUBLISHED" | "CANCELLED" | "COMPLETED") {
   if (status === "CANCELLED") throw new Error("EVENT_CANCELLED");
   if (status !== "PUBLISHED") throw new Error("EVENT_NOT_PUBLISHED");
+}
+
+export function eventAttendanceDates(event: {
+  startsAt: Date;
+  endsAt: Date | null;
+  timezone: string;
+}) {
+  const startDate = civilDateInTimeZone(event.startsAt, event.timezone);
+  const effectiveEnd = event.endsAt ? new Date(event.endsAt.getTime() - 1) : event.startsAt;
+  const endDate = civilDateInTimeZone(effectiveEnd, event.timezone);
+  return civilDateRange(startDate, endDate);
 }

@@ -226,12 +226,14 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   await scheduleCreateForm.getByLabel("Nome da escala").fill("Plantão 12x36 E2E");
   await scheduleCreateForm.getByLabel("Dias trabalhando").fill("1");
   await scheduleCreateForm.getByLabel("Dias de folga").fill("1");
+  await scheduleCreateForm.getByLabel("Início", { exact: true }).fill("19:00");
+  await scheduleCreateForm.getByLabel("Fim", { exact: true }).fill("07:00");
   await scheduleCreateForm.getByRole("button", { name: "Visualizar prévia" }).click();
-  await expect(page.getByLabel("Prévia da escala")).toContainText("Trabalhando");
-  await expect(page.getByLabel("Prévia da escala")).toContainText("Folga");
+  await expect(page.getByLabel("Prévia da escala")).toContainText("Parcialmente disponível");
   await scheduleCreateForm.getByRole("button", { name: "Criar escala" }).click();
   await expect(page.getByText("Escala recorrente criada.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Plantão 12x36 E2E", level: 3 })).toBeVisible();
+  await expect(page.getByText(/19:00–07:00 \(noturno\)/)).toBeVisible();
   await page.getByRole("button", { name: "Editar" }).click();
   const scheduleEditForm = page.locator(".schedule-row .inline-edit-form");
   await scheduleEditForm.getByLabel("Nome da escala").fill("Plantão 12x36 atualizado");
@@ -260,7 +262,9 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   await expect(page.getByText("Feriado adicionado ao calendário.")).toBeVisible();
 
   await page.getByRole("link", { name: "Minha agenda" }).click();
-  await expect(page.getByLabel(new RegExp(`^${initialDate}: Trabalhando`))).toBeVisible();
+  await expect(
+    page.getByLabel(new RegExp(`^${initialDate}: Parcialmente disponível`)),
+  ).toBeVisible();
   await expect(page.getByLabel(`${extraDate}: Folga`)).toBeVisible();
   await expect(page.getByText("Feriado E2E")).toBeVisible();
   await page.getByLabel("Data inicial").fill(initialDate);
@@ -285,6 +289,16 @@ test("escala 12x36, calendário e override funcionam ponta a ponta", async ({ pa
   );
   await expect(page.locator(".calendar-month-day").first()).toBeVisible();
   await expect(page.getByText("Maior sobreposição")).toBeVisible();
+  const nextDayCard = page.locator(`.calendar-month-day[data-date="${addDays(initialDate, 1)}"]`);
+  await expect(nextDayCard.locator(".calendar-period-summary")).toHaveCount(4);
+  await expect(nextDayCard.locator(".calendar-period-summary").nth(0)).toContainText("0/1");
+  await expect(nextDayCard.locator(".calendar-period-summary").nth(2)).toContainText("1/1");
+  await expect(nextDayCard.locator(".calendar-period-summary").nth(3)).toContainText("1/1");
+  await nextDayCard.click();
+  await expect(page.getByText("Livre após 07:00 · Plantão 12x36 atualizado")).toBeVisible();
+  await expect(page.getByLabel("Disponibilidade por período").locator(":scope > div")).toHaveCount(
+    4,
+  );
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
   await expect(page.getByText("1 membro no cálculo").first()).toBeVisible();
@@ -416,13 +430,17 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   expect(bestDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   await opportunityLink.click();
   await expect(page.getByLabel("Início")).toHaveValue(new RegExp(`^${bestDate}T`));
+  const eventDate = addDays(bestDate!, 1);
+  const eventEndDate = addDays(eventDate, 2);
   await page.getByLabel("Título").fill(eventName);
   await page.getByLabel("Descrição").fill("Evento criado pelo teste ponta a ponta");
-  await page.getByLabel("Início").fill(`${bestDate}T19:00`);
-  await page.getByLabel(/Término/).fill(`${bestDate}T22:00`);
+  await page.getByLabel("Início").fill(`${eventDate}T19:00`);
+  await page.getByLabel(/Término/).fill(`${eventEndDate}T22:00`);
   await page.getByLabel("Local", { exact: true }).fill("Restaurante E2E");
   await page.getByLabel("Custo estimado").fill("90");
   await page.getByLabel("Limite de participantes").fill("1");
+  await page.getByLabel(/Permitir a resposta/).uncheck();
+  await page.getByLabel("Permitir participação em dias específicos").check();
   await page.getByRole("button", { name: "Criar evento", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: eventName })).toBeVisible();
@@ -458,6 +476,9 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   });
   await page.getByRole("button", { name: "Compartilhar" }).click();
   await expect(page.locator("body")).toHaveAttribute("data-shared", "true");
+  await expect(page.getByRole("button", { name: "Talvez", exact: true })).toHaveCount(0);
+  await page.getByLabel("Vou somente em alguns dias").check();
+  await page.locator(".attendance-day-grid input").nth(1).check();
   await page.getByRole("button", { name: "Vou", exact: true }).click();
   await expect(page.getByRole("button", { name: "Vou", exact: true })).toHaveAttribute(
     "aria-pressed",
@@ -502,7 +523,7 @@ test("votação de datas, voto e alteração funcionam ponta a ponta", async ({ 
   await page.getByRole("link", { name: "Votações", exact: true }).click();
   await page.getByRole("link", { name: "Criar votação" }).first().click();
   await page.getByLabel("Título").fill(pollName);
-  await page.getByLabel("Descrição").fill("Escolha todas as datas possíveis");
+  await page.getByLabel("Descrição", { exact: true }).fill("Escolha todas as datas possíveis");
   await page.getByLabel("Tipo de votação").selectOption("DATE_OPTIONS");
   await expect(page.getByText("3 datas selecionadas.")).toBeVisible();
   await page.getByRole("button", { name: "Criar votação", exact: true }).click();
@@ -523,6 +544,45 @@ test("votação de datas, voto e alteração funcionam ponta a ponta", async ({ 
   await expect(page.getByRole("heading", { name: "1 votante" })).toBeVisible();
   await expect(page.getByText("0 disponíveis").first()).toBeVisible();
   await expect(page.getByText("1 sem informação").first()).toBeVisible();
+
+  await page.getByRole("link", { name: "Votações", exact: true }).click();
+  await page.getByRole("link", { name: "Criar votação" }).first().click();
+  const richPollName = `Chácara E2E ${unique}`;
+  await page.getByLabel("Título").fill(richPollName);
+  await page.getByLabel("Opção 1", { exact: true }).fill("Recanto Verde");
+  await page.getByLabel("Opção 2", { exact: true }).fill("Sítio Azul");
+  const firstDetails = page.locator(".poll-option-details").first();
+  await firstDetails.getByText("Adicionar álbum, descrição, página ou local").click();
+  const imageBuffer = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await firstDetails.getByLabel("Fotos do álbum").setInputFiles([
+    { name: "recanto.png", mimeType: "image/png", buffer: imageBuffer },
+    { name: "piscina.png", mimeType: "image/png", buffer: imageBuffer },
+  ]);
+  await firstDetails.getByLabel("Descrição da opção").fill("Piscina e churrasqueira");
+  await firstDetails.getByLabel("Página web").fill("https://example.com/recanto");
+  await firstDetails.getByLabel("Local ou endereço").fill("Atibaia, SP");
+  await page.getByRole("button", { name: "Criar votação", exact: true }).click();
+  await expect(page.getByRole("heading", { name: richPollName })).toBeVisible();
+  await expect(page.getByText("Piscina e churrasqueira").first()).toBeVisible();
+  await expect(page.getByText("2 fotos").first()).toBeVisible();
+  await expect(page.getByRole("img", { name: "Foto 1 de Recanto Verde" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Ampliar foto 1 de Recanto Verde" }).first().click();
+  await expect(page.getByRole("dialog", { name: "Foto 1 de Recanto Verde" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Foto 1 de Recanto Verde ampliada" })).toBeVisible();
+  const lightboxAccessibility = await new AxeBuilder({ page }).analyze();
+  expect(lightboxAccessibility.violations).toEqual([]);
+  await page.getByRole("button", { name: "Próxima foto" }).click();
+  await expect(page.getByRole("dialog", { name: "Foto 2 de Recanto Verde" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: "Votar em Recanto Verde" })).not.toBeChecked();
+  await expect(page.getByRole("link", { name: "Abrir página" }).first()).toHaveAttribute(
+    "href",
+    "https://example.com/recanto",
+  );
 
   await page.getByRole("link", { name: communityName }).click();
   await expect(page.getByRole("heading", { name: "Votações", exact: true })).toBeVisible();

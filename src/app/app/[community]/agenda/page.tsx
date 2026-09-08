@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { Avatar } from "@/components/avatar";
 import { CommunityCalendarMonth } from "@/features/availability/community-calendar-month";
+import { ScheduleAvailabilityHint } from "@/features/availability/schedule-availability-hint";
 import {
   availabilityStatusLabels,
   availabilityStatusSymbols,
@@ -381,7 +382,10 @@ export default async function CommunityCalendarPage({
                               {members.map((member) => (
                                 <div className="day-member" key={member.id}>
                                   <Avatar name={member.name} url={member.avatarUrl} size="small" />
-                                  <span>{member.name}</span>
+                                  <span className="day-member-copy">
+                                    <span>{member.name}</span>
+                                    <ScheduleAvailabilityHint schedule={member.schedule} />
+                                  </span>
                                 </div>
                               ))}
                             </div>

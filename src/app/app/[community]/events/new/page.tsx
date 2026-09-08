@@ -65,6 +65,8 @@ export default async function NewEventPage({
               estimatedCost: "",
               currency: "BRL",
               participantLimit: "",
+              allowMaybe: true,
+              allowPartialAttendance: false,
             }}
           />
         </section>

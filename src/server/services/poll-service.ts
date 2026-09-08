@@ -1,7 +1,12 @@
 import { Prisma, type CommunityRole, type PollStatus } from "@prisma/client";
 import { formatCivilDate, parseCivilDate } from "@/lib/dates/civil-date";
 import { prisma } from "@/lib/db/prisma";
-import type { CreatePollInput, UpdatePollInput } from "@/lib/validation/poll";
+import type { PollImageUpload } from "@/lib/polls/images";
+import {
+  parsePollOptionMetadata,
+  type CreatePollInput,
+  type UpdatePollInput,
+} from "@/lib/validation/poll";
 import {
   assertPollAcceptsVotes,
   effectivePollStatus,
@@ -58,7 +63,7 @@ function assertCanManagePoll(actorId: string, role: CommunityRole, poll: { creat
   }
 }
 
-function optionData(input: CreatePollInput) {
+function optionData(input: CreatePollInput, imageUploads: PollImageUpload[]) {
   if (input.type === "DATE_OPTIONS") {
     return input.dates
       .slice()
@@ -75,7 +80,29 @@ function optionData(input: CreatePollInput) {
         sortOrder,
       }));
   }
-  return input.options.map((label, sortOrder) => ({ label, sortOrder }));
+  return input.options.map((option, sortOrder) => {
+    const metadata: Record<string, string> = {};
+    if (option.description) metadata.description = option.description;
+    if (option.imageUrl) metadata.imageUrl = option.imageUrl;
+    if (option.websiteUrl) metadata.websiteUrl = option.websiteUrl;
+    if (option.location) metadata.location = option.location;
+    return {
+      label: option.label,
+      sortOrder,
+      ...(Object.keys(metadata).length ? { metadata } : {}),
+      images: {
+        create: imageUploads
+          .filter((image) => image.optionIndex === sortOrder)
+          .map((image) => ({
+            data: image.data,
+            contentType: image.contentType,
+            originalName: image.originalName,
+            sizeBytes: image.sizeBytes,
+            sortOrder: image.sortOrder,
+          })),
+      },
+    };
+  });
 }
 
 type PollListRecord = Prisma.PollGetPayload<{ select: typeof pollListSelection }>;
@@ -107,8 +134,20 @@ function toPollSummary(poll: PollListRecord, userId: string) {
   };
 }
 
-export async function createPoll(userId: string, communityId: string, input: CreatePollInput) {
+export async function createPoll(
+  userId: string,
+  communityId: string,
+  input: CreatePollInput,
+  imageUploads: PollImageUpload[] = [],
+) {
   await requireMembership(userId, communityId);
+  if (input.type === "DATE_OPTIONS" && imageUploads.length) {
+    throw new AppError(
+      "Votações de data não aceitam álbuns nas opções.",
+      400,
+      "POLL_IMAGES_NOT_ALLOWED",
+    );
+  }
   return prisma.poll.create({
     data: {
       communityId,
@@ -119,7 +158,7 @@ export async function createPoll(userId: string, communityId: string, input: Cre
       allowVoteChange: input.allowVoteChange,
       closesAt: input.closesAt ? new Date(input.closesAt) : null,
       status: "OPEN",
-      options: { create: optionData(input) },
+      options: { create: optionData(input, imageUploads) },
     },
     include: { options: { orderBy: { sortOrder: "asc" } } },
   });
@@ -164,6 +203,10 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
         options: {
           orderBy: { sortOrder: "asc" },
           include: {
+            images: {
+              orderBy: { sortOrder: "asc" },
+              select: { id: true },
+            },
             votes: {
               orderBy: { createdAt: "asc" },
               include: {
@@ -230,6 +273,11 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
       return {
         id: option.id,
         label: option.label,
+        ...parsePollOptionMetadata(option.metadata),
+        images: option.images.map((image) => ({
+          id: image.id,
+          url: `/api/communities/${communityId}/polls/${poll.id}/options/${option.id}/images/${image.id}`,
+        })),
         sortOrder: option.sortOrder,
         dateValue: date,
         voteCount: optionSummary.voteCount,
@@ -243,6 +291,32 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
       };
     }),
   };
+}
+
+export async function getPollOptionImage(
+  userId: string,
+  communityId: string,
+  pollId: string,
+  optionId: string,
+  imageId: string,
+) {
+  await requireMembership(userId, communityId);
+  return assertFound(
+    await prisma.pollOptionImage.findFirst({
+      where: {
+        id: imageId,
+        optionId,
+        option: { pollId, poll: { communityId } },
+      },
+      select: {
+        data: true,
+        contentType: true,
+        originalName: true,
+        sizeBytes: true,
+      },
+    }),
+    "Imagem não encontrada.",
+  );
 }
 
 async function requireManageablePoll(userId: string, communityId: string, pollId: string) {

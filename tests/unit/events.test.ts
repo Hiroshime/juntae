@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertEventAcceptsRsvp,
   estimatedCostPerConfirmed,
+  eventAttendanceDates,
   remainingParticipantSpots,
   summarizeRsvps,
 } from "@/server/domain/events";
@@ -34,5 +35,15 @@ describe("event domain", () => {
     expect(() => assertEventAcceptsRsvp("CANCELLED")).toThrow("EVENT_CANCELLED");
     expect(() => assertEventAcceptsRsvp("COMPLETED")).toThrow("EVENT_NOT_PUBLISHED");
     expect(() => assertEventAcceptsRsvp("DRAFT")).toThrow("EVENT_NOT_PUBLISHED");
+  });
+
+  it("lista as datas civis inclusivas do evento e respeita término exclusivo", () => {
+    expect(
+      eventAttendanceDates({
+        startsAt: new Date("2030-11-20T03:00:00.000Z"),
+        endsAt: new Date("2030-11-24T03:00:00.000Z"),
+        timezone: "America/Sao_Paulo",
+      }),
+    ).toEqual(["2030-11-20", "2030-11-21", "2030-11-22", "2030-11-23"]);
   });
 });

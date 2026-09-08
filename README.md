@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.2.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.5.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.2.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.2.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.2.0` também publica automaticamente as tags `0.2.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.5.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.5.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.5.0` também publica automaticamente as tags `0.5.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -140,7 +140,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.2.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.5.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -220,6 +220,9 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - ocorrências manuais de dia inteiro ou intervalo, incluindo disponibilidade, trabalho, folga, férias e indisponibilidade;
 - escalas semanais com padrão configurável para os sete dias;
 - ciclos genéricos N×M, incluindo 12×36, 4×2, 5×1 e 6×1;
+- início e fim de turno com precisão de minutos, incluindo horários noturnos que terminam no dia
+  seguinte, disponibilidade automática fora do expediente e horários livres detalhados no
+  calendário geral;
 - feriados comunitários administráveis e identificados nas visões mensal e em lista, sem presumir que
   toda pessoa em escala está de folga;
 - folgas extras pessoais por data ou intervalo, com observação e precedência sobre a escala recorrente;
@@ -228,6 +231,8 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - precedência determinística `override manual > escala recorrente > UNKNOWN`;
 - calendário consolidado acessível apenas aos membros, sem exposição de e-mails;
 - detalhes por dia com membros agrupados por estado e contagens separadas de disponibilidade completa, parcial, trabalho, indisponibilidade e ausência de informação;
+- quadrados do calendário mensal divididos em dia inteiro, manhã, tarde e noite, cada período com
+  contagem e intensidade visual próprias;
 - ranking transparente das melhores datas: disponibilidade/folga/férias valem `1`, parcial vale `0,5` e os demais estados valem `0`;
 - presets de manhã (6h–12h), tarde (12h–18h), noite (após 18h) e intervalo personalizado;
 - desempate por score, pessoas completamente disponíveis, menor quantidade de desconhecidos e data;
@@ -243,6 +248,9 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - eventos com data/hora ou dia inteiro, timezone IANA, local, endereço, link, custo e moeda;
 - limite opcional de participantes com vagas restantes, sem bloquear confirmações acima do limite;
 - RSVP único por membro nos estados `Vou`, `Talvez` e `Não vou`, substituído ao mudar a resposta;
+- opção do organizador para desativar `Talvez`, aplicada também no servidor;
+- presença por dias específicos em eventos de vários dias, quando habilitada pelo organizador;
+- dias escolhidos exibidos junto ao participante, com “evento inteiro” como comportamento padrão;
 - contagens e participantes agrupados por resposta, usando o nome específico da comunidade quando existir;
 - filtros e paginação de eventos próximos, passados ou todos;
 - autorização server-side em consultas e mutações, sem exposição a pessoas fora da comunidade;
@@ -253,6 +261,10 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - criação de votações por qualquer membro da comunidade;
 - escolha única, múltipla escolha e votação de datas;
 - opções com ordem estável e validação contra opções vazias ou repetidas;
+- cards opcionais com descrição, página web e local para comparar passeios e hospedagens;
+- álbum privado com até 6 fotos por opção, envio múltiplo, navegação horizontal no celular e
+  visualização ampliada em tela cheia;
+- fotos armazenadas no PostgreSQL e servidas somente para membros autenticados da comunidade;
 - prazo opcional e encerramento manual pelo criador, administradores ou owners;
 - configuração para permitir ou impedir alteração e remoção do voto;
 - substituição transacional do voto, inclusive seleções múltiplas;

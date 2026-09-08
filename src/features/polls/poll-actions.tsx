@@ -4,8 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { PollType } from "@prisma/client";
 import { zonedDateTimeToUtc } from "@/lib/dates/civil-date";
+import {
+  PollOptionContent,
+  PollOptionLinks,
+  type RichPollOption,
+} from "@/features/polls/poll-option-card";
 
-type VoteOption = {
+type VoteOption = RichPollOption & {
   id: string;
   label: string;
   dateValue: string | null;
@@ -102,23 +107,26 @@ export function PollVoteForm({
         </div>
         <span>🗳️</span>
       </div>
-      <fieldset disabled={!canVote || pending}>
+      <fieldset>
         <legend className="sr-only">Opções da votação</legend>
         <div className="vote-options">
           {options.map((option) => (
-            <label
+            <article
               className={`vote-option ${selected.has(option.id) ? "selected" : ""}`}
               key={option.id}
             >
               <input
+                aria-label={`Votar em ${option.label}`}
+                id={`poll-vote-${option.id}`}
                 checked={selected.has(option.id)}
+                disabled={!canVote || pending}
                 name="poll-vote"
                 onChange={() => select(option.id)}
                 type={isSingle ? "radio" : "checkbox"}
                 value={option.id}
               />
-              <span>
-                <strong>{option.label}</strong>
+              <div className="vote-option-body">
+                <PollOptionContent option={option} />
                 {option.availability && (
                   <small>
                     {option.availability.fullAvailableCount}/{option.availability.totalMembers}{" "}
@@ -126,8 +134,9 @@ export function PollVoteForm({
                     {option.availability.score}
                   </small>
                 )}
-              </span>
-            </label>
+                <PollOptionLinks option={option} />
+              </div>
+            </article>
           ))}
         </div>
       </fieldset>

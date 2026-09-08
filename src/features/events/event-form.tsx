@@ -16,6 +16,8 @@ type InitialEvent = {
   estimatedCost: string;
   currency: string;
   participantLimit: string;
+  allowMaybe: boolean;
+  allowPartialAttendance: boolean;
 };
 
 function utcFromLocal(value: string, timezone: string) {
@@ -38,6 +40,9 @@ export function EventForm({
 }) {
   const router = useRouter();
   const [allDay, setAllDay] = useState(initial.allDay);
+  const [allowPartialAttendance, setAllowPartialAttendance] = useState(
+    initial.allowPartialAttendance,
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +79,8 @@ export function EventForm({
         estimatedCost: cost ? Number(cost) : null,
         currency: String(form.get("currency") || "BRL"),
         participantLimit: limit ? Number(limit) : null,
+        allowMaybe: form.get("allowMaybe") === "on",
+        allowPartialAttendance,
       };
       const response = await fetch(
         eventId
@@ -211,6 +218,25 @@ export function EventForm({
           />
         </div>
       </div>
+      <fieldset className="event-rsvp-settings">
+        <legend>Opções de participação</legend>
+        <label className="toggle-row">
+          <input defaultChecked={initial.allowMaybe} name="allowMaybe" type="checkbox" />
+          Permitir a resposta “Talvez”
+        </label>
+        <label className="toggle-row">
+          <input
+            checked={allowPartialAttendance}
+            onChange={(event) => setAllowPartialAttendance(event.target.checked)}
+            type="checkbox"
+          />
+          Permitir participação em dias específicos
+        </label>
+        <span className="field-help">
+          Use a escolha de dias em viagens e encontros com mais de um dia. Se o período do evento
+          for alterado depois, seleções de dias existentes voltam para “evento inteiro”.
+        </span>
+      </fieldset>
       <p className="field-help">Datas e horários são interpretados em {timezone}.</p>
       {error && (
         <div className="error" role="alert">

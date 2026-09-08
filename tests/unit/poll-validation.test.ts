@@ -17,12 +17,41 @@ describe("poll validation", () => {
         type: "SINGLE_CHOICE",
         options: ["Parque", "Cinema"],
       }),
-    ).toMatchObject({ description: null, options: ["Parque", "Cinema"] });
+    ).toMatchObject({
+      description: null,
+      options: [{ label: "Parque" }, { label: "Cinema" }],
+    });
     expect(
       createPollSchema.safeParse({
         ...base,
         type: "MULTIPLE_CHOICE",
         options: ["Cinema", "cinema"],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("valida detalhes opcionais e bloqueia links inseguros", () => {
+    expect(
+      createPollSchema.safeParse({
+        ...base,
+        type: "SINGLE_CHOICE",
+        options: [
+          {
+            label: "Chácara",
+            description: "Com piscina",
+            imageUrl: "https://example.com/foto.jpg",
+            websiteUrl: "https://example.com",
+            location: "Campinas, SP",
+          },
+          "Praia",
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      createPollSchema.safeParse({
+        ...base,
+        type: "SINGLE_CHOICE",
+        options: [{ label: "Chácara", websiteUrl: "javascript:alert(1)" }, "Praia"],
       }).success,
     ).toBe(false);
   });

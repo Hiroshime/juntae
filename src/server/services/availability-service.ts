@@ -26,7 +26,9 @@ import {
   summarizeAvailability,
 } from "@/server/domain/availability-scoring";
 import {
-  calculateScheduleStatus,
+  calculateScheduleAvailability,
+  calculateScheduleDayAvailability,
+  type ScheduleMinuteInterval,
   type ScheduleRule,
   type WeeklyPattern,
 } from "@/server/domain/schedules";
@@ -52,10 +54,18 @@ function toDatabaseDate(value: string) {
   return parseCivilDate(value);
 }
 
+function timeToMinute(value: string | null) {
+  if (!value) return null;
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
 function toDomainRule(rule: StoredScheduleRule): ScheduleRule {
   const common = {
     startDate: formatCivilDate(rule.startDate),
     endDate: rule.endDate ? formatCivilDate(rule.endDate) : undefined,
+    workStartMinute: rule.workStartMinute,
+    workEndMinute: rule.workEndMinute,
   };
   if (rule.ruleType === "CYCLE") {
     if (!rule.anchorDate || !rule.workDays || !rule.restDays) {
@@ -81,6 +91,8 @@ function scheduleData(input: ScheduleRuleInput) {
     ruleType: input.ruleType,
     startDate: toDatabaseDate(input.startDate),
     endDate: input.endDate ? toDatabaseDate(input.endDate) : null,
+    workStartMinute: timeToMinute(input.workStartTime),
+    workEndMinute: timeToMinute(input.workEndTime),
     status: input.status,
   };
   if (input.ruleType === "WEEKLY") {
@@ -177,6 +189,8 @@ export function previewScheduleRule(input: ScheduleRuleInput, startDate: string,
           weeklyPattern: input.weeklyPattern,
           startDate: input.startDate,
           endDate: input.endDate ?? undefined,
+          workStartMinute: timeToMinute(input.workStartTime),
+          workEndMinute: timeToMinute(input.workEndTime),
         }
       : {
           ruleType: "CYCLE",
@@ -185,10 +199,12 @@ export function previewScheduleRule(input: ScheduleRuleInput, startDate: string,
           restDays: input.restDays,
           startDate: input.startDate,
           endDate: input.endDate ?? undefined,
+          workStartMinute: timeToMinute(input.workStartTime),
+          workEndMinute: timeToMinute(input.workEndTime),
         };
   return civilDateRange(startDate, endDate).map((date) => ({
     date,
-    status: calculateScheduleStatus(rule, date) ?? "UNKNOWN",
+    status: calculateScheduleAvailability(rule, date) ?? "UNKNOWN",
   }));
 }
 
@@ -245,6 +261,12 @@ export async function deleteAvailabilityOverride(
 }
 
 type Member = Prisma.CommunityMemberGetPayload<{ select: typeof memberSelection }>;
+const calendarPeriods = [
+  "ALL",
+  "MORNING",
+  "AFTERNOON",
+  "EVENING",
+] as const satisfies readonly CalendarQuery["periodOfDay"][];
 
 function manualStatusForDate(
   overrides: AvailabilityOverride[],
@@ -271,19 +293,37 @@ function statusForMemberDate(
   member: Member,
   date: string,
   periodOfDay: CalendarQuery["periodOfDay"],
-  rules: StoredScheduleRule[],
-  overrides: AvailabilityOverride[],
-): AvailabilityStatus {
-  const memberOverrides = overrides.filter((item) => item.userId === member.userId);
+  memberRules: StoredScheduleRule[],
+  memberOverrides: AvailabilityOverride[],
+): {
+  status: AvailabilityStatus;
+  schedule: {
+    name: string;
+    workingIntervals: ScheduleMinuteInterval[];
+    freeIntervals: ScheduleMinuteInterval[];
+  } | null;
+} {
   const manual = manualStatusForDate(memberOverrides, date, member.user.timezone, periodOfDay);
-  if (manual) return manual;
+  if (manual) return { status: manual, schedule: null };
 
-  const memberRules = rules.filter((rule) => rule.userId === member.userId);
   for (const storedRule of memberRules) {
-    const calculated = calculateScheduleStatus(toDomainRule(storedRule), date);
-    if (calculated) return calculated;
+    const calculated = calculateScheduleDayAvailability(
+      toDomainRule(storedRule),
+      date,
+      periodOfDay,
+    );
+    if (calculated.status) {
+      return {
+        status: calculated.status,
+        schedule: {
+          name: storedRule.name,
+          workingIntervals: calculated.workingIntervals,
+          freeIntervals: calculated.freeIntervals,
+        },
+      };
+    }
   }
-  return "UNKNOWN";
+  return { status: "UNKNOWN", schedule: null };
 }
 
 export async function getCommunityCalendar(
@@ -294,6 +334,7 @@ export async function getCommunityCalendar(
   await requireMembership(userId, communityId);
   const dateStart = toDatabaseDate(query.startDate);
   const dateEnd = toDatabaseDate(query.endDate);
+  const scheduleLookupStart = toDatabaseDate(addCivilDays(query.startDate, -1));
   const roughOverrideStart = new Date(dateStart.getTime() - 2 * 86_400_000);
   const roughOverrideEnd = new Date(dateEnd.getTime() + 3 * 86_400_000);
 
@@ -311,7 +352,7 @@ export async function getCommunityCalendar(
         communityId,
         status: "ACTIVE",
         startDate: { lte: dateEnd },
-        OR: [{ endDate: null }, { endDate: { gte: dateStart } }],
+        OR: [{ endDate: null }, { endDate: { gte: scheduleLookupStart } }],
         ...(query.memberIds?.length ? { userId: { in: query.memberIds } } : {}),
       },
       orderBy: { updatedAt: "desc" },
@@ -338,21 +379,64 @@ export async function getCommunityCalendar(
     holidaysByDate.set(date, [...(holidaysByDate.get(date) ?? []), holiday.name]);
   }
 
+  const rulesByUser = new Map<string, StoredScheduleRule[]>();
+  for (const rule of rules) {
+    rulesByUser.set(rule.userId, [...(rulesByUser.get(rule.userId) ?? []), rule]);
+  }
+  const overridesByUser = new Map<string, AvailabilityOverride[]>();
+  for (const override of overrides) {
+    overridesByUser.set(override.userId, [
+      ...(overridesByUser.get(override.userId) ?? []),
+      override,
+    ]);
+  }
+
   const days = civilDateRange(query.startDate, query.endDate).map((date) => {
-    const members = allMembers.map((member) => ({
-      id: member.userId,
-      name: member.displayName || member.user.name,
-      avatarUrl: member.user.avatarUrl,
-      status: statusForMemberDate(member, date, query.periodOfDay, rules, overrides),
-    }));
+    const membersByPeriod = Object.fromEntries(
+      calendarPeriods.map((period) => [
+        period,
+        allMembers.map((member) => {
+          const availability = statusForMemberDate(
+            member,
+            date,
+            period,
+            rulesByUser.get(member.userId) ?? [],
+            overridesByUser.get(member.userId) ?? [],
+          );
+          return {
+            id: member.userId,
+            name: member.displayName || member.user.name,
+            avatarUrl: member.user.avatarUrl,
+            ...availability,
+          };
+        }),
+      ]),
+    ) as Record<
+      (typeof calendarPeriods)[number],
+      Array<
+        ReturnType<typeof statusForMemberDate> & {
+          id: string;
+          name: string;
+          avatarUrl: string | null;
+        }
+      >
+    >;
+    const members = membersByPeriod[query.periodOfDay];
+    const periodSummaries = Object.fromEntries(
+      calendarPeriods.map((period) => [
+        period,
+        summarizeAvailability(
+          date,
+          membersByPeriod[period].map((item) => item.status),
+        ),
+      ]),
+    ) as Record<(typeof calendarPeriods)[number], ReturnType<typeof summarizeAvailability>>;
     return {
       date,
       holidays: holidaysByDate.get(date) ?? [],
       members,
-      summary: summarizeAvailability(
-        date,
-        members.map((item) => item.status),
-      ),
+      summary: periodSummaries[query.periodOfDay],
+      periodSummaries,
     };
   });
   const visibleDates = new Set(

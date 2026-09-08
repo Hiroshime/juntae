@@ -14,6 +14,14 @@ const nullableCivilDate = z
   .union([civilDate, z.literal(""), z.null()])
   .transform((value) => (value ? value : null));
 
+const timeOfDay = z
+  .string()
+  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Informe um horário válido no formato HH:mm.");
+const nullableTimeOfDay = z
+  .union([timeOfDay, z.literal(""), z.null()])
+  .default(null)
+  .transform((value) => (value ? value : null));
+
 function isIanaTimezone(value: string) {
   try {
     new Intl.DateTimeFormat("pt-BR", { timeZone: value }).format();
@@ -89,6 +97,8 @@ const scheduleBase = z.object({
   name: z.string().trim().min(2, "Informe um nome para a escala.").max(120),
   startDate: civilDate,
   endDate: nullableCivilDate,
+  workStartTime: nullableTimeOfDay,
+  workEndTime: nullableTimeOfDay,
   status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
 });
 
@@ -109,7 +119,19 @@ export const scheduleRuleSchema = z
   .refine((value) => !value.endDate || value.endDate >= value.startDate, {
     message: "A data final deve ser igual ou posterior à inicial.",
     path: ["endDate"],
-  });
+  })
+  .refine((value) => Boolean(value.workStartTime) === Boolean(value.workEndTime), {
+    message: "Informe o início e o fim do turno.",
+    path: ["workEndTime"],
+  })
+  .refine(
+    (value) =>
+      !value.workStartTime || !value.workEndTime || value.workStartTime !== value.workEndTime,
+    {
+      message: "O início e o fim do turno precisam ser diferentes.",
+      path: ["workEndTime"],
+    },
+  );
 
 export const calendarQuerySchema = z
   .object({

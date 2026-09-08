@@ -181,6 +181,8 @@ Gamificação pode existir futuramente, porém não deve bloquear nem poluir a e
 - confirmar presença;
 - marcar “talvez”;
 - recusar participação;
+- permitir que o criador desative a resposta “talvez”;
+- permitir, quando habilitado pelo criador, que cada participante informe os dias específicos em que irá;
 - mostrar lista de participantes;
 - associar localização, horário, descrição e custo estimado.
 
@@ -193,6 +195,7 @@ Gamificação pode existir futuramente, porém não deve bloquear nem poluir a e
 - prazo opcional;
 - resultado em tempo real;
 - opção para permitir ou impedir alteração de voto.
+- opções enriquecidas com descrição, página, local e álbum de fotos privado.
 
 ### Dashboard
 
@@ -224,7 +227,7 @@ Não implementar na primeira versão, mas manter arquitetura preparada para:
 - times balanceados;
 - conquistas;
 - estatísticas históricas avançadas;
-- upload de álbum de fotos;
+- álbum social de fotos de eventos;
 - feed social;
 - mapa avançado;
 - recomendação automática de locais externos;
@@ -306,6 +309,9 @@ Um usuário só pode acessar dados de comunidades das quais é membro.
 6. Membros podem responder “Vou”, “Talvez” ou “Não vou”.
 7. Quando houver custo estimado, a página mostra a estimativa por participante confirmado (`GOING`),
    recalculada conforme os RSVPs, sem criar cobranças ou registrar pagamentos.
+8. O criador pode desativar “Talvez” e, em eventos com mais de um dia, habilitar presença parcial.
+9. Quando a presença parcial estiver habilitada, o membro pode responder pelo evento inteiro ou
+   selecionar um ou mais dias dentro do intervalo do evento.
 
 ## 6.5 Criar votação
 
@@ -556,6 +562,8 @@ location_url
 estimated_cost
 currency
 participant_limit
+allow_maybe
+allow_partial_attendance
 status
 created_at
 updated_at
@@ -585,6 +593,11 @@ NOT_GOING
 Cada membro possui no máximo uma resposta por evento.
 
 Nova resposta substitui a anterior.
+
+O criador pode desabilitar `MAYBE`. Essa restrição deve ser aplicada no servidor, inclusive para
+clientes antigos. Em eventos com mais de um dia, o criador pode habilitar presença parcial. Nesse
+caso, respostas `GOING` e `MAYBE` podem se referir ao evento inteiro ou a um subconjunto não vazio
+de datas civis contidas no intervalo do evento. Respostas `NOT_GOING` nunca possuem datas de presença.
 
 ## 10.4 Limite de participantes
 
@@ -652,6 +665,25 @@ sort_order
 date_value nullable
 metadata nullable
 ```
+
+Para votações de escolha, `metadata` pode armazenar detalhes opcionais da alternativa, inicialmente:
+
+```text
+description
+image_url (alternativa externa opcional)
+website_url
+location
+```
+
+Esses dados devem ser validados, apresentados como um card acessível e permanecer opcionais para
+preservar a rapidez das votações simples. Opções de data continuam usando apenas `date_value`.
+
+Cada opção de escolha também pode possuir um álbum privado com até 6 imagens enviadas no cadastro
+da votação. Aceitar JPEG, PNG, WebP, GIF e AVIF, com no máximo 6 MB por arquivo e 30 MB por votação.
+As imagens devem ser entregues somente a membros autenticados da comunidade e removidas em cascata
+com a opção. Criação da votação e persistência do álbum devem ser atômicas. Cada miniatura pode ser
+aberta em uma visualização ampliada, com navegação por botões e teclado, inclusive após o encerramento
+da votação.
 
 ## 11.4 Votos
 
@@ -802,6 +834,7 @@ erDiagram
     COMMUNITY ||--o{ POLL : has
     USER ||--o{ POLL : creates
     POLL ||--|{ POLL_OPTION : contains
+    POLL_OPTION ||--o{ POLL_OPTION_IMAGE : illustrates
     POLL_OPTION ||--o{ POLL_VOTE : receives
     USER ||--o{ POLL_VOTE : casts
 
@@ -944,9 +977,20 @@ Conforme seção de eventos.
 event_id UUID FK
 user_id UUID FK
 status ENUM GOING|MAYBE|NOT_GOING
+attending_specific_days BOOLEAN default false
 created_at TIMESTAMPTZ
 updated_at TIMESTAMPTZ
 PRIMARY KEY (event_id, user_id)
+```
+
+### 15.8.1 event_rsvp_days
+
+```text
+event_id UUID FK
+user_id UUID FK
+date DATE
+PRIMARY KEY (event_id, user_id, date)
+FOREIGN KEY (event_id, user_id) REFERENCES event_rsvps ON DELETE CASCADE
 ```
 
 ## 15.9 polls
@@ -956,6 +1000,22 @@ Conforme seção de votações.
 ## 15.10 poll_options
 
 Conforme seção de votações.
+
+### 15.10.1 poll_option_images
+
+```text
+id UUID PK
+option_id UUID FK
+data BYTEA
+content_type VARCHAR
+original_name VARCHAR
+size_bytes INTEGER
+sort_order INTEGER
+created_at TIMESTAMPTZ
+```
+
+Os bytes ficam no PostgreSQL para manter criação atômica, privacidade, backup e implantação simples
+no ZimaOS. A rota de leitura deve validar a sessão e a membership antes de entregar cada imagem.
 
 ## 15.11 poll_votes
 

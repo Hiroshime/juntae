@@ -22,6 +22,8 @@ type Rule = {
   workDays: number | null;
   restDays: number | null;
   weeklyPattern: Record<string, "WORKING" | "DAY_OFF"> | null;
+  workStartMinute: number | null;
+  workEndMinute: number | null;
   startDate: string;
   endDate: string | null;
   status: "ACTIVE" | "INACTIVE";
@@ -37,6 +39,8 @@ function payloadFromForm(
     ruleType,
     startDate: String(form.get("startDate")),
     endDate: String(form.get("endDate") ?? ""),
+    workStartTime: form.get("hasWorkHours") ? String(form.get("workStartTime")) : null,
+    workEndTime: form.get("hasWorkHours") ? String(form.get("workEndTime")) : null,
     status,
   };
   if (ruleType === "CYCLE") {
@@ -61,6 +65,8 @@ function payloadFromRule(rule: Rule, status: Rule["status"]) {
     ruleType: rule.ruleType,
     startDate: rule.startDate,
     endDate: rule.endDate ?? "",
+    workStartTime: minuteToTime(rule.workStartMinute),
+    workEndTime: minuteToTime(rule.workEndMinute),
     status,
   };
   return rule.ruleType === "CYCLE"
@@ -90,7 +96,10 @@ export function ScheduleManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [preview, setPreview] = useState<
-    Array<{ date: string; status: "WORKING" | "DAY_OFF" | "UNKNOWN" }>
+    Array<{
+      date: string;
+      status: "AVAILABLE" | "PARTIALLY_AVAILABLE" | "WORKING" | "DAY_OFF" | "UNKNOWN";
+    }>
   >([]);
 
   async function request(url: string, method: string, body?: unknown) {
@@ -309,6 +318,7 @@ export function ScheduleManager({
               ))}
             </fieldset>
           )}
+          <ScheduleHoursFields idPrefix="schedule" />
           {message && (
             <div className={message.kind} role={message.kind === "error" ? "alert" : "status"}>
               {message.text}
@@ -373,6 +383,9 @@ export function ScheduleManager({
                     {rule.ruleType === "CYCLE"
                       ? `${rule.workDays}×${rule.restDays} desde ${rule.anchorDate?.slice(0, 10)}`
                       : "Padrão semanal"}
+                    {rule.workStartMinute != null && rule.workEndMinute != null
+                      ? ` · ${minuteToTime(rule.workStartMinute)}–${minuteToTime(rule.workEndMinute)}${rule.workEndMinute < rule.workStartMinute ? " (noturno)" : ""}`
+                      : " · dia inteiro"}
                   </p>
                 </div>
                 <div className="member-actions">
@@ -485,6 +498,11 @@ export function ScheduleManager({
                         ))}
                       </fieldset>
                     )}
+                    <ScheduleHoursFields
+                      idPrefix={`edit-schedule-${rule.id}`}
+                      initialEndMinute={rule.workEndMinute}
+                      initialStartMinute={rule.workStartMinute}
+                    />
                     <button className="button" disabled={pending} type="submit">
                       Salvar alterações
                     </button>
@@ -502,6 +520,73 @@ export function ScheduleManager({
       </section>
     </div>
   );
+}
+
+function ScheduleHoursFields({
+  idPrefix,
+  initialStartMinute = 8 * 60,
+  initialEndMinute = 17 * 60 + 30,
+}: {
+  idPrefix: string;
+  initialStartMinute?: number | null;
+  initialEndMinute?: number | null;
+}) {
+  const [hasWorkHours, setHasWorkHours] = useState(
+    initialStartMinute != null && initialEndMinute != null,
+  );
+
+  return (
+    <fieldset className="schedule-hours">
+      <legend>Horário nos dias de trabalho</legend>
+      <label className="toggle-row">
+        <input
+          checked={hasWorkHours}
+          name="hasWorkHours"
+          onChange={(event) => setHasWorkHours(event.target.checked)}
+          type="checkbox"
+        />
+        Definir início e fim do turno
+      </label>
+      {hasWorkHours ? (
+        <>
+          <div className="form-row">
+            <div className="field">
+              <label htmlFor={`${idPrefix}-work-start`}>Início</label>
+              <input
+                defaultValue={minuteToTime(initialStartMinute ?? 8 * 60) ?? "08:00"}
+                id={`${idPrefix}-work-start`}
+                name="workStartTime"
+                required
+                type="time"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`${idPrefix}-work-end`}>Fim</label>
+              <input
+                defaultValue={minuteToTime(initialEndMinute ?? 17 * 60 + 30) ?? "17:30"}
+                id={`${idPrefix}-work-end`}
+                name="workEndTime"
+                required
+                type="time"
+              />
+            </div>
+          </div>
+          <p className="field-help">
+            Se o fim for anterior ao início, o turno termina no dia seguinte. Ex.: 19:00–07:00.
+          </p>
+        </>
+      ) : (
+        <p className="field-help">O dia marcado como trabalho ficará ocupado por inteiro.</p>
+      )}
+    </fieldset>
+  );
+}
+
+function minuteToTime(value: number | null) {
+  if (value == null) return null;
+  const hour = Math.floor(value / 60);
+  const minute = value % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function addDays(date: string, amount: number) {

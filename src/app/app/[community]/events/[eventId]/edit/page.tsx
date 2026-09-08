@@ -55,6 +55,8 @@ export default async function EditEventPage({
               estimatedCost: event.estimatedCost ?? "",
               currency: event.currency,
               participantLimit: event.participantLimit?.toString() ?? "",
+              allowMaybe: event.allowMaybe,
+              allowPartialAttendance: event.allowPartialAttendance,
             }}
           />
         </section>

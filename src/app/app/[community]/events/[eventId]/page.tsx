@@ -55,6 +55,11 @@ export default async function EventPage({
               communityId={membership.communityId}
               communitySlug={slug}
               currentRsvp={event.myRsvp}
+              currentAttendanceIsPartial={event.myAttendanceIsPartial}
+              initialAttendanceDates={event.myAttendanceDates}
+              attendanceDates={event.attendanceDates}
+              allowMaybe={event.allowMaybe}
+              allowPartialAttendance={event.allowPartialAttendance}
               eventId={event.id}
             />
             <ShareActions
@@ -122,6 +127,15 @@ export default async function EventPage({
                   <dt>Criado por</dt>
                   <dd>{event.createdBy.name}</dd>
                 </div>
+                <div>
+                  <dt>Respostas</dt>
+                  <dd>
+                    Vou{event.allowMaybe ? ", Talvez" : ""} e Não vou
+                    {event.allowPartialAttendance && event.attendanceDates.length > 1
+                      ? " · dias específicos permitidos"
+                      : ""}
+                  </dd>
+                </div>
               </dl>
             </section>
             <aside className="card attendance-card">
@@ -179,7 +193,22 @@ export default async function EventPage({
                         {participants.map((person) => (
                           <div className="participant" key={person.userId}>
                             <Avatar name={person.name} url={person.avatarUrl} size="small" />
-                            <span>{person.name}</span>
+                            <span>
+                              {person.name}
+                              {person.attendingSpecificDays && (
+                                <small>
+                                  {person.attendanceDates
+                                    .map((date) =>
+                                      new Intl.DateTimeFormat("pt-BR", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        timeZone: "UTC",
+                                      }).format(new Date(`${date}T00:00:00Z`)),
+                                    )
+                                    .join(", ")}
+                                </small>
+                              )}
+                            </span>
                           </div>
                         ))}
                         {!participants.length && <p className="muted small">Ninguém ainda.</p>}

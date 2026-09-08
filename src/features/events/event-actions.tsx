@@ -10,6 +10,11 @@ export function EventActions({
   communitySlug,
   eventId,
   currentRsvp,
+  currentAttendanceIsPartial,
+  initialAttendanceDates,
+  attendanceDates,
+  allowMaybe,
+  allowPartialAttendance,
   canManage,
   acceptsRsvp,
 }: {
@@ -17,20 +22,47 @@ export function EventActions({
   communitySlug: string;
   eventId: string;
   currentRsvp: RsvpStatus | null;
+  currentAttendanceIsPartial: boolean;
+  initialAttendanceDates: string[];
+  attendanceDates: string[];
+  allowMaybe: boolean;
+  allowPartialAttendance: boolean;
   canManage: boolean;
   acceptsRsvp: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [specificDays, setSpecificDays] = useState(currentAttendanceIsPartial);
+  const [selectedDates, setSelectedDates] = useState(() => new Set(initialAttendanceDates));
+  const responseStatuses: RsvpStatus[] = allowMaybe
+    ? ["GOING", "MAYBE", "NOT_GOING"]
+    : ["GOING", "NOT_GOING"];
+
+  function toggleDate(date: string) {
+    setSelectedDates((current) => {
+      const next = new Set(current);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }
 
   async function rsvp(status: RsvpStatus) {
+    if (status !== "NOT_GOING" && specificDays && selectedDates.size === 0) {
+      setError("Selecione pelo menos um dia ou escolha o evento inteiro.");
+      return;
+    }
     setPending(true);
     setError(null);
     const response = await fetch(`/api/communities/${communityId}/events/${eventId}/rsvp`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({
+        status,
+        attendanceDates:
+          status !== "NOT_GOING" && specificDays ? Array.from(selectedDates).sort() : null,
+      }),
     });
     const result = (await response.json().catch(() => ({}))) as { error?: string };
     setPending(false);
@@ -62,8 +94,46 @@ export function EventActions({
       {acceptsRsvp && (
         <div>
           <strong>Você vai?</strong>
+          {allowPartialAttendance && attendanceDates.length > 1 && (
+            <div className="partial-attendance-picker">
+              <label className="toggle-row compact-toggle">
+                <input
+                  checked={specificDays}
+                  disabled={pending}
+                  onChange={(event) => setSpecificDays(event.target.checked)}
+                  type="checkbox"
+                />
+                Vou somente em alguns dias
+              </label>
+              {specificDays && (
+                <fieldset>
+                  <legend>Em quais dias?</legend>
+                  <div className="attendance-day-grid">
+                    {attendanceDates.map((date) => (
+                      <label key={date}>
+                        <input
+                          checked={selectedDates.has(date)}
+                          disabled={pending}
+                          onChange={() => toggleDate(date)}
+                          type="checkbox"
+                        />
+                        <span>
+                          {new Intl.DateTimeFormat("pt-BR", {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "short",
+                            timeZone: "UTC",
+                          }).format(new Date(`${date}T00:00:00Z`))}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+            </div>
+          )}
           <div className="rsvp-buttons" role="group" aria-label="Sua resposta">
-            {(["GOING", "MAYBE", "NOT_GOING"] as const).map((status) => (
+            {responseStatuses.map((status) => (
               <button
                 aria-pressed={currentRsvp === status}
                 className={`button ${currentRsvp === status ? "" : "secondary"}`}
@@ -76,6 +146,7 @@ export function EventActions({
               </button>
             ))}
           </div>
+          {!allowMaybe && <small className="muted">O organizador desativou “Talvez”.</small>}
         </div>
       )}
       {canManage && (

@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/app-header";
 import { Avatar } from "@/components/avatar";
 import { ShareActions } from "@/components/share-actions";
 import { PollManagement, PollVoteForm } from "@/features/polls/poll-actions";
+import { PollOptionContent, PollOptionLinks } from "@/features/polls/poll-option-card";
 import { formatPollDeadline, pollStatusLabels, pollTypeLabels } from "@/features/polls/status";
 import { requirePageUser } from "@/lib/auth/page-session";
 import { getMembershipBySlug } from "@/server/services/community-service";
@@ -84,12 +85,13 @@ export default async function PollPage({
                 {poll.options.map((option) => (
                   <article className="card poll-result" key={option.id}>
                     <div className="poll-result-title">
-                      <strong>{option.label}</strong>
+                      <PollOptionContent option={option} />
                       <span>
                         {option.voteCount} {option.voteCount === 1 ? "voto" : "votos"} ·{" "}
                         {option.percentage}%
                       </span>
                     </div>
+                    <PollOptionLinks option={option} />
                     <div
                       aria-label={`${option.percentage}% dos votantes`}
                       aria-valuemax={100}

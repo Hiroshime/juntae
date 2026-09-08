@@ -10,6 +10,43 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.5.0",
+    releasedAt: "2026-09-08",
+    title: "Álbuns nas opções de votação",
+    summary: "Agora dá para comparar lugares e passeios usando várias fotos em cada alternativa.",
+    highlights: [
+      "Cada opção de votação pode receber até seis fotos.",
+      "As fotos podem ser ampliadas em tela cheia e navegadas por toque, botões ou teclado.",
+      "As fotos ficam privadas e acessíveis somente aos membros da comunidade.",
+      "Arquivos inválidos ou grandes demais são bloqueados antes da publicação.",
+    ],
+  },
+  {
+    version: "0.4.0",
+    releasedAt: "2026-09-08",
+    title: "Votações visuais e eventos flexíveis",
+    summary: "Ficou mais fácil comparar lugares e participar apenas de alguns dias de uma viagem.",
+    highlights: [
+      "Opções de votação agora podem ter foto, descrição, página web e local.",
+      "O organizador pode decidir se o evento aceita a resposta “Talvez”.",
+      "Eventos com vários dias podem permitir que cada pessoa escolha exatamente quando participará.",
+      "A lista de participantes mostra os dias escolhidos por cada pessoa.",
+    ],
+  },
+  {
+    version: "0.3.0",
+    releasedAt: "2026-09-06",
+    title: "Escalas com horário de trabalho",
+    summary: "O calendário agora entende em quais horas cada pessoa está trabalhando ou livre.",
+    highlights: [
+      "Escalas podem informar o início e o fim do turno com precisão de minutos.",
+      "O tempo fora do expediente passa a contar como livre no período consultado.",
+      "Plantões noturnos, como 19h–7h, continuam corretamente no dia seguinte.",
+      "O calendário geral compara dia inteiro, manhã, tarde e noite e informa os horários livres de cada pessoa.",
+      "Escalas antigas continuam funcionando sem exigir alteração.",
+    ],
+  },
+  {
     version: "0.2.0",
     releasedAt: "2026-09-04",
     title: "Folgas, feriados e rateios",

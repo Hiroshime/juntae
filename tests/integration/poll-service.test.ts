@@ -6,6 +6,7 @@ import {
   closePoll,
   createPoll,
   getPoll,
+  getPollOptionImage,
   listPolls,
   removeVote,
   updatePoll,
@@ -25,7 +26,13 @@ describe("poll services", () => {
     type: "SINGLE_CHOICE" as const,
     allowVoteChange: true,
     closesAt: null,
-    options: ["Parque", "Cinema", "Restaurante"],
+    options: ["Parque", "Cinema", "Restaurante"].map((label) => ({
+      label,
+      description: null,
+      imageUrl: null,
+      websiteUrl: null,
+      location: null,
+    })),
   };
 
   beforeAll(async () => {
@@ -204,5 +211,61 @@ describe("poll services", () => {
       availability: { fullAvailableCount: 1, unknownCount: 2, score: 1 },
     });
     expect(detail.options[0].voters[0].name).toBe("Nome na votação");
+  });
+
+  it("persiste e retorna os detalhes opcionais dos cards de votação", async () => {
+    const poll = await createPoll(ownerId, communityId, {
+      ...simpleInput,
+      options: [
+        {
+          label: "Chácara Recanto Verde",
+          description: "Piscina, churrasqueira e quatro quartos.",
+          imageUrl: "https://images.example.com/recanto.jpg",
+          websiteUrl: "https://example.com/recanto",
+          location: "Atibaia, SP",
+        },
+        simpleInput.options[1],
+      ],
+    });
+    const detail = await getPoll(memberId, communityId, poll.id);
+    expect(detail.options[0]).toMatchObject({
+      label: "Chácara Recanto Verde",
+      description: "Piscina, churrasqueira e quatro quartos.",
+      imageUrl: "https://images.example.com/recanto.jpg",
+      websiteUrl: "https://example.com/recanto",
+      location: "Atibaia, SP",
+    });
+    expect(detail.options[1]).toMatchObject({ description: null, imageUrl: null });
+  });
+
+  it("persiste álbuns atomicamente e protege os bytes por comunidade", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const poll = await createPoll(ownerId, communityId, simpleInput, [
+      {
+        optionIndex: 0,
+        data: bytes,
+        contentType: "image/png",
+        originalName: "recanto.png",
+        sizeBytes: bytes.byteLength,
+        sortOrder: 0,
+      },
+      {
+        optionIndex: 0,
+        data: bytes,
+        contentType: "image/png",
+        originalName: "piscina.png",
+        sizeBytes: bytes.byteLength,
+        sortOrder: 1,
+      },
+    ]);
+    const detail = await getPoll(memberId, communityId, poll.id);
+    expect(detail.options[0].images).toHaveLength(2);
+    const imageId = detail.options[0].images[0].id;
+    await expect(
+      getPollOptionImage(memberId, communityId, poll.id, poll.options[0].id, imageId),
+    ).resolves.toMatchObject({ contentType: "image/png", originalName: "recanto.png" });
+    await expect(
+      getPollOptionImage(outsiderId, communityId, poll.id, poll.options[0].id, imageId),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

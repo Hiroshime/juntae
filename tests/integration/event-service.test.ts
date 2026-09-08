@@ -31,6 +31,8 @@ describe("event services", () => {
     estimatedCost: 35,
     currency: "BRL",
     participantLimit: null,
+    allowMaybe: true,
+    allowPartialAttendance: false,
   };
 
   beforeAll(async () => {
@@ -128,8 +130,14 @@ describe("event services", () => {
 
   it("substitui a resposta do membro sem duplicar RSVP", async () => {
     const event = await createEvent(ownerId, communityId, baseInput);
-    await setEventRsvp(memberId, communityId, event.id, "GOING");
-    await setEventRsvp(memberId, communityId, event.id, "MAYBE");
+    await setEventRsvp(memberId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: null,
+    });
+    await setEventRsvp(memberId, communityId, event.id, {
+      status: "MAYBE",
+      attendanceDates: null,
+    });
     const detail = await getEvent(memberId, communityId, event.id);
     expect(detail.myRsvp).toBe("MAYBE");
     expect(detail.rsvpSummary).toMatchObject({ GOING: 0, MAYBE: 1, totalResponses: 1 });
@@ -143,8 +151,14 @@ describe("event services", () => {
       ...baseInput,
       participantLimit: 1,
     });
-    await setEventRsvp(ownerId, communityId, event.id, "GOING");
-    const second = await setEventRsvp(memberId, communityId, event.id, "GOING");
+    await setEventRsvp(ownerId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: null,
+    });
+    const second = await setEventRsvp(memberId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: null,
+    });
     expect(second).toMatchObject({ goingCount: 2, remainingSpots: 0, limitReached: true });
     const detail = await getEvent(ownerId, communityId, event.id);
     expect(detail.estimatedCostPerConfirmed).toBe(17.5);
@@ -152,11 +166,78 @@ describe("event services", () => {
 
   it("impede novas respostas depois do cancelamento sem apagar as anteriores", async () => {
     const event = await createEvent(ownerId, communityId, baseInput);
-    await setEventRsvp(memberId, communityId, event.id, "GOING");
-    await cancelEvent(ownerId, communityId, event.id);
-    await expect(setEventRsvp(adminId, communityId, event.id, "MAYBE")).rejects.toMatchObject({
-      code: "EVENT_CANCELLED",
+    await setEventRsvp(memberId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: null,
     });
+    await cancelEvent(ownerId, communityId, event.id);
+    await expect(
+      setEventRsvp(adminId, communityId, event.id, {
+        status: "MAYBE",
+        attendanceDates: null,
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_CANCELLED" });
     expect(await prisma.eventRsvp.count({ where: { eventId: event.id } })).toBe(1);
+  });
+
+  it("aplica a configuração de talvez e persiste participação em dias específicos", async () => {
+    const event = await createEvent(ownerId, communityId, {
+      ...baseInput,
+      startsAt: "2030-11-20T03:00:00.000Z",
+      endsAt: "2030-11-24T03:00:00.000Z",
+      allDay: true,
+      allowMaybe: false,
+      allowPartialAttendance: true,
+    });
+
+    await expect(
+      setEventRsvp(memberId, communityId, event.id, {
+        status: "MAYBE",
+        attendanceDates: null,
+      }),
+    ).rejects.toMatchObject({ code: "MAYBE_NOT_ALLOWED" });
+    await setEventRsvp(memberId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: ["2030-11-22", "2030-11-23"],
+    });
+
+    const detail = await getEvent(memberId, communityId, event.id);
+    expect(detail).toMatchObject({
+      attendanceDates: ["2030-11-20", "2030-11-21", "2030-11-22", "2030-11-23"],
+      myAttendanceIsPartial: true,
+      myAttendanceDates: ["2030-11-22", "2030-11-23"],
+    });
+    expect(detail.participants[0]).toMatchObject({
+      attendingSpecificDays: true,
+      attendanceDates: ["2030-11-22", "2030-11-23"],
+    });
+  });
+
+  it("rejeita dias externos e limpa seleções ao desabilitar presença parcial", async () => {
+    const multiDayInput = {
+      ...baseInput,
+      startsAt: "2030-11-20T03:00:00.000Z",
+      endsAt: "2030-11-24T03:00:00.000Z",
+      allDay: true,
+      allowPartialAttendance: true,
+    };
+    const event = await createEvent(ownerId, communityId, multiDayInput);
+    await expect(
+      setEventRsvp(memberId, communityId, event.id, {
+        status: "GOING",
+        attendanceDates: ["2030-11-25"],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ATTENDANCE_DATE" });
+    await setEventRsvp(memberId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: ["2030-11-22"],
+    });
+
+    await updateEvent(ownerId, communityId, event.id, {
+      ...multiDayInput,
+      allowPartialAttendance: false,
+    });
+    expect(await prisma.eventRsvpDay.count({ where: { eventId: event.id } })).toBe(0);
+    expect((await getEvent(memberId, communityId, event.id)).myAttendanceIsPartial).toBe(false);
   });
 });

@@ -1,12 +1,13 @@
 import { Prisma, type CommunityRole } from "@prisma/client";
+import { formatCivilDate } from "@/lib/dates/civil-date";
 import { prisma } from "@/lib/db/prisma";
-import type { EventInput } from "@/lib/validation/event";
+import type { EventInput, RsvpInput } from "@/lib/validation/event";
 import {
   assertEventAcceptsRsvp,
   estimatedCostPerConfirmed,
+  eventAttendanceDates,
   remainingParticipantSpots,
   summarizeRsvps,
-  type RsvpStatus,
 } from "@/server/domain/events";
 import { AppError, assertFound } from "@/server/errors";
 
@@ -24,6 +25,8 @@ const eventListSelection = {
   estimatedCost: true,
   currency: true,
   participantLimit: true,
+  allowMaybe: true,
+  allowPartialAttendance: true,
   status: true,
   createdAt: true,
   createdBy: { select: { name: true, avatarUrl: true } },
@@ -72,6 +75,8 @@ function eventData(input: EventInput) {
     estimatedCost: input.estimatedCost,
     currency: input.currency,
     participantLimit: input.participantLimit,
+    allowMaybe: input.allowMaybe,
+    allowPartialAttendance: input.allowPartialAttendance,
   };
 }
 
@@ -142,6 +147,7 @@ export async function getEvent(userId: string, communityId: string, eventId: str
         rsvps: {
           orderBy: { updatedAt: "asc" },
           include: {
+            attendanceDays: { orderBy: { date: "asc" } },
             user: {
               select: {
                 name: true,
@@ -164,6 +170,7 @@ export async function getEvent(userId: string, communityId: string, eventId: str
   );
   const rsvpSummary = summarizeRsvps(event.rsvps.map((rsvp) => rsvp.status));
   const estimatedCost = event.estimatedCost?.toString() ?? null;
+  const myRsvp = event.rsvps.find((rsvp) => rsvp.userId === userId);
   return {
     id: event.id,
     communityId: event.communityId,
@@ -184,12 +191,17 @@ export async function getEvent(userId: string, communityId: string, eventId: str
     ),
     currency: event.currency,
     participantLimit: event.participantLimit,
+    allowMaybe: event.allowMaybe,
+    allowPartialAttendance: event.allowPartialAttendance,
     status: event.status,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
     createdBy: event.createdBy,
     canManage: canManageEvent(userId, membership.role, event),
-    myRsvp: event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null,
+    myRsvp: myRsvp?.status ?? null,
+    myAttendanceIsPartial: myRsvp?.attendingSpecificDays ?? false,
+    myAttendanceDates: myRsvp?.attendanceDays.map((day) => formatCivilDate(day.date)) ?? [],
+    attendanceDates: eventAttendanceDates(event),
     rsvpSummary,
     remainingSpots: remainingParticipantSpots(event.participantLimit, rsvpSummary.GOING),
     limitReached: event.participantLimit != null && rsvpSummary.GOING >= event.participantLimit,
@@ -198,6 +210,8 @@ export async function getEvent(userId: string, communityId: string, eventId: str
       status: rsvp.status,
       name: rsvp.user.memberships[0]?.displayName || rsvp.user.name,
       avatarUrl: rsvp.user.avatarUrl,
+      attendingSpecificDays: rsvp.attendingSpecificDays,
+      attendanceDates: rsvp.attendanceDays.map((day) => formatCivilDate(day.date)),
       updatedAt: rsvp.updatedAt,
     })),
     costShares: event.costShares,
@@ -227,7 +241,22 @@ export async function updateEvent(
   if (event.status === "COMPLETED") {
     throw new AppError("Eventos concluídos não podem ser editados.", 409, "EVENT_COMPLETED");
   }
-  return prisma.event.update({ where: { id: eventId }, data: eventData(input) });
+  const attendancePeriodChanged =
+    event.startsAt.getTime() !== new Date(input.startsAt).getTime() ||
+    event.endsAt?.getTime() !== (input.endsAt ? new Date(input.endsAt).getTime() : undefined) ||
+    event.timezone !== input.timezone ||
+    event.allDay !== input.allDay;
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.event.update({ where: { id: eventId }, data: eventData(input) });
+    if (!input.allowPartialAttendance || attendancePeriodChanged) {
+      await tx.eventRsvpDay.deleteMany({ where: { eventId } });
+      await tx.eventRsvp.updateMany({
+        where: { eventId, attendingSpecificDays: true },
+        data: { attendingSpecificDays: false },
+      });
+    }
+    return updated;
+  });
 }
 
 export async function cancelEvent(userId: string, communityId: string, eventId: string) {
@@ -243,7 +272,7 @@ export async function setEventRsvp(
   userId: string,
   communityId: string,
   eventId: string,
-  status: RsvpStatus,
+  input: RsvpInput,
 ) {
   return prisma.$transaction(
     async (tx) => {
@@ -265,11 +294,53 @@ export async function setEventRsvp(
         throw new AppError("Este evento não aceita respostas.", 409, "RSVP_CLOSED");
       }
 
+      if (input.status === "MAYBE" && !event.allowMaybe) {
+        throw new AppError(
+          "A resposta “Talvez” não está habilitada neste evento.",
+          409,
+          "MAYBE_NOT_ALLOWED",
+        );
+      }
+
+      const availableDates = eventAttendanceDates(event);
+      const requestedDates = input.attendanceDates
+        ? Array.from(new Set(input.attendanceDates)).sort()
+        : [];
+      if (requestedDates.length && !event.allowPartialAttendance) {
+        throw new AppError(
+          "Este evento não permite escolher dias específicos.",
+          409,
+          "PARTIAL_ATTENDANCE_NOT_ALLOWED",
+        );
+      }
+      const validDates = new Set(availableDates);
+      if (requestedDates.some((date) => !validDates.has(date))) {
+        throw new AppError(
+          "Selecione somente dias dentro do período do evento.",
+          400,
+          "INVALID_ATTENDANCE_DATE",
+        );
+      }
+      const attendingSpecificDays =
+        input.status !== "NOT_GOING" &&
+        requestedDates.length > 0 &&
+        requestedDates.length < availableDates.length;
+
       const rsvp = await tx.eventRsvp.upsert({
         where: { eventId_userId: { eventId, userId } },
-        update: { status },
-        create: { eventId, userId, status },
+        update: { status: input.status, attendingSpecificDays },
+        create: { eventId, userId, status: input.status, attendingSpecificDays },
       });
+      await tx.eventRsvpDay.deleteMany({ where: { eventId, userId } });
+      if (attendingSpecificDays) {
+        await tx.eventRsvpDay.createMany({
+          data: requestedDates.map((date) => ({
+            eventId,
+            userId,
+            date: new Date(`${date}T00:00:00Z`),
+          })),
+        });
+      }
       const goingCount = await tx.eventRsvp.count({ where: { eventId, status: "GOING" } });
       return {
         rsvp,

@@ -15,7 +15,7 @@ export async function PUT(request: Request, { params }: Context) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
     }
-    return NextResponse.json(await setEventRsvp(user.id, communityId, eventId, parsed.data.status));
+    return NextResponse.json(await setEventRsvp(user.id, communityId, eventId, parsed.data));
   } catch (error) {
     return routeErrorResponse(error);
   }

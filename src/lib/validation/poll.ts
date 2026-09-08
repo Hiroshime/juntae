@@ -9,6 +9,31 @@ const optionalDateTime = z
   .union([z.string().datetime({ offset: true }), z.literal(""), z.null()])
   .transform((value) => value || null);
 
+function isHttpUrl(value: string) {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+const optionOptionalText = (max: number, message: string) =>
+  z
+    .union([z.string().trim().max(max, message), z.literal(""), z.null()])
+    .optional()
+    .transform((value) => value || null);
+
+const optionOptionalUrl = z
+  .union([
+    z.string().trim().url("Informe uma URL válida.").max(2_000).refine(isHttpUrl, {
+      message: "Use um link HTTP ou HTTPS.",
+    }),
+    z.literal(""),
+    z.null(),
+  ])
+  .optional()
+  .transform((value) => value || null);
+
 const civilDate = z.string().refine((value) => {
   try {
     parseCivilDate(value);
@@ -37,8 +62,32 @@ const base = {
   closesAt: optionalDateTime,
 };
 
-const labels = z
-  .array(z.string().trim().min(1, "Preencha todas as opções.").max(160))
+const pollOptionDetails = z.object({
+  label: z.string().trim().min(1, "Preencha todas as opções.").max(160),
+  description: optionOptionalText(1_500, "A descrição da opção é muito longa."),
+  imageUrl: optionOptionalUrl,
+  websiteUrl: optionOptionalUrl,
+  location: optionOptionalText(300, "O local da opção é muito longo."),
+});
+
+const pollOption = z.union([
+  z
+    .string()
+    .trim()
+    .min(1, "Preencha todas as opções.")
+    .max(160)
+    .transform((label) => ({
+      label,
+      description: null,
+      imageUrl: null,
+      websiteUrl: null,
+      location: null,
+    })),
+  pollOptionDetails,
+]);
+
+const options = z
+  .array(pollOption)
   .min(2, "Informe pelo menos duas opções.")
   .max(20, "Uma votação pode ter no máximo 20 opções.");
 
@@ -49,8 +98,8 @@ const dates = z
 
 export const createPollSchema = z
   .discriminatedUnion("type", [
-    z.object({ ...base, type: z.literal("SINGLE_CHOICE"), options: labels }),
-    z.object({ ...base, type: z.literal("MULTIPLE_CHOICE"), options: labels }),
+    z.object({ ...base, type: z.literal("SINGLE_CHOICE"), options }),
+    z.object({ ...base, type: z.literal("MULTIPLE_CHOICE"), options }),
     z.object({
       ...base,
       type: z.literal("DATE_OPTIONS"),
@@ -60,7 +109,9 @@ export const createPollSchema = z
   ])
   .superRefine((value, context) => {
     const values = value.type === "DATE_OPTIONS" ? value.dates : value.options;
-    const normalized = values.map((item) => item.toLocaleLowerCase("pt-BR"));
+    const normalized = values.map((item) =>
+      (typeof item === "string" ? item : item.label).toLocaleLowerCase("pt-BR"),
+    );
     if (new Set(normalized).size !== values.length) {
       context.addIssue({
         code: "custom",
@@ -126,3 +177,11 @@ export const pollListQuerySchema = z.object({
 
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type UpdatePollInput = z.infer<typeof updatePollSchema>;
+export type PollOptionDetails = z.infer<typeof pollOptionDetails>;
+
+export function parsePollOptionMetadata(value: unknown): Omit<PollOptionDetails, "label"> {
+  const parsed = pollOptionDetails.omit({ label: true }).safeParse(value);
+  return parsed.success
+    ? parsed.data
+    : { description: null, imageUrl: null, websiteUrl: null, location: null };
+}

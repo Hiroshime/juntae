@@ -57,6 +57,8 @@ export default async function SchedulesPage({
               workDays: rule.workDays,
               restDays: rule.restDays,
               weeklyPattern: rule.weeklyPattern as Record<string, "WORKING" | "DAY_OFF"> | null,
+              workStartMinute: rule.workStartMinute,
+              workEndMinute: rule.workEndMinute,
               startDate: formatCivilDate(rule.startDate),
               endDate: rule.endDate ? formatCivilDate(rule.endDate) : null,
               status: rule.status,

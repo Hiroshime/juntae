@@ -9,6 +9,10 @@ import {
   availabilityStatusSymbols,
   statusClass,
 } from "@/features/availability/status";
+import {
+  ScheduleAvailabilityHint,
+  type ScheduleAvailabilityWindow,
+} from "@/features/availability/schedule-availability-hint";
 import { civilDateRange, parseCivilDate } from "@/lib/dates/civil-date";
 
 export type CommunityCalendarDay = {
@@ -19,17 +23,33 @@ export type CommunityCalendarDay = {
     name: string;
     avatarUrl: string | null;
     status: AvailabilityStatus;
+    schedule: ScheduleAvailabilityWindow | null;
   }>;
-  summary: {
-    fullAvailableCount: number;
-    partialAvailableCount: number;
-    workingCount: number;
-    unavailableCount: number;
-    unknownCount: number;
-    totalMembers: number;
-    score: number;
-  };
+  summary: CalendarSummary;
+  periodSummaries: Record<CalendarPeriod, CalendarSummary>;
 };
+
+type CalendarPeriod = "ALL" | "MORNING" | "AFTERNOON" | "EVENING";
+type CalendarSummary = {
+  fullAvailableCount: number;
+  partialAvailableCount: number;
+  workingCount: number;
+  unavailableCount: number;
+  unknownCount: number;
+  totalMembers: number;
+  score: number;
+};
+
+const calendarPeriods = [
+  { key: "ALL", shortLabel: "Dia", label: "Dia inteiro" },
+  { key: "MORNING", shortLabel: "Man", label: "Manhã, das 6h às 12h" },
+  { key: "AFTERNOON", shortLabel: "Tar", label: "Tarde, das 12h às 18h" },
+  { key: "EVENING", shortLabel: "Noi", label: "Noite, após as 18h" },
+] as const satisfies ReadonlyArray<{
+  key: CalendarPeriod;
+  shortLabel: string;
+  label: string;
+}>;
 
 const statusOrder: AvailabilityStatus[] = [
   "AVAILABLE",
@@ -54,13 +74,12 @@ function formatLongDate(date: string) {
   return formatted.charAt(0).toLocaleUpperCase("pt-BR") + formatted.slice(1);
 }
 
-function availabilityLevel(day: CommunityCalendarDay) {
-  if (!day.summary.totalMembers || day.summary.unknownCount === day.summary.totalMembers) {
+function availabilityLevel(summary: CalendarSummary) {
+  if (!summary.totalMembers || summary.unknownCount === summary.totalMembers) {
     return "unknown";
   }
   const ratio =
-    (day.summary.fullAvailableCount + day.summary.partialAvailableCount * 0.5) /
-    day.summary.totalMembers;
+    (summary.fullAvailableCount + summary.partialAvailableCount * 0.5) / summary.totalMembers;
   if (ratio >= 0.7) return "high";
   if (ratio >= 0.4) return "medium";
   return "low";
@@ -69,7 +88,13 @@ function availabilityLevel(day: CommunityCalendarDay) {
 function dayAriaLabel(day: CommunityCalendarDay) {
   const date = formatLongDate(day.date);
   const holidays = day.holidays.length ? `, feriado: ${day.holidays.join(", ")}` : "";
-  return `${date}: ${day.summary.fullAvailableCount} completamente disponíveis, ${day.summary.partialAvailableCount} parcialmente disponíveis, ${day.summary.unknownCount} sem informação${holidays}`;
+  const periods = calendarPeriods
+    .map(({ key, label }) => {
+      const summary = day.periodSummaries[key];
+      return `${label}: ${summary.fullAvailableCount} livres e ${summary.partialAvailableCount} parciais de ${summary.totalMembers}`;
+    })
+    .join("; ");
+  return `${date}: ${periods}${holidays}`;
 }
 
 export function CommunityCalendarMonth({
@@ -128,20 +153,32 @@ export function CommunityCalendarMonth({
               <button
                 aria-label={dayAriaLabel(day)}
                 aria-pressed={selected}
-                className={`calendar-month-day level-${availabilityLevel(day)}${date === today ? " is-today" : ""}`}
+                className={`calendar-month-day${date === today ? " is-today" : ""}`}
+                data-date={date}
                 onClick={() => setSelectedDate(date)}
                 type="button"
               >
                 <span className="calendar-month-number">{Number(date.slice(-2))}</span>
-                <strong>
-                  {day.summary.fullAvailableCount}/{day.summary.totalMembers}
-                </strong>
-                <small>livres</small>
-                {day.summary.partialAvailableCount > 0 && (
-                  <span className="calendar-month-partial">
-                    +{day.summary.partialAvailableCount} parcial
-                  </span>
-                )}
+                <span className="calendar-month-periods" aria-hidden="true">
+                  {calendarPeriods.map(({ key, shortLabel, label }) => {
+                    const summary = day.periodSummaries[key];
+                    return (
+                      <span
+                        className={`calendar-period-summary level-${availabilityLevel(summary)}`}
+                        key={key}
+                        title={`${label}: ${summary.fullAvailableCount} livres, ${summary.partialAvailableCount} parciais de ${summary.totalMembers}`}
+                      >
+                        <span>{shortLabel}</span>
+                        <strong>
+                          {summary.fullAvailableCount}/{summary.totalMembers}
+                        </strong>
+                        {summary.partialAvailableCount > 0 && (
+                          <small>+{summary.partialAvailableCount}p</small>
+                        )}
+                      </span>
+                    );
+                  })}
+                </span>
                 {day.holidays.length > 0 && (
                   <span className="calendar-month-holiday" title={day.holidays.join(", ")}>
                     Feriado
@@ -169,6 +206,9 @@ export function CommunityCalendarMonth({
         <span>
           <i className="legend-unknown" />
           Sem informação
+        </span>
+        <span className="calendar-partial-legend">
+          <strong>+Np</strong>N pessoas parcialmente disponíveis
         </span>
       </div>
 
@@ -201,6 +241,22 @@ export function CommunityCalendarMonth({
               </Link>
             </div>
           </div>
+          <div className="calendar-selected-periods" aria-label="Disponibilidade por período">
+            {calendarPeriods.map(({ key, label }) => {
+              const summary = selectedDay.periodSummaries[key];
+              return (
+                <div className={`level-${availabilityLevel(summary)}`} key={key}>
+                  <span>{label}</span>
+                  <strong>
+                    {summary.fullAvailableCount}/{summary.totalMembers} livres
+                  </strong>
+                  <small>
+                    {summary.partialAvailableCount} parciais · {summary.unknownCount} sem informação
+                  </small>
+                </div>
+              );
+            })}
+          </div>
           <div className="calendar-selected-groups">
             {statusOrder.map((status) => {
               const members = selectedDay.members.filter((member) => member.status === status);
@@ -218,7 +274,10 @@ export function CommunityCalendarMonth({
                     {members.map((member) => (
                       <div className="day-member" key={member.id}>
                         <Avatar name={member.name} url={member.avatarUrl} size="small" />
-                        <span>{member.name}</span>
+                        <span className="day-member-copy">
+                          <span>{member.name}</span>
+                          <ScheduleAvailabilityHint schedule={member.schedule} />
+                        </span>
                       </div>
                     ))}
                   </div>

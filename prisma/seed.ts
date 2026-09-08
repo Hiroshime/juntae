@@ -112,6 +112,8 @@ async function main() {
       name: "Comercial",
       ruleType: "WEEKLY",
       weeklyPattern: mondayToFriday,
+      workStartMinute: 8 * 60,
+      workEndMinute: 17 * 60 + 30,
       startDate,
     },
   });
@@ -124,6 +126,8 @@ async function main() {
       anchorDate: startDate,
       workDays: 1,
       restDays: 1,
+      workStartMinute: 19 * 60,
+      workEndMinute: 7 * 60,
       startDate,
     },
   });
@@ -136,6 +140,8 @@ async function main() {
       anchorDate: startDate,
       workDays: 4,
       restDays: 2,
+      workStartMinute: 6 * 60,
+      workEndMinute: 18 * 60,
       startDate,
     },
   });

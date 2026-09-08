@@ -168,22 +168,24 @@ model Invite {
 }
 
 model ScheduleRule {
-  id            String             @id @default(uuid()) @db.Uuid
-  communityId   String             @db.Uuid
-  userId        String             @db.Uuid
-  name          String             @db.VarChar(120)
-  ruleType      ScheduleRuleType
-  anchorDate    DateTime?          @db.Date
-  workDays      Int?
-  restDays      Int?
-  weeklyPattern Json?
-  startDate     DateTime           @db.Date
-  endDate       DateTime?          @db.Date
-  status        ScheduleRuleStatus @default(ACTIVE)
-  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime           @updatedAt @db.Timestamptz(6)
-  community     Community          @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String             @id @default(uuid()) @db.Uuid
+  communityId     String             @db.Uuid
+  userId          String             @db.Uuid
+  name            String             @db.VarChar(120)
+  ruleType        ScheduleRuleType
+  anchorDate      DateTime?          @db.Date
+  workDays        Int?
+  restDays        Int?
+  weeklyPattern   Json?
+  workStartMinute Int?
+  workEndMinute   Int?
+  startDate       DateTime           @db.Date
+  endDate         DateTime?          @db.Date
+  status          ScheduleRuleStatus @default(ACTIVE)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
+  community       Community          @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([communityId, startDate])
   @@index([userId, startDate])
@@ -210,44 +212,58 @@ model AvailabilityOverride {
 }
 
 model Event {
-  id               String      @id @default(uuid()) @db.Uuid
-  communityId      String      @db.Uuid
-  createdById      String      @db.Uuid
-  title            String      @db.VarChar(160)
-  description      String?     @db.Text
-  startsAt         DateTime    @db.Timestamptz(6)
-  endsAt           DateTime?   @db.Timestamptz(6)
-  allDay           Boolean     @default(false)
-  timezone         String      @default("America/Sao_Paulo") @db.VarChar(64)
-  locationName     String?     @db.VarChar(160)
-  locationAddress  String?     @db.Text
-  locationUrl      String?     @db.Text
-  estimatedCost    Decimal?    @db.Decimal(10, 2)
-  currency         String      @default("BRL") @db.Char(3)
-  participantLimit Int?
-  status           EventStatus @default(PUBLISHED)
-  createdAt        DateTime    @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime    @updatedAt @db.Timestamptz(6)
-  community        Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  createdBy        User        @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  rsvps            EventRsvp[]
-  costShares       CostShare[]
+  id                     String      @id @default(uuid()) @db.Uuid
+  communityId            String      @db.Uuid
+  createdById            String      @db.Uuid
+  title                  String      @db.VarChar(160)
+  description            String?     @db.Text
+  startsAt               DateTime    @db.Timestamptz(6)
+  endsAt                 DateTime?   @db.Timestamptz(6)
+  allDay                 Boolean     @default(false)
+  timezone               String      @default("America/Sao_Paulo") @db.VarChar(64)
+  locationName           String?     @db.VarChar(160)
+  locationAddress        String?     @db.Text
+  locationUrl            String?     @db.Text
+  estimatedCost          Decimal?    @db.Decimal(10, 2)
+  currency               String      @default("BRL") @db.Char(3)
+  participantLimit       Int?
+  allowMaybe             Boolean     @default(true)
+  allowPartialAttendance Boolean     @default(false)
+  status                 EventStatus @default(PUBLISHED)
+  createdAt              DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime    @updatedAt @db.Timestamptz(6)
+  community              Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy              User        @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  rsvps                  EventRsvp[]
+  costShares             CostShare[]
 
   @@index([communityId, startsAt])
   @@index([communityId, status, startsAt])
 }
 
 model EventRsvp {
-  eventId   String     @db.Uuid
-  userId    String     @db.Uuid
-  status    RsvpStatus
-  createdAt DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId               String         @db.Uuid
+  userId                String         @db.Uuid
+  status                RsvpStatus
+  attendingSpecificDays Boolean        @default(false)
+  createdAt             DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime       @updatedAt @db.Timestamptz(6)
+  event                 Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendanceDays        EventRsvpDay[]
 
   @@id([eventId, userId])
   @@index([userId])
+}
+
+model EventRsvpDay {
+  eventId String    @db.Uuid
+  userId  String    @db.Uuid
+  date    DateTime  @db.Date
+  rsvp    EventRsvp @relation(fields: [eventId, userId], references: [eventId, userId], onDelete: Cascade)
+
+  @@id([eventId, userId, date])
+  @@index([eventId, date])
 }
 
 model CommunityHoliday {
@@ -338,16 +354,31 @@ model Poll {
 }
 
 model PollOption {
-  id        String     @id @default(uuid()) @db.Uuid
-  pollId    String     @db.Uuid
-  label     String     @db.VarChar(160)
-  sortOrder Int        @default(0)
-  dateValue DateTime?  @db.Date
+  id        String            @id @default(uuid()) @db.Uuid
+  pollId    String            @db.Uuid
+  label     String            @db.VarChar(160)
+  sortOrder Int               @default(0)
+  dateValue DateTime?         @db.Date
   metadata  Json?
-  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  poll      Poll              @relation(fields: [pollId], references: [id], onDelete: Cascade)
   votes     PollVote[]
+  images    PollOptionImage[]
 
   @@index([pollId, sortOrder])
+}
+
+model PollOptionImage {
+  id           String     @id @default(uuid()) @db.Uuid
+  optionId     String     @db.Uuid
+  data         Bytes      @db.ByteA
+  contentType  String     @db.VarChar(32)
+  originalName String     @db.VarChar(255)
+  sizeBytes    Int
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(6)
+  option       PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@index([optionId, sortOrder])
 }
 
 model PollVote {

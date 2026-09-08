@@ -74,16 +74,125 @@ describe("availability services", () => {
       restDays: 1,
       startDate: "2026-09-01",
       endDate: null,
+      workStartTime: "19:00",
+      workEndTime: "07:00",
       status: "ACTIVE" as const,
     };
     const schedule = await createScheduleRule(ownerId, communityId, input);
     expect(schedule.ruleType).toBe("CYCLE");
     expect(previewScheduleRule(input, "2026-09-01", "2026-09-04")).toEqual([
-      { date: "2026-09-01", status: "WORKING" },
-      { date: "2026-09-02", status: "DAY_OFF" },
-      { date: "2026-09-03", status: "WORKING" },
-      { date: "2026-09-04", status: "DAY_OFF" },
+      { date: "2026-09-01", status: "PARTIALLY_AVAILABLE" },
+      { date: "2026-09-02", status: "PARTIALLY_AVAILABLE" },
+      { date: "2026-09-03", status: "PARTIALLY_AVAILABLE" },
+      { date: "2026-09-04", status: "PARTIALLY_AVAILABLE" },
     ]);
+    expect(schedule).toMatchObject({ workStartMinute: 1140, workEndMinute: 420 });
+  });
+
+  it("calcula disponibilidade pelos horários do turno", async () => {
+    await createScheduleRule(ownerId, communityId, {
+      name: "Expediente comercial",
+      ruleType: "WEEKLY",
+      weeklyPattern: {
+        sunday: "DAY_OFF",
+        monday: "WORKING",
+        tuesday: "DAY_OFF",
+        wednesday: "DAY_OFF",
+        thursday: "DAY_OFF",
+        friday: "DAY_OFF",
+        saturday: "DAY_OFF",
+      },
+      startDate: "2026-09-01",
+      endDate: null,
+      workStartTime: "08:00",
+      workEndTime: "17:30",
+      status: "ACTIVE",
+    });
+    const base = {
+      startDate: "2026-09-07",
+      endDate: "2026-09-07",
+      onlyWeekends: false,
+      minPeople: 0,
+    } as const;
+    const fullDay = await getCommunityCalendar(ownerId, communityId, {
+      ...base,
+      periodOfDay: "ALL",
+    });
+    const evening = await getCommunityCalendar(ownerId, communityId, {
+      ...base,
+      periodOfDay: "EVENING",
+    });
+    expect(fullDay.days[0].members.find((member) => member.id === ownerId)?.status).toBe(
+      "PARTIALLY_AVAILABLE",
+    );
+    expect(fullDay.days[0].members.find((member) => member.id === ownerId)?.schedule).toEqual({
+      name: "Expediente comercial",
+      workingIntervals: [{ startMinute: 480, endMinute: 1050 }],
+      freeIntervals: [
+        { startMinute: 0, endMinute: 480 },
+        { startMinute: 1050, endMinute: 1440 },
+      ],
+    });
+    expect(evening.days[0].members.find((member) => member.id === ownerId)?.status).toBe(
+      "AVAILABLE",
+    );
+  });
+
+  it("resume cada período mesmo quando ninguém está livre o dia inteiro", async () => {
+    await createScheduleRule(ownerId, communityId, {
+      name: "Noturno até 05:30",
+      ruleType: "CYCLE",
+      anchorDate: "2026-09-01",
+      workDays: 1,
+      restDays: 1,
+      startDate: "2026-09-01",
+      endDate: null,
+      workStartTime: "17:30",
+      workEndTime: "05:30",
+      status: "ACTIVE",
+    });
+    await createScheduleRule(memberId, communityId, {
+      name: "Trabalho no dia inteiro",
+      ruleType: "CYCLE",
+      anchorDate: "2026-09-02",
+      workDays: 1,
+      restDays: 1,
+      startDate: "2026-09-02",
+      endDate: null,
+      workStartTime: null,
+      workEndTime: null,
+      status: "ACTIVE",
+    });
+
+    const calendar = await getCommunityCalendar(ownerId, communityId, {
+      startDate: "2026-09-02",
+      endDate: "2026-09-02",
+      onlyWeekends: false,
+      minPeople: 0,
+      periodOfDay: "ALL",
+    });
+    expect(calendar.days[0].periodSummaries.ALL).toMatchObject({
+      fullAvailableCount: 0,
+      partialAvailableCount: 1,
+      workingCount: 1,
+      totalMembers: 2,
+    });
+    expect(calendar.days[0].periodSummaries.MORNING).toMatchObject({
+      fullAvailableCount: 1,
+      partialAvailableCount: 0,
+      workingCount: 1,
+      totalMembers: 2,
+    });
+    expect(calendar.days[0].periodSummaries.AFTERNOON).toMatchObject({
+      fullAvailableCount: 1,
+      workingCount: 1,
+      totalMembers: 2,
+    });
+    expect(calendar.days[0].periodSummaries.EVENING).toMatchObject({
+      fullAvailableCount: 1,
+      workingCount: 1,
+      totalMembers: 2,
+    });
   });
 
   it("faz override manual prevalecer sobre a escala", async () => {
@@ -95,6 +204,8 @@ describe("availability services", () => {
       restDays: 1,
       startDate: "2026-09-01",
       endDate: null,
+      workStartTime: null,
+      workEndTime: null,
       status: "ACTIVE",
     });
     await createAvailabilityOverride(ownerId, communityId, {
