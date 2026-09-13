@@ -18,7 +18,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 
 RUN DATABASE_URL=postgresql://juntae:build-only@localhost:5432/juntae?schema=public \
-  npm run db:generate
+  node_modules/.bin/prisma generate
 RUN DATABASE_URL=postgresql://juntae:build-only@localhost:5432/juntae?schema=public \
   AUTH_SECRET=build-only-secret-with-at-least-32-characters \
   APP_URL=http://localhost:3000 \
