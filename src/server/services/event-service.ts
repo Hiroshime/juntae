@@ -247,6 +247,21 @@ export async function updateEvent(
     event.timezone !== input.timezone ||
     event.allDay !== input.allDay;
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
+    const current = await tx.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { currency: true },
+    });
+    if (
+      current.currency !== input.currency &&
+      (await tx.eventPayment.count({ where: { eventId } }))
+    ) {
+      throw new AppError(
+        "A moeda não pode mudar depois de registrar pagamentos no evento.",
+        409,
+        "ACCOUNT_HAS_PAYMENTS",
+      );
+    }
     const updated = await tx.event.update({ where: { id: eventId }, data: eventData(input) });
     if (!input.allowPartialAttendance || attendancePeriodChanged) {
       await tx.eventRsvpDay.deleteMany({ where: { eventId } });

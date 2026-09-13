@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.6.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.8.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.6.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.6.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.6.0` também publica automaticamente as tags `0.6.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.8.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.8.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.8.0` também publica automaticamente as tags `0.8.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -140,7 +140,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.6.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.8.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -316,6 +316,34 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 
 ## Rateios — módulo pós-MVP
 
+### Conta e pagamentos do evento
+
+Na página de um evento, o criador ou um administrador pode clicar em **Habilitar controle de
+pagamentos**. A conta soma o custo base dividido entre confirmados e as cotas dos rateios vinculados,
+respeitando os participantes próprios de cada rateio. Compras já pagas são abatidas automaticamente.
+Exemplo: evento de R$ 3.000 e rateios de R$ 500 e R$ 300 entre dez pessoas dão uma cota de R$ 380;
+quem comprou R$ 500 tem R$ 120 a receber.
+
+- Registre recebimentos e reembolsos já realizados, inclusive parcelas e aportes próprios da
+  organização. Os participantes consultam a conta; somente criador do evento e administradores
+  confirmam registros. Não há processamento de dinheiro.
+- O acerto é centralizado com a organização: não repita pagamentos das sugestões isoladas de
+  cada rateio. Não cadastre o valor da locação no custo base e novamente como compra.
+- Contas abertas acompanham alterações de custos, RSVPs e rateios. Presença parcial não reduz
+  automaticamente a cota do evento. Moedas diferentes bloqueiam acertos; não existe câmbio automático.
+- É possível anular registros incorretos preservando autor, data e histórico. Valores acima do
+  saldo e operações com dados desatualizados são recusados.
+- **Fechar conta do evento** exige todos os saldos zerados e guarda os valores e nomes daquele
+  momento. Alterações posteriores nas fontes não alteram a conta fechada. **Reabrir conta** recalcula
+  com os dados atuais, preservando pagamentos. Fechar a conta não cancela nem conclui o evento.
+- Contas sem pagamentos podem ser desabilitadas. Havendo histórico, use o fechamento.
+
+Atualização local: pare o servidor, execute `npm run db:generate` e `npm run db:migrate`, e inicie
+novamente com `npm run dev`. A migration `0012_event_payments` mantém eventos existentes com o
+controle desabilitado. No Docker, as migrations são aplicadas pelo entrypoint ao iniciar a nova imagem.
+
+### Rateios individuais
+
 - rateios independentes ou vinculados opcionalmente a eventos;
 - participantes confirmados no evento pré-selecionados, com ajuste manual antes da criação;
 - múltiplas compras e múltiplos pagadores no mesmo rateio;
@@ -353,6 +381,86 @@ Rotas principais desta fase:
 - `/sobre`: informações do projeto e histórico de versões.
 
 Recuperação de senha por e-mail não foi adicionada porque o projeto ainda não possui provedor de e-mail configurado. A troca autenticada de senha já está disponível no perfil.
+
+## Desafios (Beta) — fases 1, 2 e 3 de 4
+
+Acesse **Desafios (Beta)** no menu da comunidade (no celular: **Mais → Desafios (Beta)**).
+Qualquer membro pode criar um desafio fitness com datas, fuso, regras e comparação por pontos,
+tempo ou distância. A participação é voluntária, inclusive para o criador. É possível entrar,
+sair e voltar enquanto o desafio não terminar nem for cancelado.
+
+Criador e administradores podem editar antes do início e da primeira inscrição. Depois disso,
+o combinado fica bloqueado, mesmo se todos saírem. Cancelamentos são definitivos e preservam
+o histórico. O último dia é incluído por inteiro no fuso escolhido. Não há cobrança nem prêmios.
+
+Para atualizar uma instalação local existente, pare o servidor e execute:
+
+```bash
+npm ci
+docker compose up -d --wait
+npm run db:generate
+npm run db:migrate
+npm run dev
+```
+
+A migration `0013_challenges` adiciona desafios e participantes; `0014_challenge_activities`
+adiciona treinos e fotos; `0015_challenge_moderation_results` acrescenta moderação, histórico e
+resultados finais; `0016_fractional_challenge_scores` permite scores com uma casa decimal, preservando
+os valores antigos.
+Não é necessário rodar seed nem configurar credenciais externas. No Docker, a nova imagem executa
+as migrations pelo fluxo de inicialização já existente; faça backup antes de atualizar.
+
+Plano do módulo (regras completas na seção 30.9 do `PRODUCT_SPEC.md`):
+
+1. **Entregue:** criação, edição protegida, período, regras, participação, cancelamento e telas privadas.
+2. **Entregue:** treinos manuais com fotos, feed e ranking real, com critérios de comprovação/pontuação.
+3. **Entregue:** moderação com motivo/histórico e consolidação definitiva dos resultados.
+4. **Parcial:** seleção de modalidades fitness, personalizadas e pontuação por modalidade;
+   outros refinamentos e tipos de desafios continuam planejados.
+
+**Extra final:** integração Android com Health Connect, com seleção privada dos treinos antes
+de publicar; depende de validar permissões e compatibilidade. Strava fica adiado, sem bloquear
+o módulo web, e qualquer retomada depende das políticas do provedor.
+
+**Modalidades fitness:** no formulário do desafio, habilite as modalidades permitidas e adicione
+personalizadas quando necessário. Por pontos, cada modalidade pode valer uma quantidade fixa por
+treino ou usar uma métrica, como `5 pontos a cada 3 minutos` e `3 pontos a cada 1 km`. A pontuação
+é proporcional ao tempo/distância e arredondada para uma casa decimal: `5 pontos/km × 1,06 km =
+5,3 pontos`. A lista e os valores ficam bloqueados após a primeira inscrição ou o início. O limite
+diário continua compartilhado entre todas as modalidades. Desafios antigos preservam as sete
+modalidades originais e sua pontuação; nenhuma atividade é recalculada.
+
+Arquitetura: `Challenge` guarda o núcleo e uma configuração validada/versionada; `ChallengeParticipant`
+guarda a inscrição única e a saída. O marcador de primeira inscrição protege regras mesmo após
+remoção de membros. Transações serializáveis coordenam inscrição, edição e cancelamento. Status
+temporal é calculado no fuso do desafio, sem cron. Listas são paginadas e não expõem e-mails.
+Durante um desafio em andamento, entre e use **Registrar treino** na página dele. Informe o dia,
+tipo, duração, distância quando aplicável e até três fotos. O ranking atualiza após publicar ou
+remover um treino, sem somar apenas os registros da página atual. Empates compartilham posição.
+
+Critérios padrão (inclusive em desafios antigos): **1 treino/dia, mínimo de 10 minutos e foto
+obrigatória**. Ao criar um desafio, é possível ajustar para até 10 treinos/dia, outra duração mínima
+ou foto opcional. Critérios seguem o bloqueio das regras após inscrição/início. Registro retroativo
+é permitido desde o dia da primeira inscrição, dentro do desafio e nunca em data futura.
+O autor pode remover um registro errado e publicar novamente enquanto o desafio estiver ativo.
+Quem sai fica fora do ranking, mas mantém seus treinos no feed; ao voltar, recupera a pontuação.
+
+Fotos são privadas, até 6 MB cada (JPEG/PNG/WebP/GIF/AVIF, 40 megapixels). `sharp` decodifica, reduz
+para até 1920px, converte em WebP e remove metadados como GPS. Imagens animadas viram fotos estáticas.
+Bytes ficam no PostgreSQL e entram no backup do banco. O envio completo tem limite real de 20 MB;
+se usar proxy próprio, permita esse tamanho para a rota de atividades. Nenhum volume novo é necessário.
+Não há verificação automática de autenticidade das fotos nem conexão com Strava/Health Connect.
+
+**Revisão:** criador e administradores encontram **Desconsiderar treino** em cada publicação.
+Informe um motivo; o treino e suas fotos continuam visíveis, mas não pontuam. A opção **Restabelecer
+treino** reverte isso com outro motivo. A cota diária continua ocupada enquanto o treino existir.
+Revisões e remoções do autor aparecem no histórico privado; revisões concorrentes exigem atualizar.
+
+**Resultado final:** após o último dia, criador e administradores podem revisar os treinos e usar
+**Consolidar resultado final**. A confirmação é definitiva, sem reabertura: preserva todos os nomes,
+scores, quantidades e posições, mesmo após alterações de perfil ou remoção de membros. Até consolidar,
+o ranking é provisório. Desafios cancelados não têm resultado final. Histórico e resultado não guardam
+e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso normalmente.
 
 ## Decisões técnicas
 

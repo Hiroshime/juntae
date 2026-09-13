@@ -1908,6 +1908,35 @@ OWNER/ADMIN -> administrar qualquer rateio da comunidade
 membro não participante -> visualizar o rateio da própria comunidade, sem lançar compra
 ```
 
+### 30.3.3 Controle de pagamentos do evento (evolução dos rateios)
+
+- O criador do evento e administradores podem habilitar opcionalmente a conta na página do evento;
+  eventos existentes começam com o controle desabilitado.
+- A conta soma o custo base do evento, dividido igualmente entre RSVPs `GOING`, e cada rateio
+  vinculado, respeitando os participantes próprios de cada rateio. Presença parcial não altera a
+  cota base nesta versão. Não repetir o custo base como despesa nos rateios.
+- Compras adiantadas abatem a obrigação da pessoa. Saldo positivo significa que falta pagar;
+  saldo negativo significa reembolso devido pela organização do evento. Exemplo: custo base
+  3000 e rateios de 500 e 300, todos entre dez pessoas, resultam em cota de 380; quem comprou
+  500 tem 120 a receber antes de outros pagamentos.
+- O acerto é centralizado com a organização. Registrar recebimentos (inclusive aportes próprios)
+  e reembolsos efetivamente realizados, integrais ou parciais. Não processar transferências nem
+  armazenar dados bancários. As sugestões de transferência isoladas dos rateios ficam substituídas
+  pela orientação para consultar a conta consolidada, evitando cobranças duplicadas.
+- Todos os membros podem consultar; apenas criador do evento, OWNER e ADMIN registram, anulam,
+  fecham e reabrem. O histórico preserva pessoa, valor, direção, observação, autor e data, inclusive
+  anulações. Não existe autodeclaração de pagamento pelo participante comum.
+- Cálculos usam centavos e distribuição determinística de restos. Moedas diferentes bloqueiam
+  pagamentos e fechamento; nenhum valor é convertido silenciosamente. Uma moeda com pagamentos
+  registrados não pode mudar. Não aceitar lançamentos acima do saldo ou com direção incorreta.
+- Enquanto aberta, a conta acompanha alterações de custos, rateios e RSVPs, preservando os
+  pagamentos já feitos, inclusive de pessoas que deixaram de participar. Mudanças concorrentes
+  ou saldos desatualizados exigem atualização antes de registrar outro acerto.
+- Fechar exige pelo menos uma pessoa, cálculo válido e todos os saldos zerados. O fechamento
+  salva um snapshot com nomes, moeda, composição e valores, imune a mudanças posteriores das
+  fontes. O status financeiro é separado do status do evento. Reabrir recalcula com as fontes
+  atuais mantendo o histórico. Contas com histórico de pagamentos não podem ser desabilitadas.
+
 ## 30.4 Interesses
 
 Membro pode marcar:
@@ -2399,6 +2428,161 @@ Este módulo é **pós-MVP, porém de alta prioridade**, pois possui:
 - baixo atrito para demonstrar valor da plataforma ao grupo.
 
 Depois que o núcleo de autenticação, comunidade, eventos e disponibilidade estiver estável, este deve ser um dos primeiros módulos adicionais considerados.
+
+---
+
+## 30.9 Desafios da comunidade
+
+Módulo privado, inicialmente fitness, inspirado na dinâmica de desafios entre amigos. O núcleo
+de desafio e participação é independente dos futuros registros de atividade e integrações.
+Não é um serviço médico, nem uma competição com apostas ou prêmios financeiros.
+
+### Entrega em quatro fases
+
+1. **Fundação (implementada nesta entrega):** criar, listar, consultar e cancelar desafios;
+   editar antes do início e da primeira inscrição; regras, período, métrica e participação.
+2. **Atividades e competição (implementada):** registrar treinos manualmente com foto e informações, feed
+   privado paginado, validação de atividades e ranking calculado a partir dos registros.
+   Definir limites diários e critérios de comprovação antes de habilitar pontuação real.
+3. **Moderação e resultados (implementada):** revisão de treinos com motivo e histórico,
+   restauração da pontuação e consolidação definitiva da classificação após o período.
+4. **Evolução (parcial):** modalidades fitness habilitáveis, personalizadas e pontos por
+   modalidade implementados. Outros refinamentos e tipos (leitura/hábitos) ficam planejados.
+
+**Etapa extra final (planejada):** aplicativo Android complementar com Health Connect,
+treinos privados e publicação escolhida pelo usuário. Validar permissões, privacidade,
+compatibilidade real por aplicativo/relógio e deduplicação antes de implementar.
+Integrações externas não bloqueiam o módulo web. Strava está adiado; qualquer retomada
+depende de validar as políticas do provedor, inclusive exibição e pontuação compartilhada.
+
+### Regras da fase 1
+
+- Qualquer membro cria um desafio da própria comunidade. Criador, OWNER e ADMIN administram;
+  demais membros consultam e alteram apenas a própria participação.
+- Campos: título, descrição opcional, regras obrigatórias, datas inicial/final inclusivas,
+  timezone IANA e configuração tipada/versionada. Inicialmente somente o tipo FITNESS.
+- Métricas: POINTS (pontos fixos por atividade válida, configuráveis de 1 a 1000), DURATION
+  (soma de tempo, unidade canônica futura: segundos) ou DISTANCE (distância, metros).
+  Nenhuma pontuação, treino fictício ou ranking é criado nesta fase.
+- Período de 1 a 366 dias. Pode começar hoje ou no futuro, no fuso escolhido; término inclui
+  todo o último dia. Status calculado pelo relógio: agendado, em andamento ou encerrado.
+  Cancelamento explícito é definitivo e preserva histórico, separado do fim natural.
+- Inscrição voluntária, inclusive para o criador. Entrar, sair e voltar são permitidos enquanto
+  agendado/em andamento; não duplicar participantes. Saída fica registrada e não conta na lista
+  ativa. Remoção da comunidade remove a inscrição e revoga acesso ao módulo.
+- Título, descrição, regras, datas e configuração só podem mudar antes do início e antes de
+  qualquer inscrição, inclusive uma inscrição posteriormente desfeita. Criar outro desafio
+  se precisar mudar o combinado após esse ponto. Cancelamento disponível até o encerramento.
+- Leituras privadas e paginadas, sem expor e-mails; validação e permissões no servidor,
+  proteção contra alterações concorrentes e CSRF nas mutações.
+- Rotas: `/app/[community]/challenges`, `/new`, `/[challengeId]`. Menu desktop e mobile em Mais.
+- Critérios de aceite: criação/edição persistentes, bloqueio das regras, entrada/saída/reentrada,
+  cancelamento, datas/fusos e isolamento entre comunidades testados; fluxo mobile acessível.
+
+### Regras da fase 2 — treinos, feed e ranking
+
+- A configuração recebe critérios de atividade: máximo diário (1 a 10), duração mínima
+  (1 a 1440 minutos) e exigência de foto. Padrões: 1 treino/dia, 10 minutos, foto obrigatória.
+  Configurações da fase 1 sem esses campos usam os mesmos padrões, exibidos nas regras.
+  A edição continua bloqueada após a primeira inscrição ou o início.
+- Somente participantes inscritos e ativos podem publicar seus próprios treinos enquanto
+  o desafio estiver em andamento. Sem publicação antes do início, após o fim ou cancelamento.
+  O dia informado precisa estar no período do desafio, não ser futuro no fuso dele e ser igual
+  ou posterior ao dia da primeira inscrição. Na fase 2 não há horário exato de início do treino;
+  registros retroativos dentro dessas datas são aceitos, inclusive após sair e voltar.
+- Campos: nome, tipo de treino, dia civil, duração em segundos inteiros (até 24 horas), distância
+  opcional em metros inteiros (até 1000 km), observação opcional e até 3 fotos. A interface usa
+  minutos e quilômetros. Desafios de distância exigem distância positiva; todos exigem duração.
+- Pontos são fixos por atividade aceita, conforme a modalidade na evolução da fase 4;
+  tempo soma segundos e distância soma metros. O score
+  é calculado exclusivamente no servidor. Não aceitar treino abaixo da duração mínima ou acima
+  do limite de registros não removidos por pessoa/dia. A pontuação base da fase 2 é fixa por
+  atividade; a fase 4 acrescenta regras proporcionais por tempo ou distância.
+- Critérios estruturais são automáticos, mas cumprimento das regras textuais e autenticidade
+  das fotos dependem da honestidade dos participantes; não alegar validação automática de exercício.
+- Fotos: JPEG, PNG, WebP, GIF ou AVIF, até 6 MB cada e 40 megapixels. Decodificar e converter para
+  WebP de até 1920px, removendo metadados (inclusive EXIF/GPS); GIF/AVIF animado vira foto estática.
+  Limitar o corpo multipart real a 20 MB mesmo sem Content-Length e limitar tentativas por usuário.
+  Treino e fotos persistem atomicamente em PostgreSQL, sem armazenamento ou credenciais externas.
+- Feed privado paginado, em ordem de publicação, mostra autor, data do treino, métricas,
+  observação e fotos ampliáveis. Fotos exigem sessão e membership, com cache privado/no-store.
+- Ranking paginado soma somente treinos não removidos dos participantes que não saíram. Empates
+  compartilham posição (1, 1, 3), com ordenação estável por nome/ID; zero pontos aparece sem posição.
+  Não usar apenas a página atual do feed para calcular. Saída preserva feed/histórico, mas retira a
+  pessoa do ranking. Reentrada recupera seus registros; remoção da comunidade elimina inscrição,
+  treinos e fotos em cascata. A fase 3 acrescenta histórico e resultado final preservados.
+- O autor pode remover o próprio treino enquanto o desafio estiver ativo, mesmo após sair dele.
+  O score deixa de contar, o limite diário é liberado e as fotos são apagadas; um marcador de remoção
+  preserva o registro e sua chave de envio. Correções usam remoção e novo registro. Administradores
+  não removem treinos alheios; a fase 3 acrescenta a ação distinta de desconsiderar/restabelecer.
+- Chave de envio e hash impedem duplicação por clique/repetição de requisição. Mudança do conteúdo
+  com a mesma chave é recusada. Validação de limites, pontuação e persistência são serializadas com
+  inscrição, saída, cancelamento e remoção para impedir corridas que excedam o limite diário.
+- Aceite: testar as três métricas, empates, paginação, remoção/reentrada, limites concorrentes,
+  idempotência, arquivos falsos, tamanho real do corpo, período/fuso e acesso indevido a fotos;
+  testar publicação, ampliação, ranking e remoção no navegador e a acessibilidade mobile.
+
+---
+
+### Regras da fase 3 — moderação e resultado final
+
+- Criador do desafio, OWNER e ADMIN podem desconsiderar ou restabelecer treinos, inclusive
+  próprios, durante o desafio e após o período enquanto o resultado não estiver consolidado.
+  Membros comuns não moderam; desafios agendados e cancelados não aceitam essas ações.
+- Motivo obrigatório de 10 a 1000 caracteres. Desconsiderar mantém treino e fotos no feed,
+  com indicação textual e motivo, mas retira score e contagem do ranking. A cota diária
+  continua ocupada; restaurar não cria treino novo nem excede a cota. O autor mantém a
+  possibilidade de remover seu registro enquanto ativo, apagando fotos e liberando cota.
+- Decisões registram ação, motivo, data, autor e identificação textual do treino/participante.
+  Remoções feitas pelo autor a partir desta entrega também são registradas, sem reconstruir
+  auditoria fictícia para remoções antigas. Histórico privado paginado, visível à comunidade.
+- Versão de moderação impede que duas revisões sobrescrevam silenciosamente uma à outra;
+  transações serializam revisões, remoção, participação e consolidação.
+- Após todo o último dia no fuso do desafio, criador/administrador pode consolidar o resultado
+  mediante confirmação explícita. Até lá o ranking é provisório. Não há fechamento antecipado,
+  cron obrigatório, reabertura nem resultado final de desafio cancelado nesta fase.
+- Consolidação salva atomicamente todas as linhas do ranking, não apenas a página atual:
+  identidade, nome de exibição, pontuação, quantidade de treinos válidos e posição. Preservar
+  empates (1, 1, 3) e ausência de posição para score zero. Desafios sem pontuação também
+  podem ser consolidados, sem inventar vencedores. Repetição da consolidação é idempotente.
+- Resultado consolidado é definitivo e bloqueia moderação. Nome alterado ou membership
+  removida depois não recalcula a classificação: snapshots e auditoria pertencem ao desafio,
+  sem fotos/e-mails nem dependência de membership. Saída da comunidade continua revogando
+  acesso e eliminando treinos/fotos; exclusão da comunidade elimina também seus snapshots.
+- Aceite: testar permissões, isolamento, motivos, revisões concorrentes, exclusão/restauração,
+  limite diário, ranking nas três métricas, consolidação/paginação/empates e preservação após
+  remoção de membros; validar fluxo mobile de revisão e fechamento definitivo no navegador.
+
+---
+
+### Fase 4 — modalidades fitness (primeiro refinamento)
+
+- Na criação/edição permitida, selecionar as modalidades que contam no desafio. Catálogo:
+  musculação, corrida, corrida indoor, caminhada, caminhada indoor, ciclismo, ciclismo indoor,
+  pilates, alongamento, exercício em casa, pular corda, natação, hidroginástica e tai-chi.
+  Manter também as opções genéricas Esporte e Outro treino, que podem ser desabilitadas.
+- Permitir modalidades personalizadas do próprio desafio, nome de 2 a 60 caracteres e ID
+  opaco estável. Lista não vazia, até 40 habilitadas; rejeitar IDs e nomes duplicados,
+  desconsiderando caixa, acentos e espaços repetidos. Não existe catálogo global editável.
+- Em POINTS, cada modalidade define de 1 a 1000 pontos inteiros. O modo padrão é por treino
+  válido (inicial: 10), mas a modalidade também pode definir uma métrica: por exemplo, 5 pontos
+  a cada 3 minutos ou 3 pontos a cada 1 km. Nesse modo, a pontuação é proporcional ao valor
+  registrado e arredondada para uma casa decimal: 10 minutos na regra de 5/3 min valem 16,7 pontos;
+  1,06 km na regra de 5 pontos/km vale 5,3 pontos. Não descartar a fração da métrica nem limitar
+  o cálculo a unidades completas. Métrica de tempo usa minutos inteiros na interface e scores em
+  décimos no banco; distância usa quilômetros na interface, armazenados em segundos/metros e
+  scores em décimos. DURATION e DISTANCE continuam somando segundos e metros, sem usar os pontos
+  das modalidades. Limite diário é por pessoa/dia no desafio, não uma cota separada por modalidade.
+- Lista e pontos fazem parte das regras protegidas após a primeira inscrição ou o início.
+  Mostrar modalidades/pontos nas regras, apenas habilitadas no registro e nome correto no feed.
+  Validar a modalidade no servidor antes de pontuar/persistir, inclusive para clientes antigos.
+- Extensão opcional `modalities` na configuração JSON existente, sem migration de banco.
+  Configurações antigas sem lista preservam as sete opções originais e seus pontos globais;
+  treinos/rankings antigos não são recalculados. Novos formulários gravam lista explícita.
+- Aceite: modalidades desabilitadas/desconhecidas recusadas; personalizadas persistidas;
+  pontuação distinta no ranking; pontuação proporcional de tempo/distância arredondada a uma casa
+  decimal; ausência de distância recusada quando exigida; regras bloqueadas; retrocompatibilidade
+  e fluxo mobile testados.
 
 ---
 

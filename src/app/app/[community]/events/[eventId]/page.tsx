@@ -4,6 +4,8 @@ import { AppHeader } from "@/components/app-header";
 import { Avatar } from "@/components/avatar";
 import { ShareActions } from "@/components/share-actions";
 import { EventActions } from "@/features/events/event-actions";
+import { EventAccount } from "@/features/events/event-account";
+import { getEventAccount } from "@/server/services/event-account-service";
 import {
   eventStatusClass,
   eventStatusLabels,
@@ -32,6 +34,7 @@ export default async function EventPage({
   const event = await getEvent(user.id, membership.communityId, eventId).catch(() => null);
   if (!event) notFound();
   const acceptsRsvp = event.status === "PUBLISHED";
+  const account = await getEventAccount(user.id, membership.communityId, eventId);
 
   return (
     <main className="shell">
@@ -171,6 +174,12 @@ export default async function EventPage({
               )}
             </aside>
           </div>
+          <EventAccount
+            account={account}
+            communityId={membership.communityId}
+            communitySlug={slug}
+            eventId={eventId}
+          />
           <section className="participants-section">
             <div className="card-header">
               <div>

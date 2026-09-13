@@ -29,7 +29,9 @@ export function CostShareManager({
   today,
   allMembers,
   costShare,
+  hasEventAccount = false,
 }: {
+  hasEventAccount?: boolean;
   communityId: string;
   currentUserId: string;
   today: string;
@@ -235,7 +237,13 @@ export function CostShareManager({
             </div>
             <span>⇄</span>
           </div>
-          {costShare.calculation.transfers.length ? (
+          {hasEventAccount ? (
+            <p className="muted">
+              O acerto deste rateio está centralizado na conta do evento. Abra o evento pelo link
+              acima para consultar o saldo total e os pagamentos. As compras já pagas são
+              descontadas lá, junto com os demais rateios e o custo do evento.
+            </p>
+          ) : costShare.calculation.transfers.length ? (
             <div className="settlement-list">
               {costShare.calculation.transfers.map((transfer) => (
                 <div className="settlement-row" key={`${transfer.fromUserId}-${transfer.toUserId}`}>

@@ -10,6 +10,36 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.8.0",
+    releasedAt: "2026-09-13",
+    title: "Desafios fitness (Beta)",
+    summary: "Crie desafios fitness, registre treinos e acompanhe a evolução da turma.",
+    highlights: [
+      "Novo espaço Desafios: combine datas, regras e comparação por pontos, tempo ou distância.",
+      "Membros podem entrar e sair dos desafios; o combinado fica protegido após a primeira inscrição.",
+      "Publique treinos com fotos, acompanhe o feed e compare os resultados no ranking por pontos, tempo ou distância.",
+      "Defina limites diários, duração mínima e exigência de foto; cada pessoa pode remover um treino lançado errado.",
+      "As fotos podem ser ampliadas, ficam privadas na comunidade e têm metadados como GPS removidos.",
+      "Organizadores podem desconsiderar ou restabelecer treinos, sempre explicando o motivo no histórico do desafio.",
+      "Após o último dia, consolide o resultado final para preservar nomes, pontuações e posições definitivamente.",
+      "Escolha quais modalidades esportivas valem no desafio, crie modalidades próprias e defina os pontos de cada uma.",
+      "Defina pontos fixos por treino ou pontos por métricas, como 5 pontos a cada 3 minutos ou 3 pontos a cada quilômetro.",
+      "A pontuação por métrica agora é proporcional e pode usar uma casa decimal, sem descartar frações do treino.",
+    ],
+  },
+  {
+    version: "0.7.0",
+    releasedAt: "2026-09-12",
+    title: "Conta e pagamentos do evento",
+    summary: "Ficou mais simples controlar os valores de um passeio do começo ao acerto final.",
+    highlights: [
+      "Controle opcional que soma o custo do evento e os rateios, descontando as compras já pagas.",
+      "Veja quem está quitado, quem ainda precisa pagar e quem tem dinheiro a receber.",
+      "Organizadores e administradores podem registrar parcelas e reembolsos, com histórico dos acertos.",
+      "Feche a conta após quitar os saldos e preserve os valores finais; reabra quando precisar recalcular.",
+    ],
+  },
+  {
     version: "0.6.0",
     releasedAt: "2026-09-08",
     title: "Navegação e calendário mais claros",

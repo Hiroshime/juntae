@@ -47,6 +47,7 @@ export default async function CostSharePage({
             </div>
           </div>
           <CostShareManager
+            hasEventAccount={costShare.event?.paymentTrackingEnabled ?? false}
             allMembers={sources.members}
             communityId={membership.communityId}
             costShare={costShare}

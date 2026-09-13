@@ -151,7 +151,7 @@ export async function getCostShare(userId: string, communityId: string, costShar
     await prisma.costShare.findFirst({
       where: { id: costShareId, communityId },
       include: {
-        event: { select: { id: true, title: true } },
+        event: { select: { id: true, title: true, paymentTrackingEnabled: true } },
         createdBy: { select: { id: true, name: true } },
         participants: {
           orderBy: { joinedAt: "asc" },

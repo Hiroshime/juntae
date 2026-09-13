@@ -103,6 +103,10 @@ model User {
   costShareMemberships     CostShareParticipant[]
   costShareExpensesPaid    CostShareExpense[]     @relation("CostShareExpensePayer")
   costShareExpensesCreated CostShareExpense[]     @relation("CostShareExpenseCreator")
+  eventPayments            EventPayment[]         @relation("EventPaymentPerson")
+  eventPaymentsRecorded    EventPayment[]         @relation("EventPaymentRecorder")
+  eventPaymentsVoided      EventPayment[]         @relation("EventPaymentVoider")
+  challengesCreated        Challenge[]            @relation("ChallengeCreator")
 }
 
 model RateLimitBucket {
@@ -133,21 +137,141 @@ model Community {
   randomizerRuns RandomizerRun[]
   holidays       CommunityHoliday[]
   costShares     CostShare[]
+  challenges     Challenge[]
 
   @@index([createdById])
 }
 
 model CommunityMember {
-  communityId String        @db.Uuid
-  userId      String        @db.Uuid
-  displayName String?       @db.VarChar(80)
-  role        CommunityRole @default(MEMBER)
-  joinedAt    DateTime      @default(now()) @db.Timestamptz(6)
-  community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  communityId             String                 @db.Uuid
+  userId                  String                 @db.Uuid
+  displayName             String?                @db.VarChar(80)
+  role                    CommunityRole          @default(MEMBER)
+  joinedAt                DateTime               @default(now()) @db.Timestamptz(6)
+  community               Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user                    User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeParticipations ChallengeParticipant[]
 
   @@id([communityId, userId])
   @@index([userId])
+}
+
+model Challenge {
+  id              String                 @id @default(uuid()) @db.Uuid
+  communityId     String                 @db.Uuid
+  createdById     String                 @db.Uuid
+  title           String                 @db.VarChar(160)
+  description     String?                @db.Text
+  rules           String                 @db.Text
+  startDate       DateTime               @db.Date
+  endDate         DateTime               @db.Date
+  timezone        String                 @db.VarChar(64)
+  configuration   Json
+  firstJoinedAt   DateTime?              @db.Timestamptz(6)
+  cancelledAt     DateTime?              @db.Timestamptz(6)
+  finalizedAt     DateTime?              @db.Timestamptz(6)
+  finalizedByName String?                @db.VarChar(160)
+  createdAt       DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime               @updatedAt @db.Timestamptz(6)
+  community       Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy       User                   @relation("ChallengeCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  participants    ChallengeParticipant[]
+  results         ChallengeResult[]
+  auditLogs       ChallengeAuditLog[]
+
+  @@unique([id, communityId])
+  @@index([communityId, createdAt, id])
+  @@index([createdById])
+}
+
+model ChallengeParticipant {
+  challengeId String              @db.Uuid
+  communityId String              @db.Uuid
+  userId      String              @db.Uuid
+  joinedAt    DateTime            @default(now()) @db.Timestamptz(6)
+  leftAt      DateTime?           @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(6)
+  challenge   Challenge           @relation(fields: [challengeId, communityId], references: [id, communityId], onDelete: Cascade)
+  member      CommunityMember     @relation(fields: [communityId, userId], references: [communityId, userId], onDelete: Cascade)
+  activities  ChallengeActivity[]
+
+  @@id([challengeId, userId])
+  @@index([communityId, userId])
+  @@index([challengeId, leftAt, joinedAt, userId])
+}
+
+model ChallengeActivity {
+  id                String                   @id @default(uuid()) @db.Uuid
+  challengeId       String                   @db.Uuid
+  userId            String                   @db.Uuid
+  clientRequestId   String                   @db.Uuid
+  requestHash       String                   @db.VarChar(64)
+  title             String                   @db.VarChar(160)
+  notes             String?                  @db.VarChar(2000)
+  activityType      String                   @db.VarChar(32)
+  performedOn       DateTime                 @db.Date
+  durationSeconds   Int
+  distanceMeters    Int?
+  score             Decimal                  @db.Decimal(18, 1)
+  createdAt         DateTime                 @default(now()) @db.Timestamptz(6)
+  deletedAt         DateTime?                @db.Timestamptz(6)
+  invalidatedAt     DateTime?                @db.Timestamptz(6)
+  moderationReason  String?                  @db.VarChar(1000)
+  moderationVersion Int                      @default(0)
+  participant       ChallengeParticipant     @relation(fields: [challengeId, userId], references: [challengeId, userId], onDelete: Cascade)
+  photos            ChallengeActivityPhoto[]
+
+  @@unique([challengeId, userId, clientRequestId])
+  @@index([challengeId, deletedAt, createdAt, id])
+  @@index([challengeId, userId, performedOn, deletedAt])
+}
+
+model ChallengeActivityPhoto {
+  id         String            @id @default(uuid()) @db.Uuid
+  activityId String            @db.Uuid
+  data       Bytes             @db.ByteA
+  sortOrder  Int
+  createdAt  DateTime          @default(now()) @db.Timestamptz(6)
+  activity   ChallengeActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, sortOrder])
+}
+
+// Snapshots deliberately do not reference membership/user/activity: community history survives departures.
+model ChallengeResult {
+  challengeId   String    @db.Uuid
+  userId        String    @db.Uuid
+  name          String    @db.VarChar(160)
+  score         Decimal   @db.Decimal(18, 1)
+  activityCount Int
+  position      Int?
+  challenge     Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@id([challengeId, userId])
+  @@index([challengeId, score, name, userId])
+}
+
+enum ChallengeAuditAction {
+  INVALIDATE
+  RESTORE
+  REMOVE
+  FINALIZE
+}
+
+model ChallengeAuditLog {
+  id              String               @id @default(uuid()) @db.Uuid
+  challengeId     String               @db.Uuid
+  actorId         String               @db.Uuid
+  actorName       String               @db.VarChar(160)
+  action          ChallengeAuditAction
+  activityId      String?              @db.Uuid
+  activityTitle   String?              @db.VarChar(160)
+  participantName String?              @db.VarChar(160)
+  reason          String               @db.VarChar(1000)
+  createdAt       DateTime             @default(now()) @db.Timestamptz(6)
+  challenge       Challenge            @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@index([challengeId, createdAt, id])
 }
 
 model Invite {
@@ -212,33 +336,59 @@ model AvailabilityOverride {
 }
 
 model Event {
-  id                     String      @id @default(uuid()) @db.Uuid
-  communityId            String      @db.Uuid
-  createdById            String      @db.Uuid
-  title                  String      @db.VarChar(160)
-  description            String?     @db.Text
-  startsAt               DateTime    @db.Timestamptz(6)
-  endsAt                 DateTime?   @db.Timestamptz(6)
-  allDay                 Boolean     @default(false)
-  timezone               String      @default("America/Sao_Paulo") @db.VarChar(64)
-  locationName           String?     @db.VarChar(160)
-  locationAddress        String?     @db.Text
-  locationUrl            String?     @db.Text
-  estimatedCost          Decimal?    @db.Decimal(10, 2)
-  currency               String      @default("BRL") @db.Char(3)
+  id                     String         @id @default(uuid()) @db.Uuid
+  communityId            String         @db.Uuid
+  createdById            String         @db.Uuid
+  title                  String         @db.VarChar(160)
+  description            String?        @db.Text
+  startsAt               DateTime       @db.Timestamptz(6)
+  endsAt                 DateTime?      @db.Timestamptz(6)
+  allDay                 Boolean        @default(false)
+  timezone               String         @default("America/Sao_Paulo") @db.VarChar(64)
+  locationName           String?        @db.VarChar(160)
+  locationAddress        String?        @db.Text
+  locationUrl            String?        @db.Text
+  estimatedCost          Decimal?       @db.Decimal(10, 2)
+  currency               String         @default("BRL") @db.Char(3)
   participantLimit       Int?
-  allowMaybe             Boolean     @default(true)
-  allowPartialAttendance Boolean     @default(false)
-  status                 EventStatus @default(PUBLISHED)
-  createdAt              DateTime    @default(now()) @db.Timestamptz(6)
-  updatedAt              DateTime    @updatedAt @db.Timestamptz(6)
-  community              Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  createdBy              User        @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  allowMaybe             Boolean        @default(true)
+  allowPartialAttendance Boolean        @default(false)
+  status                 EventStatus    @default(PUBLISHED)
+  createdAt              DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime       @updatedAt @db.Timestamptz(6)
+  community              Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy              User           @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
   rsvps                  EventRsvp[]
   costShares             CostShare[]
+  paymentTrackingEnabled Boolean        @default(false)
+  accountClosedAt        DateTime?      @db.Timestamptz(6)
+  accountSnapshot        Json?
+  payments               EventPayment[]
 
   @@index([communityId, startsAt])
   @@index([communityId, status, startsAt])
+}
+
+model EventPayment {
+  id           String    @id @default(uuid()) @db.Uuid
+  eventId      String    @db.Uuid
+  userId       String    @db.Uuid
+  recordedById String    @db.Uuid
+  amountCents  BigInt
+  direction    String    @db.VarChar(8)
+  note         String?   @db.VarChar(500)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  voidedAt     DateTime? @db.Timestamptz(6)
+  voidedById   String?   @db.Uuid
+  event        Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User      @relation("EventPaymentPerson", fields: [userId], references: [id], onDelete: Restrict)
+  recordedBy   User      @relation("EventPaymentRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+  voidedBy     User?     @relation("EventPaymentVoider", fields: [voidedById], references: [id], onDelete: Restrict)
+
+  @@index([eventId, createdAt])
+  @@index([userId])
+  @@index([recordedById])
+  @@index([voidedById])
 }
 
 model EventRsvp {
