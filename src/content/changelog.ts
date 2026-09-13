@@ -10,6 +10,17 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.8.1",
+    releasedAt: "2026-09-13",
+    title: "Correções de segurança do container",
+    summary:
+      "Atualizamos a imagem de produção para reduzir a superfície de vulnerabilidades conhecidas.",
+    highlights: [
+      "O container final não inclui mais o npm global, que não é necessário para executar o aplicativo.",
+      "As migrações continuam sendo executadas pelo Prisma instalado no próprio projeto.",
+    ],
+  },
+  {
     version: "0.8.0",
     releasedAt: "2026-09-13",
     title: "Desafios fitness (Beta)",
