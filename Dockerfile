@@ -46,7 +46,7 @@ RUN npm ci --omit=dev \
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 RUN DATABASE_URL=postgresql://juntae:build-only@localhost:5432/juntae?schema=public \
-  npm run db:generate
+  node_modules/.bin/prisma generate
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
