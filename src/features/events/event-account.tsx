@@ -6,6 +6,9 @@ import { useState, useTransition, type FormEvent } from "react";
 import type { EventAccountView } from "@/server/services/event-account-service";
 import type { EventAccountAction } from "@/lib/validation/event-account";
 
+type PaymentDirection = "RECEIVED" | "REFUNDED";
+type EditingPayment = { userId: string; direction: PaymentDirection };
+
 export function EventAccount({
   account,
   communityId,
@@ -20,7 +23,7 @@ export function EventAccount({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EditingPayment | null>(null);
   const summary = account.summary;
   const money = (cents: number) =>
     new Intl.NumberFormat("pt-BR", {
@@ -55,6 +58,7 @@ export function EventAccount({
   function payment(
     event: FormEvent<HTMLFormElement>,
     person: NonNullable<typeof summary>["people"][number],
+    direction: PaymentDirection,
   ) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -71,7 +75,7 @@ export function EventAccount({
       {
         action: "PAYMENT",
         userId: person.id,
-        direction: person.dueCents > 0 ? "RECEIVED" : "REFUNDED",
+        direction,
         amountCents: Math.round(amount * 100),
         note: String(data.get("note") ?? ""),
         revision: account.revision,
@@ -119,8 +123,9 @@ export function EventAccount({
           <p className="muted small">
             Informe no custo do evento apenas o valor base (como a locação), sem repetir despesas
             dos rateios. Registre aqui somente pagamentos já realizados e aportes da organização;
-            esta ferramenta não movimenta dinheiro. Não quite novamente as transferências sugeridas
-            em cada rateio.
+            você pode registrar várias parcelas, inclusive antes de existir uma dívida. Esta
+            ferramenta não movimenta dinheiro. Não quite novamente as transferências sugeridas em
+            cada rateio.
           </p>
           {account.closedAt ? (
             <p className="success">
@@ -224,28 +229,47 @@ export function EventAccount({
                         </div>
                       )}
                       <div className="account-due">
-                        <dt>{person.dueCents < 0 ? "Tem a receber" : "Falta pagar"}</dt>
+                        <dt>
+                          {person.dueCents < 0
+                            ? "Crédito a favor"
+                            : person.dueCents > 0
+                              ? "Falta pagar"
+                              : "Saldo zerado"}
+                        </dt>
                         <dd>{money(Math.abs(person.dueCents))}</dd>
                       </div>
                     </dl>
                     {account.canManage &&
                       !account.closedAt &&
-                      person.dueCents !== 0 &&
                       !account.issues.length &&
-                      (editing === person.id ? (
-                        <form className="form" onSubmit={(event) => payment(event, person)}>
+                      (editing?.userId === person.id ? (
+                        <form
+                          className="form"
+                          onSubmit={(event) =>
+                            payment(event, person, editing?.direction ?? "RECEIVED")
+                          }
+                        >
                           <div className="field">
                             <label htmlFor={`payment-${person.id}`}>
-                              Valor {person.dueCents > 0 ? "recebido" : "reembolsado"}
+                              Valor {editing?.direction === "REFUNDED" ? "reembolsado" : "recebido"}
                             </label>
                             <input
                               id={`payment-${person.id}`}
                               name="amount"
                               type="number"
                               min="0.01"
-                              max={(Math.abs(person.dueCents) / 100).toFixed(2)}
+                              max={
+                                editing?.direction === "REFUNDED" && person.dueCents < 0
+                                  ? (Math.abs(person.dueCents) / 100).toFixed(2)
+                                  : undefined
+                              }
                               step="0.01"
-                              defaultValue={(Math.abs(person.dueCents) / 100).toFixed(2)}
+                              defaultValue={
+                                editing?.direction === "REFUNDED" || person.dueCents > 0
+                                  ? (Math.abs(person.dueCents) / 100).toFixed(2)
+                                  : undefined
+                              }
+                              placeholder="Ex.: 40,00"
                               required
                             />
                           </div>
@@ -257,7 +281,7 @@ export function EventAccount({
                               id={`payment-note-${person.id}`}
                               name="note"
                               maxLength={500}
-                              placeholder="Ex.: Pix recebido ou aporte próprio"
+                              placeholder="Ex.: Parcela de setembro ou Pix recebido"
                             />
                           </div>
                           <div className="actions compact-actions">
@@ -275,14 +299,28 @@ export function EventAccount({
                           </div>
                         </form>
                       ) : (
-                        <button
-                          className="button secondary"
-                          disabled={pending}
-                          onClick={() => setEditing(person.id)}
-                          type="button"
-                        >
-                          {person.dueCents > 0 ? "Registrar pagamento" : "Registrar reembolso"}
-                        </button>
+                        <div className="actions compact-actions">
+                          <button
+                            className="button secondary"
+                            disabled={pending}
+                            onClick={() => setEditing({ userId: person.id, direction: "RECEIVED" })}
+                            type="button"
+                          >
+                            Registrar pagamento
+                          </button>
+                          {person.dueCents < 0 && (
+                            <button
+                              className="button ghost"
+                              disabled={pending}
+                              onClick={() =>
+                                setEditing({ userId: person.id, direction: "REFUNDED" })
+                              }
+                              type="button"
+                            >
+                              Registrar reembolso
+                            </button>
+                          )}
+                        </div>
                       ))}
                   </article>
                 ))}

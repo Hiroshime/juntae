@@ -33,6 +33,8 @@ export type AccountPayment = {
 };
 
 // Positive due = participant owes the event; negative due = the event owes them.
+// RECEIVED payments may be recorded as installments or advance payments, even
+// after the due reaches zero. A negative due is then the participant's credit.
 export function calculateEventAccount(input: {
   currency: string;
   eventCostCents: number;

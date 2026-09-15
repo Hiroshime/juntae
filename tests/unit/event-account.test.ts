@@ -47,6 +47,21 @@ describe("conta do evento", () => {
     expect(summary.people.find((p) => p.id === "2")?.dueCents).toBe(28_000);
     expect(summary.people.find((p) => p.id === "0")?.dueCents).toBe(0);
   });
+  it("aceita várias parcelas antecipadas e transforma excesso pago em crédito", () => {
+    const { summary } = calculateEventAccount({
+      ...example,
+      payments: [
+        { userId: "2", name: "Pessoa 2", amountCents: 20_000, direction: "RECEIVED" },
+        { userId: "2", name: "Pessoa 2", amountCents: 20_000, direction: "RECEIVED" },
+        { userId: "2", name: "Pessoa 2", amountCents: 5_000, direction: "RECEIVED" },
+      ],
+    });
+    expect(summary.people.find((p) => p.id === "2")).toMatchObject({
+      receivedCents: 45_000,
+      dueCents: -7_000,
+    });
+    expect(summary.refundableCents).toBe(19_000);
+  });
   it("respeita participantes próprios de cada rateio e preserva centavos", () => {
     const { summary } = calculateEventAccount({
       ...example,

@@ -153,7 +153,9 @@ describe("controle financeiro de eventos", () => {
     await enable();
     const account = await view();
     expect(account.summary?.people.find((p) => p.id === creator)?.dueCents).toBe(-70_000);
-    await expect(pay(creator, 70_000)).rejects.toMatchObject({ code: "INVALID_PAYMENT" });
+    await expect(pay(creator, 70_001, "REFUNDED")).rejects.toMatchObject({
+      code: "INVALID_PAYMENT",
+    });
     await pay(creator, 70_000, "REFUNDED");
     const entry = (await view()).payments[0];
     await act({ action: "VOID", paymentId: entry.id }, owner);
@@ -166,9 +168,17 @@ describe("controle financeiro de eventos", () => {
       updateEvent(creator, communityId, eventId, { ...eventInput, currency: "USD" }),
     ).rejects.toMatchObject({ code: "ACCOUNT_HAS_PAYMENTS" });
   });
-  it("rejeita excesso, pessoa externa, saldo desatualizado e duplicação concorrente", async () => {
+  it("aceita parcelas antecipadas, limita reembolsos e serializa duplicação concorrente", async () => {
     await enable();
-    await expect(pay(member, 30_001)).rejects.toMatchObject({ code: "INVALID_PAYMENT" });
+    await pay(member, 30_001);
+    expect((await view()).summary?.people.find((p) => p.id === member)?.dueCents).toBe(-1);
+    await pay(member, 10_000);
+    expect((await view()).summary?.people.find((p) => p.id === member)?.dueCents).toBe(-10_001);
+    await expect(pay(member, 10_002, "REFUNDED")).rejects.toMatchObject({
+      code: "INVALID_PAYMENT",
+    });
+    await pay(member, 10_001, "REFUNDED");
+    expect((await view()).summary?.people.find((p) => p.id === member)?.dueCents).toBe(0);
     await expect(pay(outsider, 100)).rejects.toMatchObject({ status: 404 });
     const input = {
       action: "PAYMENT" as const,
@@ -180,7 +190,7 @@ describe("controle financeiro de eventos", () => {
     };
     const results = await Promise.allSettled([act(input), act(input)]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect((await view()).payments).toHaveLength(1);
+    expect((await view()).payments).toHaveLength(4);
     await expect(act(input)).rejects.toMatchObject({ code: "ACCOUNT_CHANGED" });
   });
   it("atualiza compras e preserva pagamentos de quem deixou de confirmar", async () => {

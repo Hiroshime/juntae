@@ -196,13 +196,12 @@ export async function changeEventAccount(
           summary.people.find((item) => item.id === input.userId),
           "Pessoa não encontrada na conta do evento.",
         );
-        const expectedDirection = person.dueCents > 0 ? "RECEIVED" : "REFUNDED";
         if (
-          input.direction !== expectedDirection ||
-          input.amountCents > Math.abs(person.dueCents)
+          input.direction === "REFUNDED" &&
+          (person.dueCents >= 0 || input.amountCents > Math.abs(person.dueCents))
         ) {
           throw new AppError(
-            "O lançamento deve corresponder ao saldo pendente, sem ultrapassá-lo.",
+            "Reembolsos só podem abater um crédito existente e não podem ultrapassá-lo.",
             409,
             "INVALID_PAYMENT",
           );

@@ -84,9 +84,13 @@ test("conta do evento: habilitar, registrar parcelas e reembolso, fechar e reabr
     await expect(person2.locator(".account-due")).toContainText(money("380,00"));
     await expect(account.getByRole("button", { name: "Fechar conta do evento" })).toBeDisabled();
     await person2.getByRole("button", { name: "Registrar pagamento" }).click();
+    await person2.getByLabel("Valor recebido").fill("40");
+    await person2.getByRole("button", { name: "Confirmar registro" }).click();
+    await expect(person2.locator(".account-due")).toContainText(money("340,00"));
+    await person2.getByRole("button", { name: "Registrar pagamento" }).click();
     await person2.getByLabel("Valor recebido").fill("100");
     await person2.getByRole("button", { name: "Confirmar registro" }).click();
-    await expect(person2.locator(".account-due")).toContainText(money("280,00"));
+    await expect(person2.locator(".account-due")).toContainText(money("240,00"));
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
@@ -103,7 +107,7 @@ test("conta do evento: habilitar, registrar parcelas e reembolso, fechar e reabr
       await person.getByRole("button", { name: "Confirmar registro" }).click();
       await expect(person.getByText("Quitado", { exact: true })).toBeVisible();
     }
-    await account.getByText("Histórico de pagamentos (11)").click();
+    await account.getByText("Histórico de pagamentos (12)").click();
     await expect(
       account.getByText("Registrado por Conta Pessoa 0", { exact: false }).first(),
     ).toBeVisible();

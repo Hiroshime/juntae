@@ -1915,20 +1915,26 @@ membro não participante -> visualizar o rateio da própria comunidade, sem lan�
 - A conta soma o custo base do evento, dividido igualmente entre RSVPs `GOING`, e cada rateio
   vinculado, respeitando os participantes próprios de cada rateio. Presença parcial não altera a
   cota base nesta versão. Não repetir o custo base como despesa nos rateios.
-- Compras adiantadas abatem a obrigação da pessoa. Saldo positivo significa que falta pagar;
-  saldo negativo significa reembolso devido pela organização do evento. Exemplo: custo base
+- Compras adiantadas abatem a obrigação da pessoa. No cálculo interno, saldo devido positivo
+  significa que falta pagar; saldo devido negativo significa crédito a favor e reembolso devido
+  pela organização do evento. Exemplo: custo base
   3000 e rateios de 500 e 300, todos entre dez pessoas, resultam em cota de 380; quem comprou
   500 tem 120 a receber antes de outros pagamentos.
-- O acerto é centralizado com a organização. Registrar recebimentos (inclusive aportes próprios)
-  e reembolsos efetivamente realizados, integrais ou parciais. Não processar transferências nem
-  armazenar dados bancários. As sugestões de transferência isoladas dos rateios ficam substituídas
-  pela orientação para consultar a conta consolidada, evitando cobranças duplicadas.
+- O acerto é centralizado com a organização. Registrar quantos recebimentos forem necessários
+  (inclusive aportes próprios e parcelas antecipadas) e reembolsos efetivamente realizados,
+  integrais ou parciais. Um recebimento pode ser lançado mesmo quando a pessoa já está quitada;
+  o excesso pago vira crédito a favor e pode ser reembolsado depois. Reembolsos não podem
+  ultrapassar o crédito disponível. Não processar transferências nem armazenar dados bancários.
+  As sugestões de transferência isoladas dos rateios ficam substituídas pela orientação para
+  consultar a conta consolidada, evitando cobranças duplicadas.
 - Todos os membros podem consultar; apenas criador do evento, OWNER e ADMIN registram, anulam,
   fecham e reabrem. O histórico preserva pessoa, valor, direção, observação, autor e data, inclusive
   anulações. Não existe autodeclaração de pagamento pelo participante comum.
 - Cálculos usam centavos e distribuição determinística de restos. Moedas diferentes bloqueiam
   pagamentos e fechamento; nenhum valor é convertido silenciosamente. Uma moeda com pagamentos
-  registrados não pode mudar. Não aceitar lançamentos acima do saldo ou com direção incorreta.
+  registrados não pode mudar. Recebimentos podem ultrapassar o saldo devido para registrar
+  parcelas antecipadas e formar crédito; reembolsos não podem ultrapassar esse crédito nem usar
+  direção incorreta.
 - Enquanto aberta, a conta acompanha alterações de custos, rateios e RSVPs, preservando os
   pagamentos já feitos, inclusive de pessoas que deixaram de participar. Mudanças concorrentes
   ou saldos desatualizados exigem atualização antes de registrar outro acerto.

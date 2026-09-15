@@ -10,6 +10,18 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.9.0",
+    releasedAt: "2026-09-15",
+    title: "Parcelas e créditos na conta do evento",
+    summary:
+      "A organização agora pode registrar pagamentos antecipados e várias parcelas por pessoa.",
+    highlights: [
+      "Registre vários pagamentos recebidos do mesmo participante, inclusive antes de existir uma dívida.",
+      "Valores pagos além da cota ficam como crédito a favor e podem ser reembolsados depois.",
+      "O histórico mantém cada lançamento, observação, autor, data e eventual anulação.",
+    ],
+  },
+  {
     version: "0.8.3",
     releasedAt: "2026-09-14",
     title: "Build Docker final corrigido",

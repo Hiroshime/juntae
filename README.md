@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.8.3 \
+  --tag docker.io/SEU_USUARIO/juntae:0.9.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.8.3` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.8.3` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.8.3` também publica automaticamente as tags `0.8.3` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.9.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.9.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.9.0` também publica automaticamente as tags `0.9.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -140,7 +140,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.8.3`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.9.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -324,15 +324,17 @@ respeitando os participantes próprios de cada rateio. Compras já pagas são ab
 Exemplo: evento de R$ 3.000 e rateios de R$ 500 e R$ 300 entre dez pessoas dão uma cota de R$ 380;
 quem comprou R$ 500 tem R$ 120 a receber.
 
-- Registre recebimentos e reembolsos já realizados, inclusive parcelas e aportes próprios da
-  organização. Os participantes consultam a conta; somente criador do evento e administradores
-  confirmam registros. Não há processamento de dinheiro.
+- Registre vários recebimentos e reembolsos já realizados, inclusive parcelas antecipadas e aportes
+  próprios da organização. Um recebimento pode ser lançado mesmo com saldo zerado e o excesso vira
+  crédito a favor da pessoa. Os participantes consultam a conta; somente criador do evento e
+  administradores confirmam registros. Não há processamento de dinheiro.
 - O acerto é centralizado com a organização: não repita pagamentos das sugestões isoladas de
   cada rateio. Não cadastre o valor da locação no custo base e novamente como compra.
 - Contas abertas acompanham alterações de custos, RSVPs e rateios. Presença parcial não reduz
   automaticamente a cota do evento. Moedas diferentes bloqueiam acertos; não existe câmbio automático.
-- É possível anular registros incorretos preservando autor, data e histórico. Valores acima do
-  saldo e operações com dados desatualizados são recusados.
+- É possível anular registros incorretos preservando autor, data e histórico. Recebimentos acima do
+  saldo atual são permitidos para formar crédito; reembolsos acima do crédito e operações com dados
+  desatualizados são recusados.
 - **Fechar conta do evento** exige todos os saldos zerados e guarda os valores e nomes daquele
   momento. Alterações posteriores nas fontes não alteram a conta fechada. **Reabrir conta** recalcula
   com os dados atuais, preservando pagamentos. Fechar a conta não cancela nem conclui o evento.
