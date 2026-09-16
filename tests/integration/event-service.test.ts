@@ -5,6 +5,7 @@ import {
   cancelEvent,
   createEvent,
   getEvent,
+  listCalendarEvents,
   listEvents,
   setEventRsvp,
   updateEvent,
@@ -86,6 +87,34 @@ describe("event services", () => {
     const events = await listEvents(ownerId, communityId, { scope: "UPCOMING", take: 10 });
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ title: baseInput.title, myRsvp: null });
+  });
+
+  it("projeta eventos nas datas civis e traz o RSVP do usuário atual", async () => {
+    const event = await createEvent(ownerId, communityId, {
+      ...baseInput,
+      title: "Chácara de novembro",
+      startsAt: "2030-11-20T03:00:00.000Z",
+      endsAt: "2030-11-24T03:00:00.000Z",
+      allDay: true,
+      allowPartialAttendance: true,
+    });
+    await setEventRsvp(memberId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: ["2030-11-22", "2030-11-23"],
+    });
+
+    const events = await listCalendarEvents(memberId, communityId, {
+      startDate: "2030-11-21",
+      endDate: "2030-11-23",
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      title: "Chácara de novembro",
+      dates: ["2030-11-21", "2030-11-22", "2030-11-23"],
+      myRsvp: "GOING",
+      myAttendanceDates: ["2030-11-22", "2030-11-23"],
+    });
   });
 
   it("não expõe eventos a quem não participa da comunidade", async () => {

@@ -1,5 +1,6 @@
 import { Prisma, type CommunityRole } from "@prisma/client";
-import { formatCivilDate } from "@/lib/dates/civil-date";
+import { addCivilDays, formatCivilDate, parseCivilDate } from "@/lib/dates/civil-date";
+import type { CommunityCalendarEvent } from "@/lib/calendar-events";
 import { prisma } from "@/lib/db/prisma";
 import type { EventInput, RsvpInput } from "@/lib/validation/event";
 import {
@@ -135,6 +136,71 @@ export async function listEvents(
     select: eventListSelection,
   });
   return events.map((event) => toEventSummary(event, userId));
+}
+
+export async function listCalendarEvents(
+  userId: string,
+  communityId: string,
+  range: { startDate: string; endDate: string },
+): Promise<CommunityCalendarEvent[]> {
+  await requireMembership(userId, communityId);
+
+  // Event dates are civil dates in the event timezone. The small UTC margin
+  // keeps events near midnight from being lost before the exact date filter.
+  const lowerBound = parseCivilDate(addCivilDays(range.startDate, -2));
+  const upperBound = parseCivilDate(addCivilDays(range.endDate, 3));
+  const events = await prisma.event.findMany({
+    where: {
+      communityId,
+      status: { not: "DRAFT" },
+      startsAt: { lt: upperBound },
+      OR: [{ endsAt: null, startsAt: { gte: lowerBound } }, { endsAt: { gt: lowerBound } }],
+    },
+    orderBy: { startsAt: "asc" },
+    select: {
+      id: true,
+      title: true,
+      startsAt: true,
+      endsAt: true,
+      allDay: true,
+      timezone: true,
+      status: true,
+      rsvps: {
+        where: { userId },
+        select: {
+          status: true,
+          attendanceDays: { orderBy: { date: "asc" }, select: { date: true } },
+        },
+      },
+    },
+  });
+
+  return events.flatMap((event) => {
+    const eventStart = event.startsAt;
+    const eventEnd = event.endsAt;
+    const eventDates = eventAttendanceDates({
+      startsAt: eventStart,
+      endsAt: eventEnd,
+      timezone: event.timezone,
+    }).filter((date) => date >= range.startDate && date <= range.endDate);
+    if (eventDates.length === 0) return [];
+
+    const myRsvp = event.rsvps[0];
+    return [
+      {
+        id: event.id,
+        title: event.title,
+        startsAt: event.startsAt.toISOString(),
+        endsAt: event.endsAt?.toISOString() ?? null,
+        allDay: event.allDay,
+        timezone: event.timezone,
+        status: event.status,
+        dates: eventDates,
+        myRsvp: myRsvp?.status ?? null,
+        myAttendanceDates: myRsvp?.attendanceDays.map((day) => formatCivilDate(day.date)) ?? [],
+      },
+    ];
+  });
 }
 
 export async function getEvent(userId: string, communityId: string, eventId: string) {

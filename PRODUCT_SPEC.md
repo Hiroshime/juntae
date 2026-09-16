@@ -493,6 +493,10 @@ Cada dia deve exibir:
 - indisponíveis;
 - sem informação.
 
+Quando houver eventos publicados no intervalo, o dia também deve exibir seus eventos. Cada evento
+deve usar um indicador visual baseado na resposta do usuário atual: `Vou`, `Talvez`, `Não vou` ou
+`Sem resposta`, com acesso à página do evento para consultar ou alterar o RSVP.
+
 Ao abrir o dia, listar membros agrupados por estado.
 
 ## 9.6 Cálculo de score da data

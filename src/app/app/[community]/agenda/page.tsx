@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { Avatar } from "@/components/avatar";
-import { CommunityCalendarMonth } from "@/features/availability/community-calendar-month";
+import {
+  CalendarEventList,
+  CommunityCalendarMonth,
+} from "@/features/availability/community-calendar-month";
 import { ScheduleAvailabilityHint } from "@/features/availability/schedule-availability-hint";
 import {
   availabilityStatusLabels,
@@ -22,6 +25,7 @@ import { calendarQuerySchema } from "@/lib/validation/availability";
 import { rankBestDates } from "@/server/domain/availability-scoring";
 import { getCommunityCalendar } from "@/server/services/availability-service";
 import { getMembershipBySlug, listCommunityMembers } from "@/server/services/community-service";
+import { listCalendarEvents } from "@/server/services/event-service";
 
 export const dynamic = "force-dynamic";
 
@@ -124,10 +128,19 @@ export default async function CommunityCalendarPage({
         minPeople: 0,
         periodOfDay: "ALL",
       });
-  const [calendar, communityMembers] = await Promise.all([
+  const [calendar, communityMembers, calendarEvents] = await Promise.all([
     getCommunityCalendar(user.id, membership.communityId, query),
     listCommunityMembers(user.id, membership.communityId),
+    listCalendarEvents(user.id, membership.communityId, query),
   ]);
+  const eventsByDate = new Map<string, typeof calendarEvents>();
+  for (const event of calendarEvents) {
+    for (const date of event.dates) {
+      const events = eventsByDate.get(date) ?? [];
+      events.push(event);
+      eventsByDate.set(date, events);
+    }
+  }
   const bestDates = rankBestDates(calendar.days.map((day) => day.summary)).slice(0, 5);
 
   return (
@@ -320,6 +333,7 @@ export default async function CommunityCalendarPage({
               monthEnd={monthRange.endDate}
               monthStart={monthRange.startDate}
               today={today}
+              events={calendarEvents}
             />
           ) : (
             <section className="calendar-list" aria-label="Disponibilidade por dia">
@@ -366,6 +380,11 @@ export default async function CommunityCalendarPage({
                       </div>
                     </summary>
                     <div className="day-member-groups">
+                      <CalendarEventList
+                        communitySlug={slug}
+                        date={day.date}
+                        events={eventsByDate.get(day.date) ?? []}
+                      />
                       {statusGroupOrder.map((status) => {
                         const members = day.members.filter((member) => member.status === status);
                         if (!members.length) return null;

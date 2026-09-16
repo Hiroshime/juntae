@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import {
+  calendarEventRsvpClass,
+  calendarEventRsvpLabel,
+  type CommunityCalendarEvent,
+} from "@/lib/calendar-events";
+import {
   availabilityStatusLabels,
   availabilityStatusSymbols,
   statusClass,
@@ -13,7 +18,7 @@ import {
   ScheduleAvailabilityHint,
   type ScheduleAvailabilityWindow,
 } from "@/features/availability/schedule-availability-hint";
-import { civilDateRange, parseCivilDate } from "@/lib/dates/civil-date";
+import { civilDateInTimeZone, civilDateRange, parseCivilDate } from "@/lib/dates/civil-date";
 
 export type CommunityCalendarDay = {
   date: string;
@@ -85,7 +90,7 @@ function availabilityLevel(summary: CalendarSummary) {
   return "low";
 }
 
-function dayAriaLabel(day: CommunityCalendarDay) {
+function dayAriaLabel(day: CommunityCalendarDay, events: CommunityCalendarEvent[]) {
   const date = formatLongDate(day.date);
   const holidays = day.holidays.length ? `, feriado: ${day.holidays.join(", ")}` : "";
   const periods = calendarPeriods
@@ -94,7 +99,60 @@ function dayAriaLabel(day: CommunityCalendarDay) {
       return `${label}: ${summary.fullAvailableCount} livres e ${summary.partialAvailableCount} parciais de ${summary.totalMembers}`;
     })
     .join("; ");
-  return `${date}: ${periods}${holidays}`;
+  const eventSummary = events.length
+    ? `; ${events.length} ${events.length === 1 ? "evento" : "eventos"}: ${events
+        .map((event) => `${event.title}, ${calendarEventRsvpLabel(event.myRsvp)}`)
+        .join("; ")}`
+    : "";
+  return `${date}: ${periods}${holidays}${eventSummary}`;
+}
+
+function eventTimeLabel(event: CommunityCalendarEvent, date: string) {
+  if (event.allDay) return "Dia inteiro";
+  const startDate = civilDateInTimeZone(new Date(event.startsAt), event.timezone);
+  if (startDate !== date) return "Em andamento";
+  return new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: event.timezone,
+  }).format(new Date(event.startsAt));
+}
+
+export function CalendarEventList({
+  communitySlug,
+  date,
+  events,
+}: {
+  communitySlug: string;
+  date: string;
+  events: CommunityCalendarEvent[];
+}) {
+  if (!events.length) return null;
+  const headingId = `calendar-events-${date}`;
+
+  return (
+    <section className="calendar-event-list" aria-labelledby={headingId}>
+      <h3 id={headingId}>Eventos do dia</h3>
+      <ul>
+        {events.map((event) => (
+          <li
+            className={`calendar-event-row ${calendarEventRsvpClass(event.myRsvp)}${event.status === "CANCELLED" ? " is-cancelled" : ""}`}
+            key={event.id}
+          >
+            <div className="calendar-event-row-heading">
+              <Link href={`/app/${communitySlug}/events/${event.id}`}>{event.title}</Link>
+              <span className="calendar-event-rsvp">{calendarEventRsvpLabel(event.myRsvp)}</span>
+            </div>
+            <small>
+              {event.status === "CANCELLED" ? "Cancelado · " : ""}
+              {eventTimeLabel(event, date)}
+              {event.myAttendanceDates.length > 0 ? " · presença parcial configurada" : ""}
+            </small>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 export function CommunityCalendarMonth({
@@ -103,14 +161,27 @@ export function CommunityCalendarMonth({
   monthEnd,
   today,
   communitySlug,
+  events,
 }: {
   days: CommunityCalendarDay[];
   monthStart: string;
   monthEnd: string;
   today: string;
   communitySlug: string;
+  events: CommunityCalendarEvent[];
 }) {
   const dayMap = useMemo(() => new Map(days.map((day) => [day.date, day])), [days]);
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CommunityCalendarEvent[]>();
+    for (const event of events) {
+      for (const date of event.dates) {
+        const dateEvents = map.get(date) ?? [];
+        dateEvents.push(event);
+        map.set(date, dateEvents);
+      }
+    }
+    return map;
+  }, [events]);
   const initialDate = dayMap.has(today) ? today : days[0]?.date;
   const [selectedDate, setSelectedDate] = useState<string | undefined>(initialDate);
   const selectedDay = selectedDate ? dayMap.get(selectedDate) : undefined;
@@ -148,10 +219,11 @@ export function CommunityCalendarMonth({
             );
           }
           const selected = selectedDate === date;
+          const dayEvents = eventsByDate.get(date) ?? [];
           return (
             <li key={date}>
               <button
-                aria-label={dayAriaLabel(day)}
+                aria-label={dayAriaLabel(day, dayEvents)}
                 aria-pressed={selected}
                 className={`calendar-month-day${date === today ? " is-today" : ""}`}
                 data-date={date}
@@ -179,6 +251,23 @@ export function CommunityCalendarMonth({
                     );
                   })}
                 </span>
+                {dayEvents.length > 0 && (
+                  <span className="calendar-month-events" aria-hidden="true">
+                    {dayEvents.slice(0, 2).map((event) => (
+                      <span
+                        className={`calendar-event-chip ${calendarEventRsvpClass(event.myRsvp)}${event.status === "CANCELLED" ? " is-cancelled" : ""}`}
+                        key={event.id}
+                        title={`${event.title} · ${calendarEventRsvpLabel(event.myRsvp)}`}
+                      >
+                        <span className="calendar-event-chip-title">{event.title}</span>
+                        <span className="calendar-event-chip-status">
+                          {calendarEventRsvpLabel(event.myRsvp)}
+                        </span>
+                      </span>
+                    ))}
+                    {dayEvents.length > 2 && <small>+{dayEvents.length - 2} eventos</small>}
+                  </span>
+                )}
                 {day.holidays.length > 0 && (
                   <span className="calendar-month-holiday" title={day.holidays.join(", ")}>
                     Feriado
@@ -209,6 +298,22 @@ export function CommunityCalendarMonth({
         </span>
         <span className="calendar-partial-legend">
           <strong>+Np</strong>N pessoas parcialmente disponíveis
+        </span>
+        <span>
+          <i className="legend-event-going" />
+          Evento: vou
+        </span>
+        <span>
+          <i className="legend-event-maybe" />
+          Evento: talvez
+        </span>
+        <span>
+          <i className="legend-event-not-going" />
+          Evento: não vou
+        </span>
+        <span>
+          <i className="legend-event-no-response" />
+          Evento: sem resposta
         </span>
       </div>
 
@@ -257,6 +362,11 @@ export function CommunityCalendarMonth({
               );
             })}
           </div>
+          <CalendarEventList
+            communitySlug={communitySlug}
+            date={selectedDay.date}
+            events={eventsByDate.get(selectedDay.date) ?? []}
+          />
           <div className="calendar-selected-groups">
             {statusOrder.map((status) => {
               const members = selectedDay.members.filter((member) => member.status === status);
