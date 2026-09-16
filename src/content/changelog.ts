@@ -10,6 +10,18 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.10.0",
+    releasedAt: "2026-09-15",
+    title: "Eventos no calendário da comunidade",
+    summary:
+      "Agora os eventos aparecem diretamente nos dias correspondentes do calendário do grupo.",
+    highlights: [
+      "Eventos de um ou vários dias aparecem nas datas corretas, respeitando o fuso horário do evento.",
+      "As cores mostram rapidamente sua resposta: Vou, Talvez, Não vou ou Sem resposta.",
+      "Ao abrir o dia, você pode consultar o evento e alterar sua resposta diretamente.",
+    ],
+  },
+  {
     version: "0.9.0",
     releasedAt: "2026-09-15",
     title: "Parcelas e créditos na conta do evento",
