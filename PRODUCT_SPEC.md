@@ -734,9 +734,13 @@ name
 email
 avatar_url
 timezone
+last_login_at nullable
 created_at
 updated_at
 ```
+
+`last_login_at` é atualizado após autenticação válida e na criação da conta que inicia uma sessão.
+Somente `OWNER` e `ADMIN` podem consultar essa informação na listagem de membros da comunidade.
 
 ## 12.2 Perfil dentro da comunidade
 
@@ -1783,6 +1787,7 @@ criar votação de datas
 - [ ] Usuário cria uma comunidade.
 - [ ] Usuário entra por convite.
 - [ ] Membro não acessa outra comunidade sem permissão.
+- [ ] Owner e administrador visualizam o último login dos membros; membros comuns não recebem esse dado.
 
 ## 29.3 Disponibilidade
 

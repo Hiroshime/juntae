@@ -15,7 +15,7 @@ import {
   updateOwnCommunityProfile,
 } from "@/server/services/community-service";
 import { changePassword, getProfile, updateProfile } from "@/server/services/profile-service";
-import { registerUser } from "@/server/services/auth-service";
+import { recordSuccessfulLogin, registerUser } from "@/server/services/auth-service";
 
 describe.sequential("phase one services", () => {
   const suffix = randomUUID();
@@ -88,6 +88,22 @@ describe.sequential("phase one services", () => {
     const stored = await prisma.invite.findUniqueOrThrow({ where: { id: invite.id } });
     expect(stored.useCount).toBe(1);
     expect(await listCommunityMembers(ownerId, communityId)).toHaveLength(2);
+  });
+
+  it("registra o último login e só o exibe para administradores", async () => {
+    const recorded = await recordSuccessfulLogin(ownerId);
+    expect(recorded.lastLoginAt).toBeInstanceOf(Date);
+
+    const lastLoginAt = new Date("2030-09-15T12:34:56.000Z");
+    await prisma.user.update({ where: { id: ownerId }, data: { lastLoginAt } });
+
+    const adminView = await listCommunityMembers(ownerId, communityId);
+    expect(adminView.find((member) => member.userId === ownerId)?.user.lastLoginAt).toEqual(
+      lastLoginAt,
+    );
+
+    const memberView = await listCommunityMembers(memberId, communityId);
+    expect(memberView.every((member) => !("lastLoginAt" in member.user))).toBe(true);
   });
 
   it("cria conta somente com convite e já adiciona o novo usuário à comunidade", async () => {

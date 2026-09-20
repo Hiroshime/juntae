@@ -992,6 +992,9 @@ h2 {
   flex: 1;
   gap: 4px;
 }
+.member-info .muted.small {
+  line-height: 1.35;
+}
 .member-actions {
   display: flex;
   align-items: center;

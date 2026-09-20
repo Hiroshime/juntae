@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { credentialsSchema } from "@/lib/validation/auth";
 import { assertSameOrigin, routeErrorResponse } from "@/lib/http/route";
 import { clientIdentifier, enforceRateLimit } from "@/lib/http/rate-limit";
+import { recordSuccessfulLogin } from "@/server/services/auth-service";
 
 export async function POST(request: Request) {
   try {
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     const passwordMatches = await compare(parsed.data.password, passwordHash);
     if (!user || !passwordMatches)
       return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 401 });
+    await recordSuccessfulLogin(user.id);
     await createSession(user.id, user.sessionVersion);
     return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email } });
   } catch (error) {

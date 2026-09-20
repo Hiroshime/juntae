@@ -124,7 +124,8 @@ export async function updateCommunity(
 }
 
 export async function listCommunityMembers(actorId: string, communityId: string) {
-  await requireMembership(actorId, communityId);
+  const membership = await requireMembership(actorId, communityId);
+  const canViewLastLogin = membership.role !== "MEMBER";
   return prisma.communityMember.findMany({
     where: { communityId },
     orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
@@ -133,7 +134,14 @@ export async function listCommunityMembers(actorId: string, communityId: string)
       displayName: true,
       role: true,
       joinedAt: true,
-      user: { select: { name: true, avatarUrl: true, timezone: true } },
+      user: {
+        select: {
+          name: true,
+          avatarUrl: true,
+          timezone: true,
+          ...(canViewLastLogin ? { lastLoginAt: true } : {}),
+        },
+      },
     },
   });
 }

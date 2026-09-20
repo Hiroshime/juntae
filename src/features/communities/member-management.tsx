@@ -10,7 +10,12 @@ type Member = {
   displayName: string | null;
   role: Role;
   joinedAt: Date | string;
-  user: { name: string; avatarUrl: string | null; timezone: string };
+  user: {
+    name: string;
+    avatarUrl: string | null;
+    timezone: string;
+    lastLoginAt?: Date | string | null;
+  };
 };
 
 const roleLabels: Record<Role, string> = {
@@ -18,6 +23,16 @@ const roleLabels: Record<Role, string> = {
   ADMIN: "Administrador",
   MEMBER: "Membro",
 };
+
+function formatLastLogin(value: Date | string | null | undefined) {
+  if (!value) return "Ainda não registrado";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  })
+    .format(new Date(value))
+    .replace(",", "");
+}
 
 export function MemberManagement({
   communityId,
@@ -92,6 +107,11 @@ export function MemberManagement({
                   {member.user.timezone} · desde{" "}
                   {new Date(member.joinedAt).toLocaleDateString("pt-BR")}
                 </span>
+                {currentRole !== "MEMBER" && (
+                  <span className="muted small">
+                    Último login: {formatLastLogin(member.user.lastLoginAt)}
+                  </span>
+                )}
               </div>
               <span className={`role-badge role-${member.role.toLowerCase()}`}>
                 {roleLabels[member.role]}

@@ -28,6 +28,14 @@ export function isBootstrapRegistrationAuthorized(
   return userCount === 0 && secretsMatch(receivedToken, configuredToken);
 }
 
+export async function recordSuccessfulLogin(userId: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { lastLoginAt: new Date() },
+    select: { id: true, lastLoginAt: true },
+  });
+}
+
 async function serializableRegistration<T>(operation: () => Promise<T>): Promise<T> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -73,7 +81,12 @@ export async function registerUser(input: RegisterUserInput) {
           assertInviteUsable(invite);
 
           const user = await tx.user.create({
-            data: { email: input.email, name: input.name, passwordHash: input.passwordHash },
+            data: {
+              email: input.email,
+              name: input.name,
+              passwordHash: input.passwordHash,
+              lastLoginAt: new Date(),
+            },
             select: { id: true, email: true, name: true, sessionVersion: true },
           });
           await tx.communityMember.create({
@@ -102,7 +115,12 @@ export async function registerUser(input: RegisterUserInput) {
         }
 
         const user = await tx.user.create({
-          data: { email: input.email, name: input.name, passwordHash: input.passwordHash },
+          data: {
+            email: input.email,
+            name: input.name,
+            passwordHash: input.passwordHash,
+            lastLoginAt: new Date(),
+          },
           select: { id: true, email: true, name: true, sessionVersion: true },
         });
         return { user, community: null };

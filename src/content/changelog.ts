@@ -10,6 +10,17 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.10.1",
+    releasedAt: "2026-09-20",
+    title: "Último acesso dos membros",
+    summary: "Administradores agora conseguem consultar quando cada membro acessou o Juntaê.",
+    highlights: [
+      "A página de membros mostra a data e o horário do último login para owners e administradores.",
+      "Membros comuns não recebem essa informação, preservando a visibilidade administrativa.",
+      "Contas antigas passam a mostrar o horário após o próximo acesso.",
+    ],
+  },
+  {
     version: "0.10.0",
     releasedAt: "2026-09-15",
     title: "Eventos no calendário da comunidade",
