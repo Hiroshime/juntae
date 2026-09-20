@@ -78,6 +78,24 @@ enum CostShareStatus {
   CLOSED
 }
 
+enum SocialPostKind {
+  POST
+  ANNOUNCEMENT
+}
+
+enum SocialMediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum SocialReactionType {
+  LIKE
+  LOVE
+  CELEBRATE
+  LAUGH
+  SUPPORT
+}
+
 model User {
   id                       String                 @id @default(uuid()) @db.Uuid
   email                    String                 @unique @db.VarChar(320)
@@ -108,6 +126,9 @@ model User {
   eventPaymentsRecorded    EventPayment[]         @relation("EventPaymentRecorder")
   eventPaymentsVoided      EventPayment[]         @relation("EventPaymentVoider")
   challengesCreated        Challenge[]            @relation("ChallengeCreator")
+  socialPosts              SocialPost[]
+  socialComments           SocialComment[]
+  socialReactions          SocialReaction[]
 }
 
 model RateLimitBucket {
@@ -139,8 +160,68 @@ model Community {
   holidays       CommunityHoliday[]
   costShares     CostShare[]
   challenges     Challenge[]
+  socialPosts    SocialPost[]
 
   @@index([createdById])
+}
+
+model SocialPost {
+  id          String         @id @default(uuid()) @db.Uuid
+  communityId String         @db.Uuid
+  authorId    String         @db.Uuid
+  kind        SocialPostKind @default(POST)
+  content     String?        @db.VarChar(5000)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+  community   Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media       SocialMedia[]
+  comments    SocialComment[]
+  reactions   SocialReaction[]
+
+  @@index([communityId, createdAt, id])
+  @@index([authorId])
+}
+
+model SocialMedia {
+  id           String          @id @default(uuid()) @db.Uuid
+  postId       String          @db.Uuid
+  kind         SocialMediaKind
+  contentType  String          @db.VarChar(80)
+  originalName String          @db.VarChar(255)
+  sizeBytes    Int
+  data         Bytes           @db.ByteA
+  sortOrder    Int
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  post         SocialPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, sortOrder])
+}
+
+model SocialComment {
+  id        String     @id @default(uuid()) @db.Uuid
+  postId    String     @db.Uuid
+  authorId  String     @db.Uuid
+  content   String     @db.VarChar(1000)
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+  post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt, id])
+  @@index([authorId])
+}
+
+model SocialReaction {
+  postId    String             @db.Uuid
+  userId    String             @db.Uuid
+  type      SocialReactionType
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  post      SocialPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
 }
 
 model CommunityMember {

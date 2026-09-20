@@ -6,6 +6,7 @@ import { nextWeekendDates, selectBestOpportunities } from "@/server/domain/dashb
 import { summarizePollResults } from "@/server/domain/polls";
 import { assertFound } from "@/server/errors";
 import { getCommunityCalendar } from "@/server/services/availability-service";
+import { findSocialHighlight } from "@/server/services/social-service";
 
 const upcomingEventSelection = {
   id: true,
@@ -53,7 +54,7 @@ export async function getCommunityDashboard(
   await requireMembership(userId, communityId);
   const today = civilDateInTimeZone(now, timezone);
   const calendarEnd = addCivilDays(today, 29);
-  const [storedEvents, storedPolls, calendar] = await Promise.all([
+  const [storedEvents, storedPolls, calendar, socialHighlight] = await Promise.all([
     prisma.event.findMany({
       where: {
         communityId,
@@ -81,6 +82,7 @@ export async function getCommunityDashboard(
       minPeople: 0,
       periodOfDay: "ALL",
     }),
+    findSocialHighlight(communityId),
   ]);
 
   const events = storedEvents.map((event) => {
@@ -126,6 +128,7 @@ export async function getCommunityDashboard(
     memberCount: calendar.totalMembers,
     events,
     polls,
+    socialHighlight,
     bestOpportunities: selectBestOpportunities(summaries, 3),
     nextSevenDays: summaries.filter((summary) => summary.date <= addCivilDays(today, 6)),
     nextWeekend: {

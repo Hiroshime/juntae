@@ -10,6 +10,18 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.11.0",
+    releasedAt: "2026-09-20",
+    title: "Comunicação da comunidade",
+    summary:
+      "Cada comunidade ganhou um feed privado para compartilhar novidades e manter a conversa organizada.",
+    highlights: [
+      "Todos os membros podem publicar textos, imagens e vídeos e conversar nos comentários.",
+      "Reações rápidas ajudam a turma a responder; owners e administradores podem destacar comunicados gerais.",
+      "O dashboard mostra uma conversa em alta e toda mídia continua protegida para membros da comunidade.",
+    ],
+  },
+  {
     version: "0.10.1",
     releasedAt: "2026-09-20",
     title: "Último acesso dos membros",

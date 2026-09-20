@@ -106,6 +106,17 @@ describe("dashboard service", () => {
         },
       },
     });
+    const socialPost = await prisma.socialPost.create({
+      data: {
+        communityId,
+        authorId: memberId,
+        content: "Novidade importante no feed",
+        createdAt: new Date("2030-08-31T12:00:00.000Z"),
+      },
+    });
+    await prisma.socialReaction.create({
+      data: { postId: socialPost.id, userId: ownerId, type: "LIKE" },
+    });
   });
 
   afterAll(async () => {
@@ -133,6 +144,11 @@ describe("dashboard service", () => {
       totalVoters: 1,
       myVoteCount: 1,
       leadingOption: { label: "A", voteCount: 1 },
+    });
+    expect(dashboard.socialHighlight).toMatchObject({
+      content: "Novidade importante no feed",
+      authorName: "Dashboard member",
+      reactionCount: 1,
     });
     expect(dashboard.bestOpportunities[0]).toMatchObject({
       date: "2030-09-05",

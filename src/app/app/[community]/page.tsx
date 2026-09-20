@@ -128,6 +128,50 @@ export default async function CommunityPage({
           </section>
 
           <div className="dashboard-content-grid">
+            <section
+              className="card dashboard-social-card"
+              aria-labelledby="social-highlight-title"
+            >
+              <div className="card-header">
+                <div>
+                  <div className="eyebrow">Comunicação</div>
+                  <h2 id="social-highlight-title">
+                    {dashboard.socialHighlight ? "Em alta na comunidade" : "Converse com a turma"}
+                  </h2>
+                </div>
+                <Link className="small" href={`/app/${slug}/social`}>
+                  Abrir feed
+                </Link>
+              </div>
+              {dashboard.socialHighlight ? (
+                <Link
+                  className="dashboard-social-highlight"
+                  href={`/app/${slug}/social#post-${dashboard.socialHighlight.id}`}
+                >
+                  <div>
+                    {dashboard.socialHighlight.kind === "ANNOUNCEMENT" && (
+                      <span className="social-announcement-badge">📣 Comunicado</span>
+                    )}
+                    <strong>{dashboard.socialHighlight.authorName}</strong>
+                    <p>
+                      {dashboard.socialHighlight.content ||
+                        `Compartilhou ${dashboard.socialHighlight.mediaCount} anexo(s).`}
+                    </p>
+                  </div>
+                  <span>
+                    {dashboard.socialHighlight.reactionCount} reações ·{" "}
+                    {dashboard.socialHighlight.commentCount} comentários
+                  </span>
+                </Link>
+              ) : (
+                <div className="dashboard-social-empty">
+                  <p className="muted">Ainda não há publicações nesta comunidade.</p>
+                  <Link className="button secondary" href={`/app/${slug}/social`}>
+                    Fazer primeira publicação
+                  </Link>
+                </div>
+              )}
+            </section>
             <section className="card dashboard-list-card" aria-labelledby="upcoming-events-title">
               <div className="card-header">
                 <div>

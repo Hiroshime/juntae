@@ -3,9 +3,13 @@ import { AppError } from "@/server/errors";
 export async function readBoundedFormData(request: Request, maxBytes: number) {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("multipart/form-data"))
-    throw new AppError("Envie os dados como formulário com fotos.", 415);
+    throw new AppError("Envie os dados como formulário com arquivos.", 415);
   const tooLarge = () =>
-    new AppError("O envio completo pode ter no máximo 20 MB.", 413, "PAYLOAD_TOO_LARGE");
+    new AppError(
+      `O envio completo pode ter no máximo ${Math.floor(maxBytes / 1024 / 1024)} MB.`,
+      413,
+      "PAYLOAD_TOO_LARGE",
+    );
   if (Number(request.headers.get("content-length")) > maxBytes) throw tooLarge();
   if (!request.body) throw new AppError("Formulário vazio.");
   const reader = request.body.getReader();

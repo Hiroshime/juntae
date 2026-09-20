@@ -1274,7 +1274,7 @@ h2 {
 .calendar-filters {
   display: grid;
   grid-template-columns: repeat(4, minmax(130px, 1fr));
-  align-items: end;
+  align-items: flex-end;
   gap: 14px;
   margin-bottom: 28px;
 }
@@ -3022,6 +3022,45 @@ h2 {
   align-items: start;
   gap: 18px;
 }
+.dashboard-social-card {
+  grid-column: 1 / -1;
+}
+.dashboard-social-highlight {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 22px;
+  border: 1px solid var(--primary-border);
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--primary-surface);
+}
+.dashboard-social-highlight > div {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+.dashboard-social-highlight p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: pre-wrap;
+}
+.dashboard-social-highlight > span {
+  flex: 0 0 auto;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.dashboard-social-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
 .dashboard-list-card,
 .weekend-card,
 .seven-day-card {
@@ -4207,6 +4246,275 @@ h2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+}
+
+.social-page {
+  width: min(780px, 100%);
+  margin-inline: auto;
+}
+.social-composer {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.social-composer > label:first-child {
+  font-weight: 800;
+}
+.social-composer textarea {
+  width: 100%;
+  resize: vertical;
+}
+.social-composer-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+}
+.social-file-field {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  font-weight: 700;
+}
+.social-file-field input {
+  width: 100%;
+  min-width: 0;
+}
+.social-file-field small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.social-announcement-toggle {
+  margin-bottom: 24px;
+  white-space: nowrap;
+}
+.social-file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.social-file-list li {
+  overflow: hidden;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.social-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.social-composer-footer > span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.social-global-error {
+  margin-bottom: 18px;
+}
+.social-feed {
+  display: grid;
+  gap: 18px;
+}
+.social-post {
+  min-width: 0;
+  scroll-margin-top: 24px;
+  overflow-wrap: anywhere;
+}
+.social-announcement {
+  border-top: 5px solid var(--accent);
+  background: linear-gradient(155deg, var(--surface), var(--primary-surface));
+}
+.social-post-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.social-post-header > div {
+  display: grid;
+  flex: 1;
+  gap: 1px;
+}
+.social-post-header time,
+.social-comment time {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.social-announcement-badge {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.social-delete {
+  padding: 6px 9px;
+  color: var(--danger);
+  font-size: 0.78rem;
+}
+.social-post-content {
+  margin: 18px 0;
+  white-space: pre-wrap;
+}
+.social-media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 18px 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+.social-media-grid > a,
+.social-media-grid > video {
+  display: block;
+  min-width: 0;
+  min-height: 220px;
+  max-height: 480px;
+  background: var(--surface-strong);
+}
+.social-media-grid img,
+.social-media-grid video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  max-height: 480px;
+  object-fit: contain;
+}
+.social-media-count-1 {
+  grid-template-columns: 1fr;
+}
+.social-engagement-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.social-reactions {
+  display: flex;
+  justify-content: space-around;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
+.social-reactions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--foreground);
+  background: transparent;
+}
+.social-reactions button:hover,
+.social-reactions button.active {
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
+}
+.social-reactions button.active {
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.social-reactions button > span {
+  font-size: 1.15rem;
+}
+.social-comments {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+.social-comment {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.social-comment > div {
+  border-radius: 13px;
+  padding: 8px 12px;
+  background: var(--surface-muted);
+}
+.social-comment p {
+  margin: 2px 0;
+  white-space: pre-wrap;
+}
+.social-comment > button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  font-size: 1.2rem;
+}
+.social-comment > button:hover {
+  color: var(--danger);
+  background: var(--surface-muted);
+}
+.social-comment-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 4px;
+}
+.social-comment-form input {
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .social-composer,
+  .social-post {
+    padding: 18px 14px;
+  }
+  .social-composer-options {
+    grid-template-columns: 1fr;
+  }
+  .social-announcement-toggle {
+    margin: 0;
+    white-space: normal;
+  }
+  .social-post-header {
+    flex-wrap: wrap;
+  }
+  .social-announcement-badge {
+    order: 4;
+  }
+  .social-media-grid {
+    grid-template-columns: 1fr;
+  }
+  .social-media-grid > a,
+  .social-media-grid > video,
+  .social-media-grid img,
+  .social-media-grid video {
+    min-height: 180px;
+  }
+  .social-comment-form {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-social-highlight,
+  .dashboard-social-empty {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .dashboard-social-highlight > span {
+    white-space: normal;
+  }
 }
 .challenge-card,
 .challenge-hero,

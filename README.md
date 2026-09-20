@@ -2,7 +2,7 @@
 
 Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis e rateios de despesas com vários compradores.
 
-O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e compartilhar links privados. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
+O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e conversar em um feed privado com textos, imagens, vídeos, comentários e reações. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
 
 A página pública `/sobre` apresenta autoria, versão instalada, repositórios oficiais e um histórico
 das mudanças escrito para usuários finais. Ao preparar uma versão, atualize `package.json` e adicione
@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.10.1 \
+  --tag docker.io/SEU_USUARIO/juntae:0.11.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.10.1` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.10.1` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.10.1` também publica automaticamente as tags `0.10.1` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.11.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.11.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.11.0` também publica automaticamente as tags `0.11.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -140,7 +140,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.10.1`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.11.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -361,6 +361,7 @@ Rotas principais desta fase:
 
 - `/app`: seleção e criação de comunidades;
 - `/app/[community]`: dashboard privado;
+- `/app/[community]/social`: publicações, comunicados, comentários e reações da comunidade;
 - `/app/[community]/members`: membros e papéis;
 - `/app/[community]/settings`: informações e convites;
 - `/app/[community]/agenda/me`: calendário e ocorrências pessoais;
@@ -383,6 +384,21 @@ Rotas principais desta fase:
 - `/sobre`: informações do projeto e histórico de versões.
 
 Recuperação de senha por e-mail não foi adicionada porque o projeto ainda não possui provedor de e-mail configurado. A troca autenticada de senha já está disponível no perfil.
+
+## Comunicação da comunidade
+
+Acesse **Comunicação** no menu da comunidade. Todos os membros podem publicar textos, até quatro
+imagens ou vídeos, comentar e escolher uma reação por publicação. Owners e administradores também
+podem publicar comunicados gerais e moderar conteúdo; autores removem o próprio conteúdo.
+
+O feed e todos os anexos são privados. Imagens de até 6 MB são convertidas para WebP e têm
+metadados removidos; vídeos MP4/WebM podem ter até 25 MB. Os arquivos ficam no PostgreSQL e entram
+no backup normal do banco. Para instalações com proxy reverso, permita requisições de pelo menos
+32 MB na rota `/api/communities/*/social/posts`. A migration `0018_social_communication` cria as
+tabelas do módulo e é aplicada automaticamente no fluxo Docker ou por `npm run db:migrate`.
+
+O dashboard destaca uma conversa recente com maior interação. Esta seleção é apenas organizacional:
+não torna a publicação pública nem altera quem pode acessá-la.
 
 ## Desafios (Beta) — fases 1, 2 e 3 de 4
 
@@ -477,4 +493,4 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Escopo posterior ao MVP
 
-Os módulos prioritários de Geradores Aleatórios e Rateios do backlog pós-MVP já estão implementados. Recuperação de senha por e-mail, PWA/notificações, Games, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios, Rateios e Comunicação do backlog pós-MVP já estão implementados. Recuperação de senha por e-mail, PWA/notificações, Games, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

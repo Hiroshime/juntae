@@ -26,6 +26,12 @@ export function AppHeader({
     ? [
         { href: `/app/${community.slug}`, label: "Início", icon: "⌂", children: false },
         {
+          href: `/app/${community.slug}/social`,
+          label: "Comunicação",
+          icon: "●",
+          children: true,
+        },
+        {
           href: `/app/${community.slug}/agenda/me`,
           label: "Minha agenda",
           icon: "✓",
@@ -170,6 +176,7 @@ export function AppHeader({
                 <Link href={`/app/${community.slug}/randomizers`}>Sorteios e geradores</Link>
                 <Link href={`/app/${community.slug}/cost-shares`}>Rateios e despesas</Link>
                 <Link href={`/app/${community.slug}/challenges`}>Desafios (Beta)</Link>
+                <Link href={`/app/${community.slug}/social`}>Comunicação</Link>
                 <Link href={`/app/${community.slug}/members`}>Membros</Link>
                 {role !== "MEMBER" && (
                   <Link href={`/app/${community.slug}/settings`}>Configurações</Link>

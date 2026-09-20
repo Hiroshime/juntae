@@ -228,10 +228,12 @@ Não implementar na primeira versão, mas manter arquitetura preparada para:
 - conquistas;
 - estatísticas históricas avançadas;
 - álbum social de fotos de eventos;
-- feed social;
 - mapa avançado;
 - recomendação automática de locais externos;
 - sistema público de descoberta de comunidades.
+
+O feed social deixou este backlog e foi entregue posteriormente como a evolução privada descrita
+na seção 30.10; ele não fazia parte da primeira versão do MVP.
 
 ---
 
@@ -339,6 +341,7 @@ Um usuário só pode acessar dados de comunidades das quais é membro.
 Mobile:
 
 - Início
+- Comunicação
 - Agenda
 - Eventos
 - Votações
@@ -347,6 +350,7 @@ Mobile:
 Desktop:
 
 - Dashboard
+- Comunicação
 - Calendário
 - Eventos
 - Votações
@@ -399,6 +403,11 @@ Mostrar até 3 votações com prazo ou participação.
 ### Disponibilidade dos próximos 7 dias
 
 Gráfico ou cards simples com contagem diária.
+
+### Comunicação da comunidade
+
+Destacar uma publicação recente ou com maior interação entre os 15 posts mais recentes e oferecer acesso
+direto ao feed privado.
 
 ---
 
@@ -859,6 +868,14 @@ erDiagram
     USER ||--o{ COST_SHARE_PARTICIPANT : participates
     COST_SHARE ||--o{ COST_SHARE_EXPENSE : contains
     USER ||--o{ COST_SHARE_EXPENSE : pays
+
+    COMMUNITY ||--o{ SOCIAL_POST : has
+    USER ||--o{ SOCIAL_POST : authors
+    SOCIAL_POST ||--o{ SOCIAL_MEDIA : contains
+    SOCIAL_POST ||--o{ SOCIAL_COMMENT : receives
+    USER ||--o{ SOCIAL_COMMENT : authors
+    SOCIAL_POST ||--o{ SOCIAL_REACTION : receives
+    USER ||--o{ SOCIAL_REACTION : makes
 ```
 
 ---
@@ -2598,6 +2615,42 @@ depende de validar as políticas do provedor, inclusive exibição e pontuação
   pontuação distinta no ranking; pontuação proporcional de tempo/distância arredondada a uma casa
   decimal; ausência de distância recusada quando exigida; regras bloqueadas; retrocompatibilidade
   e fluxo mobile testados.
+
+---
+
+## 30.10 Comunicação da comunidade
+
+Módulo social privado para reduzir a dependência de conversas dispersas fora do Juntaê. Não é
+um chat em tempo real nem uma rede pública: cada feed pertence a uma comunidade e exige sessão e
+membership válidas em todas as leituras, mutações e mídias.
+
+- Qualquer membro pode criar uma publicação com texto opcional de até 5.000 caracteres e até
+  quatro anexos. A publicação precisa ter texto ou ao menos um anexo.
+- `OWNER` e `ADMIN` também podem marcar uma publicação como comunicado geral; membros comuns não
+  podem forjar esse tipo pelo cliente ou pela API.
+- Imagens aceitas: JPEG, PNG, WebP, GIF e AVIF, até 6 MB e 40 megapixels. Decodificar, orientar,
+  redimensionar para até 1920 px e converter para WebP, removendo metadados. Vídeos aceitos: MP4
+  e WebM, até 25 MB, validados pela assinatura do arquivo. Corpo multipart limitado a 32 MB.
+- Anexos ficam no PostgreSQL para manter privacidade, backup e implantação simples no ZimaOS.
+  Downloads exigem membership, usam `private, no-store` e nunca expõem caminhos públicos.
+- Feed paginado com 15 posts por página, do mais recente para o mais antigo. Exibir autor com
+  nome da comunidade, horário no fuso do usuário, texto, galeria/reprodutor e indicação visual de
+  comunicado. Imagens podem ser abertas em tamanho maior.
+- Cada membro mantém no máximo uma reação por post, escolhida entre curtir, amar, comemorar, rir
+  e apoiar. Repetir a reação ativa a remove; escolher outra substitui a anterior.
+- Todos os membros podem comentar, com até 1.000 caracteres. O post mostra a contagem completa e
+  os 20 comentários mais recentes, sem tentar carregar histórico ilimitado na primeira versão.
+- Autor remove a própria publicação ou comentário. `OWNER` e `ADMIN` podem remover qualquer post
+  ou comentário da comunidade. Excluir um post apaga mídias, comentários e reações em cascata.
+- Dashboard escolhe, entre as 15 publicações mais recentes, um destaque ponderando comentários,
+  reações, comunicados e recência; sem conteúdo, oferece a criação da primeira publicação.
+- Aplicar proteção de mesma origem nas mutações, rate limit por usuário, validação de IDs/entrada e
+  isolamento por `community_id`. Não expor e-mails no feed.
+- Rotas: `/app/[community]/social`; APIs sob
+  `/api/communities/[communityId]/social/posts`. Menu desktop e menu mobile Mais dão acesso ao feed.
+- Aceite: testar publicação e normalização de mídia, comunicado restrito, feed/mídia privados,
+  reação única, comentários, remoção por autoria/moderação e destaque no dashboard; validar
+  lint, tipos, testes, build e experiência responsiva/acessível.
 
 ---
 
