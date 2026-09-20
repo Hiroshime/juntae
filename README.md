@@ -1,8 +1,8 @@
 # Juntaê
 
-Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis e rateios de despesas com vários compradores.
+Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis, rateios de despesas, comunicação social e e-mail segregado por comunidade.
 
-O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e conversar em um feed privado com textos, imagens, vídeos, comentários e reações. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
+O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e conversar em um feed privado com textos, imagens, vídeos, comentários e reações. Comunicados administrativos aceitam formatação segura e podem ser enviados aos membros pelo SMTP próprio da comunidade. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
 
 A página pública `/sobre` apresenta autoria, versão instalada, repositórios oficiais e um histórico
 das mudanças escrito para usuários finais. Ao preparar uma versão, atualize `package.json` e adicione
@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.11.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.12.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.11.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.11.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.11.0` também publica automaticamente as tags `0.11.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.12.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.12.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.12.0` também publica automaticamente as tags `0.12.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -102,6 +102,7 @@ cp .env.zima.example .env.zima
 openssl rand -hex 32
 openssl rand -base64 48
 openssl rand -hex 32
+openssl rand -base64 32
 ```
 
 Edite `.env.zima`:
@@ -110,6 +111,7 @@ Edite `.env.zima`:
 - `POSTGRES_PASSWORD`: primeiro valor gerado, em hexadecimal para ser seguro dentro da URL;
 - `AUTH_SECRET`: segundo valor gerado;
 - `REGISTRATION_BOOTSTRAP_TOKEN`: terceiro valor, usado somente para criar a primeira conta de um banco vazio;
+- `EMAIL_CREDENTIALS_ENCRYPTION_KEY`: quarto valor, usado para cifrar as senhas SMTP de cada comunidade;
 - `APP_URL`: URL exata usada no navegador, como `http://192.168.1.50:3080` ou um domínio HTTPS;
 - `JUNTAE_DATA_PATH`: diretório persistente do ZimaOS, por padrão `/DATA/AppData/juntae`.
 
@@ -140,7 +142,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.11.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.12.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -174,14 +176,15 @@ npm run db:reset         # apaga e recria o banco local
 
 Copie `.env.example` para `.env`. Não comite `.env` nem valores reais.
 
-| Variável                       | Uso                                                                   |
-| ------------------------------ | --------------------------------------------------------------------- |
-| `DATABASE_URL`                 | URL PostgreSQL usada pelo Prisma                                      |
-| `POSTGRES_PORT`                | porta local publicada pelo Docker Compose, padrão `5433`              |
-| `AUTH_SECRET`                  | segredo de assinatura das sessões; use pelo menos 32 caracteres       |
-| `REGISTRATION_BOOTSTRAP_TOKEN` | código secreto aceito somente para a primeira conta de um banco vazio |
-| `APP_URL`                      | URL pública/local da aplicação                                        |
-| `DEFAULT_TIMEZONE`             | timezone IANA padrão, inicialmente `America/Sao_Paulo`                |
+| Variável                           | Uso                                                                   |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| `DATABASE_URL`                     | URL PostgreSQL usada pelo Prisma                                      |
+| `POSTGRES_PORT`                    | porta local publicada pelo Docker Compose, padrão `5433`              |
+| `AUTH_SECRET`                      | segredo de assinatura das sessões; use pelo menos 32 caracteres       |
+| `REGISTRATION_BOOTSTRAP_TOKEN`     | código secreto aceito somente para a primeira conta de um banco vazio |
+| `APP_URL`                          | URL pública/local da aplicação                                        |
+| `DEFAULT_TIMEZONE`                 | timezone IANA padrão, inicialmente `America/Sao_Paulo`                |
+| `EMAIL_CREDENTIALS_ENCRYPTION_KEY` | chave Base64 de 32 bytes para cifrar credenciais SMTP por comunidade  |
 
 ## Arquitetura
 
@@ -383,13 +386,42 @@ Rotas principais desta fase:
 - `/join/[token]`: aceite de convite.
 - `/sobre`: informações do projeto e histórico de versões.
 
-Recuperação de senha por e-mail não foi adicionada porque o projeto ainda não possui provedor de e-mail configurado. A troca autenticada de senha já está disponível no perfil.
+Recuperação de senha por e-mail ainda não foi adicionada: apesar do SMTP por comunidade, esse fluxo
+precisa de verificação do endereço pessoal e de uma política para escolher o remetente correto. A
+troca autenticada de senha continua disponível no perfil.
+
+## E-mail próprio por comunidade
+
+Owners encontram **Configurações → E-mail da comunidade**. Cada grupo pode cadastrar sua própria
+conta Gmail/Google Workspace ou SMTP público, sem compartilhar credenciais com outras comunidades.
+Depois de salvar, envie um teste para o e-mail de login do owner; somente configurações ativas e com
+teste aprovado podem enviar. O owner habilita separadamente **Convites** e **Comunicados**. No
+formulário **Novo convite**, o destinatário é opcional e não fica vinculado ao token: se o SMTP
+falhar, o link ainda aparece para cópia manual.
+
+Senhas SMTP são cifradas com AES-256-GCM e nunca voltam para o navegador. A chave-mestra fica apenas
+em `EMAIL_CREDENTIALS_ENCRYPTION_KEY`; faça backup dela em um gerenciador de senhas e não a troque
+enquanto houver credenciais salvas. Para Gmail, ative a verificação em duas etapas e use uma senha de
+aplicativo, nunca a senha principal. SMTP personalizado aceita somente hostnames públicos nas portas
+465/TLS ou 587/STARTTLS; destinos internos são recusados para proteger a rede do ZimaOS.
+
+As migrations `0019_community_email_settings` e `0020_announcement_emails` criam a configuração,
+as finalidades e um histórico sem corpo, token ou senha. Owners veem as dez tentativas mais recentes.
+Em **Comunicação**, cada comunicado possui uma escolha explícita para enviar o texto a todos os
+membros; os destinatários são processados individualmente e não veem os endereços uns dos outros.
+Anexos continuam privados no Juntaê e são acessados pelo link incluído na mensagem. Disparos
+automáticos de eventos e votações ainda aguardam verificação de e-mail e preferências individuais.
 
 ## Comunicação da comunidade
 
 Acesse **Comunicação** no menu da comunidade. Todos os membros podem publicar textos, até quatro
 imagens ou vídeos, comentar e escolher uma reação por publicação. Owners e administradores também
 podem publicar comunicados gerais e moderar conteúdo; autores removem o próprio conteúdo.
+Comunicados aceitam títulos, negrito, itálico, listas e links por uma barra de formatação segura,
+com prévia no editor. HTML colado aparece como texto, sem executar código. Quando o owner habilita
+essa finalidade em **Configurações → E-mail da comunidade**, o autor do comunicado pode informar um
+assunto e enviá-lo também aos endereços de login de todos os membros. A publicação não é perdida se
+o SMTP falhar; o resultado mostra quantos envios funcionaram.
 
 O feed e todos os anexos são privados. Imagens de até 6 MB são convertidas para WebP e têm
 metadados removidos; vídeos MP4/WebM podem ter até 25 MB. Os arquivos ficam no PostgreSQL e entram
@@ -493,4 +525,4 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Escopo posterior ao MVP
 
-Os módulos prioritários de Geradores Aleatórios, Rateios e Comunicação do backlog pós-MVP já estão implementados. Recuperação de senha por e-mail, PWA/notificações, Games, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação e SMTP por comunidade já estão implementados. Recuperação de senha por e-mail, notificações automáticas, PWA, Games, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

@@ -28,6 +28,7 @@ services:
       REGISTRATION_BOOTSTRAP_TOKEN: ${REGISTRATION_BOOTSTRAP_TOKEN:?Defina REGISTRATION_BOOTSTRAP_TOKEN}
       APP_URL: ${APP_URL:?Defina APP_URL}
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-America/Sao_Paulo}
+      EMAIL_CREDENTIALS_ENCRYPTION_KEY: ${EMAIL_CREDENTIALS_ENCRYPTION_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

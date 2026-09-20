@@ -15,6 +15,7 @@ import {
   getSocialAccess,
   listSocialPosts,
 } from "@/server/services/social-service";
+import { sendCommunityAnnouncementEmail } from "@/server/services/email-settings-service";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ communityId: string }> };
@@ -44,7 +45,11 @@ export async function POST(request: Request, { params }: Context) {
     if (Array.from(form.keys()).some((key) => key !== "payload" && key !== "media"))
       throw new AppError("Campo de envio inválido.");
     const payload = form.get("payload");
-    if (typeof payload !== "string" || payload.length > 5500 || form.getAll("payload").length !== 1)
+    if (
+      typeof payload !== "string" ||
+      payload.length > 12_000 ||
+      form.getAll("payload").length !== 1
+    )
       throw new AppError("Dados da publicação inválidos.");
     let body: unknown;
     try {
@@ -54,6 +59,8 @@ export async function POST(request: Request, { params }: Context) {
     }
     const parsed = socialPostSchema.safeParse(body);
     if (!parsed.success) throw new AppError(parsed.error.issues[0].message);
+    if (parsed.data.sendEmail)
+      await enforceRateLimit(`announcement-email:${communityId}:${user.id}`, 5, 60 * 60 * 1000);
     const attachments = form.getAll("media");
     if (attachments.length > MAX_SOCIAL_MEDIA)
       throw new AppError(`Envie no máximo ${MAX_SOCIAL_MEDIA} anexos por publicação.`);
@@ -66,10 +73,41 @@ export async function POST(request: Request, { params }: Context) {
         declaredType: attachment.type,
       });
     }
-    return NextResponse.json(
-      { post: await createSocialPost(user.id, communityId, parsed.data, files) },
-      { status: 201 },
-    );
+    const post = await createSocialPost(user.id, communityId, parsed.data, files);
+    let email:
+      | ({ status: "SENT" | "PARTIAL" } & {
+          total: number;
+          sent: number;
+          failed: number;
+        })
+      | { status: "FAILED"; total: 0; sent: 0; failed: 0; message: string }
+      | null = null;
+    if (parsed.data.sendEmail) {
+      try {
+        const summary = await sendCommunityAnnouncementEmail(
+          user.id,
+          communityId,
+          post.id,
+          parsed.data.emailSubject,
+        );
+        email = {
+          status: summary.failed ? "PARTIAL" : "SENT",
+          ...summary,
+        };
+      } catch (error) {
+        email = {
+          status: "FAILED",
+          total: 0,
+          sent: 0,
+          failed: 0,
+          message:
+            error instanceof AppError
+              ? error.message
+              : "O comunicado foi publicado, mas os e-mails não foram enviados.",
+        };
+      }
+    }
+    return NextResponse.json({ post, email }, { status: 201 });
   } catch (error) {
     return routeErrorResponse(error);
   }

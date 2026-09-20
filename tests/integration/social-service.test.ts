@@ -97,12 +97,17 @@ describe("comunicação da comunidade", () => {
     const post = await createSocialPost(
       adminId,
       communityId,
-      { kind: "ANNOUNCEMENT", content: "Mudança de horário" },
+      {
+        kind: "ANNOUNCEMENT",
+        contentFormat: "MARKDOWN",
+        content: "## Mudança de horário",
+      },
       [],
     );
     expect((await listSocialPosts(memberId, communityId)).items[0]).toMatchObject({
       id: post.id,
       kind: "ANNOUNCEMENT",
+      contentFormat: "MARKDOWN",
       canDelete: false,
     });
   });

@@ -9,6 +9,10 @@ const envSchema = z.object({
   ),
   APP_URL: z.string().url().default("http://localhost:3000"),
   DEFAULT_TIMEZONE: z.string().min(1).default("America/Sao_Paulo"),
+  EMAIL_CREDENTIALS_ENCRYPTION_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional(),
+  ),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -20,5 +24,6 @@ export function getEnv(): AppEnv {
     REGISTRATION_BOOTSTRAP_TOKEN: process.env.REGISTRATION_BOOTSTRAP_TOKEN,
     APP_URL: process.env.APP_URL,
     DEFAULT_TIMEZONE: process.env.DEFAULT_TIMEZONE,
+    EMAIL_CREDENTIALS_ENCRYPTION_KEY: process.env.EMAIL_CREDENTIALS_ENCRYPTION_KEY,
   });
 }

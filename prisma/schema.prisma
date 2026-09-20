@@ -83,6 +83,11 @@ enum SocialPostKind {
   ANNOUNCEMENT
 }
 
+enum SocialContentFormat {
+  PLAIN_TEXT
+  MARKDOWN
+}
+
 enum SocialMediaKind {
   IMAGE
   VIDEO
@@ -96,39 +101,52 @@ enum SocialReactionType {
   SUPPORT
 }
 
+enum EmailProvider {
+  GMAIL
+  CUSTOM_SMTP
+}
+
+enum EmailDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
-  id                       String                 @id @default(uuid()) @db.Uuid
-  email                    String                 @unique @db.VarChar(320)
-  passwordHash             String                 @db.VarChar(255)
-  name                     String                 @db.VarChar(80)
-  avatarUrl                String?                @db.Text
-  timezone                 String                 @default("America/Sao_Paulo") @db.VarChar(64)
-  sessionVersion           Int                    @default(0)
-  lastLoginAt              DateTime?              @db.Timestamptz(6)
-  createdAt                DateTime               @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime               @updatedAt @db.Timestamptz(6)
-  communitiesCreated       Community[]            @relation("CommunityCreator")
+  id                       String                   @id @default(uuid()) @db.Uuid
+  email                    String                   @unique @db.VarChar(320)
+  passwordHash             String                   @db.VarChar(255)
+  name                     String                   @db.VarChar(80)
+  avatarUrl                String?                  @db.Text
+  timezone                 String                   @default("America/Sao_Paulo") @db.VarChar(64)
+  sessionVersion           Int                      @default(0)
+  lastLoginAt              DateTime?                @db.Timestamptz(6)
+  createdAt                DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime                 @updatedAt @db.Timestamptz(6)
+  communitiesCreated       Community[]              @relation("CommunityCreator")
   memberships              CommunityMember[]
-  invitesCreated           Invite[]               @relation("InviteCreator")
+  invitesCreated           Invite[]                 @relation("InviteCreator")
   scheduleRules            ScheduleRule[]
   availabilityEntries      AvailabilityOverride[]
-  eventsCreated            Event[]                @relation("EventCreator")
+  eventsCreated            Event[]                  @relation("EventCreator")
   eventRsvps               EventRsvp[]
-  pollsCreated             Poll[]                 @relation("PollCreator")
+  pollsCreated             Poll[]                   @relation("PollCreator")
   pollVotes                PollVote[]
   randomizerRuns           RandomizerRun[]
-  holidaysCreated          CommunityHoliday[]     @relation("HolidayCreator")
-  costSharesCreated        CostShare[]            @relation("CostShareCreator")
+  holidaysCreated          CommunityHoliday[]       @relation("HolidayCreator")
+  costSharesCreated        CostShare[]              @relation("CostShareCreator")
   costShareMemberships     CostShareParticipant[]
-  costShareExpensesPaid    CostShareExpense[]     @relation("CostShareExpensePayer")
-  costShareExpensesCreated CostShareExpense[]     @relation("CostShareExpenseCreator")
-  eventPayments            EventPayment[]         @relation("EventPaymentPerson")
-  eventPaymentsRecorded    EventPayment[]         @relation("EventPaymentRecorder")
-  eventPaymentsVoided      EventPayment[]         @relation("EventPaymentVoider")
-  challengesCreated        Challenge[]            @relation("ChallengeCreator")
+  costShareExpensesPaid    CostShareExpense[]       @relation("CostShareExpensePayer")
+  costShareExpensesCreated CostShareExpense[]       @relation("CostShareExpenseCreator")
+  eventPayments            EventPayment[]           @relation("EventPaymentPerson")
+  eventPaymentsRecorded    EventPayment[]           @relation("EventPaymentRecorder")
+  eventPaymentsVoided      EventPayment[]           @relation("EventPaymentVoider")
+  challengesCreated        Challenge[]              @relation("ChallengeCreator")
   socialPosts              SocialPost[]
   socialComments           SocialComment[]
   socialReactions          SocialReaction[]
+  emailSettingsUpdated     CommunityEmailSettings[] @relation("EmailSettingsUpdater")
+  emailDeliveriesRequested EmailDelivery[]          @relation("EmailDeliveryRequester")
 }
 
 model RateLimitBucket {
@@ -141,43 +159,95 @@ model RateLimitBucket {
 }
 
 model Community {
-  id             String                 @id @default(uuid()) @db.Uuid
-  name           String                 @db.VarChar(120)
-  slug           String                 @unique @db.VarChar(80)
-  description    String?                @db.Text
-  avatarUrl      String?                @db.Text
-  createdById    String                 @db.Uuid
-  createdAt      DateTime               @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime               @updatedAt @db.Timestamptz(6)
-  createdBy      User                   @relation("CommunityCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  members        CommunityMember[]
-  invites        Invite[]
-  schedules      ScheduleRule[]
-  availability   AvailabilityOverride[]
-  events         Event[]
-  polls          Poll[]
-  randomizerRuns RandomizerRun[]
-  holidays       CommunityHoliday[]
-  costShares     CostShare[]
-  challenges     Challenge[]
-  socialPosts    SocialPost[]
+  id              String                  @id @default(uuid()) @db.Uuid
+  name            String                  @db.VarChar(120)
+  slug            String                  @unique @db.VarChar(80)
+  description     String?                 @db.Text
+  avatarUrl       String?                 @db.Text
+  createdById     String                  @db.Uuid
+  createdAt       DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime                @updatedAt @db.Timestamptz(6)
+  createdBy       User                    @relation("CommunityCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members         CommunityMember[]
+  invites         Invite[]
+  schedules       ScheduleRule[]
+  availability    AvailabilityOverride[]
+  events          Event[]
+  polls           Poll[]
+  randomizerRuns  RandomizerRun[]
+  holidays        CommunityHoliday[]
+  costShares      CostShare[]
+  challenges      Challenge[]
+  socialPosts     SocialPost[]
+  emailSettings   CommunityEmailSettings?
+  emailDeliveries EmailDelivery[]
 
   @@index([createdById])
 }
 
+model CommunityEmailSettings {
+  communityId               String        @id @db.Uuid
+  provider                  EmailProvider @default(GMAIL)
+  host                      String        @db.VarChar(255)
+  port                      Int
+  secure                    Boolean
+  username                  String        @db.VarChar(320)
+  encryptedPassword         String        @db.Text
+  fromName                  String        @db.VarChar(120)
+  fromEmail                 String        @db.VarChar(320)
+  replyTo                   String?       @db.VarChar(320)
+  enabled                   Boolean       @default(false)
+  inviteEmailsEnabled       Boolean       @default(true)
+  announcementEmailsEnabled Boolean       @default(false)
+  lastTestedAt              DateTime?     @db.Timestamptz(6)
+  lastTestSucceeded         Boolean?
+  lastTestErrorCode         String?       @db.VarChar(80)
+  updatedById               String?       @db.Uuid
+  createdAt                 DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime      @updatedAt @db.Timestamptz(6)
+  community                 Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  updatedBy                 User?         @relation("EmailSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
+}
+
+model EmailDelivery {
+  id             String              @id @default(uuid()) @db.Uuid
+  communityId    String              @db.Uuid
+  requestedById  String?             @db.Uuid
+  socialPostId   String?             @db.Uuid
+  kind           String              @db.VarChar(40)
+  recipientEmail String              @db.VarChar(320)
+  subject        String              @db.VarChar(255)
+  status         EmailDeliveryStatus @default(PENDING)
+  attemptCount   Int                 @default(0)
+  errorCode      String?             @db.VarChar(80)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(6)
+  sentAt         DateTime?           @db.Timestamptz(6)
+  community      Community           @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  requestedBy    User?               @relation("EmailDeliveryRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  socialPost     SocialPost?         @relation(fields: [socialPostId], references: [id], onDelete: SetNull)
+
+  @@index([communityId, createdAt, id])
+  @@index([requestedById])
+  @@index([socialPostId])
+}
+
 model SocialPost {
-  id          String         @id @default(uuid()) @db.Uuid
-  communityId String         @db.Uuid
-  authorId    String         @db.Uuid
-  kind        SocialPostKind @default(POST)
-  content     String?        @db.VarChar(5000)
-  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
-  community   Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  media       SocialMedia[]
-  comments    SocialComment[]
-  reactions   SocialReaction[]
+  id              String              @id @default(uuid()) @db.Uuid
+  communityId     String              @db.Uuid
+  authorId        String              @db.Uuid
+  kind            SocialPostKind      @default(POST)
+  contentFormat   SocialContentFormat @default(PLAIN_TEXT)
+  content         String?             @db.VarChar(5000)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
+  community       Community           @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author          User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media           SocialMedia[]
+  comments        SocialComment[]
+  reactions       SocialReaction[]
+  emailDeliveries EmailDelivery[]
 
   @@index([communityId, createdAt, id])
   @@index([authorId])

@@ -25,3 +25,10 @@ export const createInviteSchema = z.object({
     .refine((value) => !value || value.getTime() > Date.now(), "A expiração deve estar no futuro."),
   maxUses: z.union([z.number().int().min(1).max(100), z.null()]).default(null),
 });
+
+export const createInviteRequestSchema = createInviteSchema.extend({
+  recipientEmail: z
+    .union([z.string().trim().email("Informe um e-mail válido.").max(320), z.literal(""), z.null()])
+    .optional()
+    .transform((value) => value || null),
+});

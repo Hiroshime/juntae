@@ -54,21 +54,33 @@ export function CommunitySettingsForms({
     const form = new FormData(formElement);
     const expiration = String(form.get("expiresAt") ?? "");
     const maxUses = String(form.get("maxUses") ?? "");
+    const recipientEmail = String(form.get("recipientEmail") ?? "");
     const response = await fetch(`/api/communities/${community.id}/invites`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         expiresAt: expiration ? new Date(expiration).toISOString() : null,
         maxUses: maxUses ? Number(maxUses) : null,
+        recipientEmail: recipientEmail || null,
       }),
     });
-    const data = (await response.json()) as { error?: string; url?: string };
+    const data = (await response.json()) as {
+      error?: string;
+      url?: string;
+      email?: { status: "SENT" | "FAILED"; message?: string } | null;
+    };
     if (!response.ok || !data.url) {
       setInviteMessage(data.error ?? "Falha ao criar convite.");
       return;
     }
     setGeneratedUrl(data.url);
-    setInviteMessage("Convite criado. O link completo é exibido somente agora.");
+    setInviteMessage(
+      data.email?.status === "SENT"
+        ? "Convite criado e enviado por e-mail. O link completo é exibido somente agora."
+        : data.email?.status === "FAILED"
+          ? `Convite criado, mas o e-mail falhou: ${data.email.message ?? "verifique o SMTP"}`
+          : "Convite criado. O link completo é exibido somente agora.",
+    );
     formElement.reset();
     router.refresh();
   }
@@ -144,12 +156,24 @@ export function CommunitySettingsForms({
         <form className="form" onSubmit={createInvite}>
           {inviteMessage && (
             <div
-              className={inviteMessage.includes("Falha") ? "error" : "success"}
-              role={inviteMessage.includes("Falha") ? "alert" : "status"}
+              className={inviteMessage.includes("falhou") ? "error" : "success"}
+              role={inviteMessage.includes("falhou") ? "alert" : "status"}
             >
               {inviteMessage}
             </div>
           )}
+          <div className="field">
+            <label htmlFor="invite-recipient-email">Enviar por e-mail (opcional)</label>
+            <input
+              id="invite-recipient-email"
+              name="recipientEmail"
+              placeholder="pessoa@exemplo.com"
+              type="email"
+            />
+            <span className="field-help">
+              O convite continua sendo um link comum e não fica vinculado a este endereço.
+            </span>
+          </div>
           <div className="field">
             <label htmlFor="invite-expiration">Expira em (opcional)</label>
             <input id="invite-expiration" name="expiresAt" type="datetime-local" />

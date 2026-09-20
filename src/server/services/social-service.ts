@@ -9,7 +9,20 @@ async function membership(userId: string, communityId: string) {
   return assertFound(
     await prisma.communityMember.findUnique({
       where: { communityId_userId: { communityId, userId } },
-      select: { role: true },
+      select: {
+        role: true,
+        community: {
+          select: {
+            emailSettings: {
+              select: {
+                enabled: true,
+                announcementEmailsEnabled: true,
+                lastTestSucceeded: true,
+              },
+            },
+          },
+        },
+      },
     }),
     "Você não participa desta comunidade.",
   );
@@ -36,12 +49,15 @@ export async function getSocialAccess(userId: string, communityId: string) {
 export async function createSocialPost(
   userId: string,
   communityId: string,
-  input: SocialPostInput,
+  input: Omit<SocialPostInput, "contentFormat" | "sendEmail" | "emailSubject"> &
+    Partial<Pick<SocialPostInput, "contentFormat" | "sendEmail" | "emailSubject">>,
   files: RawSocialMedia[],
 ) {
   const member = await membership(userId, communityId);
   if (input.kind === "ANNOUNCEMENT" && member.role === "MEMBER")
     throw new AppError("Apenas administradores podem publicar comunicados.", 403, "FORBIDDEN");
+  if (input.kind !== "ANNOUNCEMENT" && input.contentFormat === "MARKDOWN")
+    throw new AppError("Formatação rica é exclusiva de comunicados.");
   if (!input.content && !files.length)
     throw new AppError("Escreva uma mensagem ou adicione ao menos um anexo.");
   const media = await prepareSocialMedia(files);
@@ -50,6 +66,7 @@ export async function createSocialPost(
       communityId,
       authorId: userId,
       kind: input.kind,
+      contentFormat: input.contentFormat ?? "PLAIN_TEXT",
       content: input.content || null,
       media: {
         create: media.map((item, sortOrder) => ({ ...item, sortOrder })),
@@ -70,6 +87,7 @@ export async function listSocialPosts(userId: string, communityId: string, page 
       id: true,
       authorId: true,
       kind: true,
+      contentFormat: true,
       content: true,
       createdAt: true,
       updatedAt: true,
@@ -116,6 +134,11 @@ export async function listSocialPosts(userId: string, communityId: string, page 
   const canModerate = member.role !== "MEMBER";
   return {
     role: member.role,
+    announcementEmailAvailable:
+      member.role !== "MEMBER" &&
+      member.community.emailSettings?.enabled === true &&
+      member.community.emailSettings.announcementEmailsEnabled === true &&
+      member.community.emailSettings.lastTestSucceeded === true,
     page,
     hasNext: posts.length > SOCIAL_PAGE_SIZE,
     items: posts.slice(0, SOCIAL_PAGE_SIZE).map((post) => {
@@ -128,6 +151,7 @@ export async function listSocialPosts(userId: string, communityId: string, page 
       return {
         id: post.id,
         kind: post.kind,
+        contentFormat: post.contentFormat,
         content: post.content,
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),

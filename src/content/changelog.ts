@@ -10,6 +10,20 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.12.0",
+    releasedAt: "2026-09-20",
+    title: "E-mail próprio para cada comunidade",
+    summary:
+      "Cada grupo agora pode configurar seu próprio Gmail ou servidor SMTP sem compartilhar credenciais.",
+    highlights: [
+      "Owners cadastram o remetente e validam a configuração enviando um e-mail de teste.",
+      "Convites podem ser enviados por e-mail por owners e administradores, sem vincular o link ao endereço.",
+      "Comunicados aceitam títulos, listas, negrito e links, com opção de envio individual para todos os membros.",
+      "O owner escolhe separadamente se o grupo permite e-mails de convite e de comunicado.",
+      "Senhas ficam criptografadas e servidores internos são bloqueados para proteger a instalação.",
+    ],
+  },
+  {
     version: "0.11.0",
     releasedAt: "2026-09-20",
     title: "Comunicação da comunidade",

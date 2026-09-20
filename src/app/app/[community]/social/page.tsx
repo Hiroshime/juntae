@@ -38,6 +38,7 @@ export default async function SocialPage({
             </div>
           </div>
           <SocialFeed
+            announcementEmailAvailable={feed.announcementEmailAvailable}
             canAnnounce={feed.role !== "MEMBER"}
             communityId={membership.communityId}
             communitySlug={slug}

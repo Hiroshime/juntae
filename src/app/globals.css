@@ -3027,7 +3027,7 @@ h2 {
 }
 .dashboard-social-highlight {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 22px;
   border: 1px solid var(--primary-border);
@@ -4288,6 +4288,45 @@ h2 {
   margin-bottom: 24px;
   white-space: nowrap;
 }
+.announcement-editor,
+.announcement-email-options {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--primary-surface);
+}
+.announcement-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.announcement-toolbar button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+.announcement-toolbar button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.announcement-preview {
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.announcement-preview > strong {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+.announcement-email-options .field {
+  margin-top: 2px;
+}
 .social-file-list {
   display: flex;
   flex-wrap: wrap;
@@ -4366,6 +4405,34 @@ h2 {
 .social-post-content {
   margin: 18px 0;
   white-space: pre-wrap;
+}
+.social-post-content:has(.rich-text) {
+  white-space: normal;
+}
+.rich-text > :first-child {
+  margin-top: 0;
+}
+.rich-text > :last-child {
+  margin-bottom: 0;
+}
+.rich-text h2,
+.rich-text h3,
+.rich-text h4 {
+  margin: 0.9em 0 0.35em;
+  line-height: 1.25;
+}
+.rich-text p,
+.rich-text ul,
+.rich-text ol {
+  margin: 0.55em 0;
+}
+.rich-text ul,
+.rich-text ol {
+  padding-left: 1.5rem;
+}
+.rich-text a {
+  color: var(--primary);
+  overflow-wrap: anywhere;
 }
 .social-media-grid {
   display: grid;
@@ -4475,6 +4542,52 @@ h2 {
 }
 .social-comment-form input {
   min-width: 0;
+}
+
+.settings-secondary-section {
+  margin-top: 20px;
+}
+.community-email-settings {
+  min-width: 0;
+}
+.community-email-settings .card-header p {
+  margin-bottom: 0;
+}
+.email-settings-form {
+  margin-top: 20px;
+}
+.email-purpose-settings {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.email-purpose-settings legend {
+  padding: 0 6px;
+  font-weight: 800;
+}
+.email-settings-actions {
+  flex-wrap: wrap;
+}
+.email-test-status {
+  margin: 20px 0 0;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  color: var(--muted);
+}
+.email-delivery-history {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.email-delivery-history summary {
+  color: var(--primary);
+  font-weight: 800;
+  cursor: pointer;
+}
+.email-delivery-history .member-list {
+  margin-top: 12px;
 }
 
 @media (max-width: 600px) {

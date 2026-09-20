@@ -1,15 +1,22 @@
 "use client";
 
-import type { SocialMediaKind, SocialPostKind, SocialReactionType } from "@prisma/client";
+import type {
+  SocialContentFormat,
+  SocialMediaKind,
+  SocialPostKind,
+  SocialReactionType,
+} from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
+import { RichText } from "@/components/rich-text";
 import { SOCIAL_MEDIA_ACCEPT, socialReactions } from "@/lib/social";
 
 type SocialPost = {
   id: string;
   kind: SocialPostKind;
+  contentFormat: SocialContentFormat;
   content: string | null;
   createdAt: string;
   author: { name: string; avatarUrl: string | null };
@@ -56,6 +63,7 @@ export function SocialFeed({
   communitySlug,
   timezone,
   canAnnounce,
+  announcementEmailAvailable,
   items,
   page,
   hasNext,
@@ -64,25 +72,78 @@ export function SocialFeed({
   communitySlug: string;
   timezone: string;
   canAnnounce: boolean;
+  announcementEmailAvailable: boolean;
   items: SocialPost[];
   page: number;
   hasNext: boolean;
 }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
+  const contentInput = useRef<HTMLTextAreaElement>(null);
   const [content, setContent] = useState("");
   const [announcement, setAnnouncement] = useState(false);
+  const [sendEmail, setSendEmail] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [activeAction, setActiveAction] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  function insertMarkup(before: string, after: string, placeholder: string) {
+    const input = contentInput.current;
+    if (!input) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const selected = content.slice(start, end) || placeholder;
+    const next = `${content.slice(0, start)}${before}${selected}${after}${content.slice(end)}`;
+    setContent(next.slice(0, 5000));
+    requestAnimationFrame(() => {
+      input.focus();
+      input.setSelectionRange(start + before.length, start + before.length + selected.length);
+    });
+  }
+
+  function insertList() {
+    const input = contentInput.current;
+    if (!input) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const selected = content.slice(start, end) || "Primeiro item\nSegundo item";
+    const formatted = selected
+      .split("\n")
+      .map((line) => `- ${line.replace(/^[-*]\s+/, "")}`)
+      .join("\n");
+    setContent(`${content.slice(0, start)}${formatted}${content.slice(end)}`.slice(0, 5000));
+    requestAnimationFrame(() => input.focus());
+  }
+
+  function insertLink() {
+    const url = window.prompt("Cole um endereço iniciado por https:// ou http://");
+    if (!url) return;
+    if (!/^https?:\/\/\S+$/i.test(url)) {
+      setError("Use um endereço completo iniciado por https:// ou http://.");
+      return;
+    }
+    insertMarkup("[", `](${url})`, "texto do link");
+  }
 
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setNotice("");
     const form = new FormData();
-    form.set("payload", JSON.stringify({ kind: announcement ? "ANNOUNCEMENT" : "POST", content }));
+    form.set(
+      "payload",
+      JSON.stringify({
+        kind: announcement ? "ANNOUNCEMENT" : "POST",
+        contentFormat: announcement ? "MARKDOWN" : "PLAIN_TEXT",
+        content,
+        sendEmail: announcement && sendEmail,
+        ...(announcement && sendEmail && emailSubject.trim() ? { emailSubject } : {}),
+      }),
+    );
     files.forEach((file) => form.append("media", file));
     try {
       const response = await fetch(`/api/communities/${communityId}/social/posts`, {
@@ -90,8 +151,27 @@ export function SocialFeed({
         body: form,
       });
       if (!response.ok) throw new Error(await messageFrom(response));
+      const result = (await response.json()) as {
+        email:
+          | { status: "SENT" | "PARTIAL"; total: number; sent: number; failed: number }
+          | { status: "FAILED"; message: string }
+          | null;
+      };
+      if (result.email?.status === "SENT")
+        setNotice(`Comunicado publicado e enviado para ${result.email.sent} membro(s).`);
+      else if (result.email?.status === "PARTIAL")
+        setNotice(
+          `Comunicado publicado: ${result.email.sent} e-mail(s) enviado(s) e ${result.email.failed} com falha.`,
+        );
+      else if (result.email?.status === "FAILED")
+        setNotice(
+          `Comunicado publicado, mas os e-mails não foram enviados: ${result.email.message}`,
+        );
+      else setNotice(announcement ? "Comunicado publicado." : "Publicação criada.");
       setContent("");
       setAnnouncement(false);
+      setSendEmail(false);
+      setEmailSubject("");
       setFiles([]);
       if (fileInput.current) fileInput.current.value = "";
       router.refresh();
@@ -157,6 +237,7 @@ export function SocialFeed({
           maxLength={5000}
           onChange={(event) => setContent(event.target.value)}
           placeholder="Uma novidade, foto, vídeo ou assunto para a turma…"
+          ref={contentInput}
           rows={4}
           value={content}
         />
@@ -176,13 +257,78 @@ export function SocialFeed({
             <label className="checkbox-row social-announcement-toggle">
               <input
                 checked={announcement}
-                onChange={(event) => setAnnouncement(event.target.checked)}
+                onChange={(event) => {
+                  setAnnouncement(event.target.checked);
+                  if (!event.target.checked) setSendEmail(false);
+                }}
                 type="checkbox"
               />
               Publicar como comunicado geral
             </label>
           )}
         </div>
+        {announcement && (
+          <section className="announcement-editor" aria-label="Formatação do comunicado">
+            <div className="announcement-toolbar" role="toolbar" aria-label="Formatar texto">
+              <button onClick={() => insertMarkup("## ", "", "Título")} type="button">
+                Título
+              </button>
+              <button onClick={() => insertMarkup("**", "**", "texto em negrito")} type="button">
+                <strong>Negrito</strong>
+              </button>
+              <button onClick={() => insertMarkup("*", "*", "texto em itálico")} type="button">
+                <em>Itálico</em>
+              </button>
+              <button onClick={insertList} type="button">
+                Lista
+              </button>
+              <button onClick={insertLink} type="button">
+                Link
+              </button>
+            </div>
+            <p className="field-help">
+              A formatação segura aparece da mesma forma no feed e no e-mail. HTML bruto não é
+              interpretado.
+            </p>
+            {content.trim() && (
+              <div className="announcement-preview">
+                <strong>Prévia</strong>
+                <RichText value={content} />
+              </div>
+            )}
+          </section>
+        )}
+        {announcement && canAnnounce && (
+          <section className="announcement-email-options">
+            <label className="checkbox-row">
+              <input
+                checked={sendEmail}
+                disabled={!announcementEmailAvailable}
+                onChange={(event) => setSendEmail(event.target.checked)}
+                type="checkbox"
+              />
+              Enviar também por e-mail para todos os membros
+            </label>
+            {!announcementEmailAvailable && (
+              <p className="field-help">
+                O owner precisa ativar e-mails de comunicados nas configurações e concluir um teste
+                SMTP.
+              </p>
+            )}
+            {sendEmail && (
+              <div className="field">
+                <label htmlFor="announcement-email-subject">Assunto do e-mail</label>
+                <input
+                  id="announcement-email-subject"
+                  maxLength={180}
+                  onChange={(event) => setEmailSubject(event.target.value)}
+                  placeholder="Ex.: Agora o Juntaê envia comunicados por e-mail"
+                  value={emailSubject}
+                />
+              </div>
+            )}
+          </section>
+        )}
         {files.length > 0 && (
           <ul className="social-file-list" aria-label="Anexos selecionados">
             {files.map((file, index) => (
@@ -201,6 +347,11 @@ export function SocialFeed({
       {error && (
         <div className="error social-global-error" role="alert">
           {error}
+        </div>
+      )}
+      {notice && (
+        <div className="success social-global-error" role="status">
+          {notice}
         </div>
       )}
 
@@ -235,7 +386,14 @@ export function SocialFeed({
                 </button>
               )}
             </header>
-            {post.content && <p className="social-post-content">{post.content}</p>}
+            {post.content &&
+              (post.contentFormat === "MARKDOWN" ? (
+                <div className="social-post-content">
+                  <RichText value={post.content} />
+                </div>
+              ) : (
+                <p className="social-post-content">{post.content}</p>
+              ))}
             {post.media.length > 0 && (
               <div className={`social-media-grid social-media-count-${post.media.length}`}>
                 {post.media.map((media) => {

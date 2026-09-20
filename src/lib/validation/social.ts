@@ -3,9 +3,34 @@ import { z } from "zod";
 export const socialPostSchema = z
   .object({
     kind: z.enum(["POST", "ANNOUNCEMENT"]).default("POST"),
+    contentFormat: z.enum(["PLAIN_TEXT", "MARKDOWN"]).default("PLAIN_TEXT"),
     content: z.string().trim().max(5000, "O texto pode ter no máximo 5.000 caracteres."),
+    sendEmail: z.boolean().default(false),
+    emailSubject: z
+      .string()
+      .trim()
+      .max(180, "O assunto pode ter no máximo 180 caracteres.")
+      .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.kind !== "ANNOUNCEMENT" && (value.contentFormat !== "PLAIN_TEXT" || value.sendEmail))
+      context.addIssue({
+        code: "custom",
+        path: ["kind"],
+        message: "Formatação e envio por e-mail são exclusivos de comunicados.",
+      });
+    if (value.sendEmail && !value.content)
+      context.addIssue({
+        code: "custom",
+        path: ["content"],
+        message: "Escreva o comunicado antes de enviá-lo por e-mail.",
+      });
+  })
+  .transform((value) => ({
+    ...value,
+    emailSubject: value.emailSubject || undefined,
+  }));
 
 export const socialCommentSchema = z
   .object({

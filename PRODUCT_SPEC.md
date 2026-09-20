@@ -876,6 +876,10 @@ erDiagram
     USER ||--o{ SOCIAL_COMMENT : authors
     SOCIAL_POST ||--o{ SOCIAL_REACTION : receives
     USER ||--o{ SOCIAL_REACTION : makes
+
+    COMMUNITY ||--o| COMMUNITY_EMAIL_SETTINGS : configures
+    COMMUNITY ||--o{ EMAIL_DELIVERY : records
+    USER o|--o{ EMAIL_DELIVERY : requests
 ```
 
 ---
@@ -2628,6 +2632,13 @@ membership válidas em todas as leituras, mutações e mídias.
   quatro anexos. A publicação precisa ter texto ou ao menos um anexo.
 - `OWNER` e `ADMIN` também podem marcar uma publicação como comunicado geral; membros comuns não
   podem forjar esse tipo pelo cliente ou pela API.
+- Comunicados aceitam formatação rica segura em Markdown limitado: títulos, negrito, itálico,
+  listas e links HTTP/HTTPS. A interface oferece atalhos e prévia; HTML bruto nunca é interpretado.
+- Quando o owner habilitar essa finalidade na configuração SMTP, `OWNER` e `ADMIN` podem escolher,
+  em cada comunicado, enviá-lo também a todos os membros. O assunto é opcional, cada destinatário
+  recebe uma mensagem individual e anexos permanecem privados, acessíveis pelo link autenticado.
+  O post permanece publicado mesmo se todos ou alguns envios falharem, e a interface informa o
+  resumo. Limitar a cinco disparos por hora por comunidade/autor.
 - Imagens aceitas: JPEG, PNG, WebP, GIF e AVIF, até 6 MB e 40 megapixels. Decodificar, orientar,
   redimensionar para até 1920 px e converter para WebP, removendo metadados. Vídeos aceitos: MP4
   e WebM, até 25 MB, validados pela assinatura do arquivo. Corpo multipart limitado a 32 MB.
@@ -2651,6 +2662,55 @@ membership válidas em todas as leituras, mutações e mídias.
 - Aceite: testar publicação e normalização de mídia, comunicado restrito, feed/mídia privados,
   reação única, comentários, remoção por autoria/moderação e destaque no dashboard; validar
   lint, tipos, testes, build e experiência responsiva/acessível.
+
+---
+
+## 30.11 E-mail segregado por comunidade
+
+Cada comunidade pode usar sua própria conta Gmail, Google Workspace ou outro SMTP. Não existe uma
+credencial global compartilhada entre comunidades. A entrega cobre configuração, teste, convites
+opcionais e disparo manual de comunicados; notificações automáticas e recuperação de senha dependem
+de verificação dos endereços dos usuários e preferências individuais em uma evolução posterior.
+
+- Somente `OWNER` consulta, cria, substitui ou remove a configuração SMTP. `ADMIN` não recebe
+  usuário, host ou estado da credencial pela API, mas pode enviar convites usando uma configuração
+  ativa e previamente testada. Membros comuns não configuram nem enviam.
+- Campos: preset Gmail ou SMTP personalizado, hostname, porta 465 com TLS direto ou 587 com
+  STARTTLS, usuário, senha, nome/e-mail do remetente, reply-to opcional e estado ativo.
+- A senha é cifrada com AES-256-GCM, nonce aleatório e `community_id` como dado autenticado.
+  A chave-mestra Base64 de 32 bytes fica exclusivamente em `EMAIL_CREDENTIALS_ENCRYPTION_KEY` no
+  ambiente da instalação. Nunca persistir a chave, retornar a senha/ciphertext pela API ou registrar
+  credenciais e respostas brutas do SMTP em logs. Trocar/perder a chave torna as senhas salvas
+  ilegíveis; manter backup protegido.
+- SMTP personalizado aceita somente hostname DNS e portas 465/587. Resolver antes de conectar,
+  recusar IP literal e qualquer resultado privado, loopback, link-local, reservado, documentação ou
+  multicast; conectar ao IP validado preservando o hostname para validação TLS. Exigir TLS 1.2+,
+  certificado válido, timeout curto e bloquear leitura de arquivo/URL pelo cliente de e-mail.
+- Teste envia somente para o e-mail da conta do owner solicitante, no máximo cinco vezes por hora.
+  Salvar configuração não implica teste bem-sucedido. Mudanças invalidam o teste anterior.
+- O owner controla separadamente as finalidades `convites` e `comunicados`, além do estado geral do
+  remetente. Alterar somente essas finalidades não invalida um teste aprovado; alterar servidor,
+  porta, usuário, senha, remetente ou reply-to exige novo teste.
+- O formulário de convite aceita destinatário opcional. O endereço serve apenas para entrega e não
+  vincula o token ao e-mail. Só enviar se a configuração estiver ativa e com último teste aprovado;
+  aplicar limite de 20 convites por e-mail por hora por comunidade/ator. Falha no SMTP não revoga nem
+  oculta o link recém-criado, que continua disponível para cópia manual.
+- Registrar metadados de cada tentativa (`kind`, destinatário, assunto, status, código sanitizado,
+  solicitante e horários), sem corpo, token ou segredo. Owner vê as dez tentativas mais recentes.
+  Remover configuração apaga somente as credenciais; o histórico permanece até a comunidade ser
+  excluída. Exclusão da comunidade remove configuração e histórico em cascata.
+- Comunicado enviado por e-mail usa os endereços das contas dos membros, uma mensagem por pessoa,
+  sem `To`/`Cc` coletivo. Registrar cada resultado e relacioná-lo ao post enquanto ele existir.
+  Processar no máximo três envios simultâneos e recusar disparo direto acima de 250 membros; uma
+  comunidade maior exigirá fila/provedor transacional em evolução própria.
+- Rotas privadas: `/api/communities/[communityId]/email-settings` e `/test`; interface em
+  `/app/[community]/settings`. Todas as mutações exigem sessão, autorização server-side, validação
+  de mesma origem e entrada estrita.
+- Aceite: testar criptografia/autenticação por comunidade, segredo nunca serializado, permissões,
+  retenção/substituição/remoção da senha, teste bem-sucedido e falho, histórico sanitizado, envio de
+  convite por admin, comunicado por admin, formatação escapada, resultado parcial, controles de
+  finalidade, bloqueio sem teste e rejeição de destinos internos; executar auditoria de dependências
+  de produção, lint, tipos, testes e build.
 
 ---
 
@@ -2698,6 +2758,10 @@ Não utilizar automação não oficial baseada em scraping de WhatsApp Web.
 ---
 
 # 33. Possíveis notificações futuras
+
+O transporte SMTP por comunidade, os convites e os comunicados manuais estão implementados na
+seção 30.11.
+Antes de automatizar as opções abaixo, implementar verificação de e-mail e preferências por usuário.
 
 - novo evento;
 - evento alterado;
