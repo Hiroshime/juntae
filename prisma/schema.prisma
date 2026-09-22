@@ -112,6 +112,65 @@ enum EmailDeliveryStatus {
   FAILED
 }
 
+enum GameType {
+  TIC_TAC_TOE
+  HANGMAN
+}
+
+enum GameRoomStatus {
+  WAITING
+  PLAYING
+  CLOSED
+}
+
+enum GameMatchStatus {
+  ACTIVE
+  FINISHED
+}
+
+enum GameMatchOutcome {
+  X_WON
+  O_WON
+  DRAW
+  X_WON_FORFEIT
+  O_WON_FORFEIT
+}
+
+enum HangmanSessionStatus {
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+enum HangmanRoundStatus {
+  SETTING_WORD
+  GUESSING
+  FINISHED
+}
+
+enum HangmanRoundOutcome {
+  GUESSED
+  HANGED
+  CANCELLED
+}
+
+enum HangmanGuessType {
+  LETTER
+  WORD
+}
+
+enum BellHopRunStatus {
+  ACTIVE
+  FINISHED
+  ABANDONED
+}
+
+enum TowerStackRunStatus {
+  ACTIVE
+  FINISHED
+  ABANDONED
+}
+
 model User {
   id                       String                   @id @default(uuid()) @db.Uuid
   email                    String                   @unique @db.VarChar(320)
@@ -147,6 +206,9 @@ model User {
   socialReactions          SocialReaction[]
   emailSettingsUpdated     CommunityEmailSettings[] @relation("EmailSettingsUpdater")
   emailDeliveriesRequested EmailDelivery[]          @relation("EmailDeliveryRequester")
+  gameRoomsCreated         GameRoom[]               @relation("GameRoomCreator")
+  bellHopRuns              BellHopRun[]
+  towerStackRuns           TowerStackRun[]
 }
 
 model RateLimitBucket {
@@ -181,6 +243,9 @@ model Community {
   socialPosts     SocialPost[]
   emailSettings   CommunityEmailSettings?
   emailDeliveries EmailDelivery[]
+  gameRooms       GameRoom[]
+  bellHopRuns     BellHopRun[]
+  towerStackRuns  TowerStackRun[]
 
   @@index([createdById])
 }
@@ -303,8 +368,195 @@ model CommunityMember {
   community               Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
   user                    User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   challengeParticipations ChallengeParticipant[]
+  gameRoomPlayers         GameRoomPlayer[]
 
   @@id([communityId, userId])
+  @@index([userId])
+}
+
+model GameRoom {
+  id              String           @id @default(uuid()) @db.Uuid
+  communityId     String           @db.Uuid
+  createdById     String           @db.Uuid
+  gameType        GameType
+  name            String           @db.VarChar(80)
+  status          GameRoomStatus   @default(WAITING)
+  rules           Json
+  roundNumber     Int              @default(0)
+  version         Int              @default(0)
+  createdAt       DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(6)
+  community       Community        @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy       User             @relation("GameRoomCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  players         GameRoomPlayer[]
+  matches         GameMatch[]
+  hangmanSessions HangmanSession[]
+
+  @@unique([id, communityId])
+  @@index([communityId, status, updatedAt, id])
+  @@index([createdById])
+}
+
+model GameRoomPlayer {
+  roomId      String          @db.Uuid
+  communityId String          @db.Uuid
+  userId      String          @db.Uuid
+  seat        Int
+  ready       Boolean         @default(false)
+  joinedAt    DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(6)
+  room        GameRoom        @relation(fields: [roomId, communityId], references: [id, communityId], onDelete: Cascade)
+  member      CommunityMember @relation(fields: [communityId, userId], references: [communityId, userId], onDelete: Cascade)
+
+  @@id([roomId, userId])
+  @@unique([roomId, seat])
+  @@index([communityId, userId])
+}
+
+model GameMatch {
+  id             String            @id @default(uuid()) @db.Uuid
+  roomId         String            @db.Uuid
+  communityId    String            @db.Uuid
+  gameType       GameType
+  roundNumber    Int
+  status         GameMatchStatus   @default(ACTIVE)
+  outcome        GameMatchOutcome?
+  board          String            @default("---------") @db.VarChar(9)
+  playerXId      String            @db.Uuid
+  playerXName    String            @db.VarChar(80)
+  playerOId      String            @db.Uuid
+  playerOName    String            @db.VarChar(80)
+  nextTurnUserId String?           @db.Uuid
+  winnerId       String?           @db.Uuid
+  winnerName     String?           @db.VarChar(80)
+  startedAt      DateTime          @default(now()) @db.Timestamptz(6)
+  finishedAt     DateTime?         @db.Timestamptz(6)
+  room           GameRoom          @relation(fields: [roomId, communityId], references: [id, communityId], onDelete: Cascade)
+
+  @@unique([roomId, roundNumber])
+  @@index([communityId, gameType, finishedAt, id])
+  @@index([roomId, status, startedAt])
+  @@index([winnerId, finishedAt])
+}
+
+model HangmanSession {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  roomId             String                 @db.Uuid
+  communityId        String                 @db.Uuid
+  status             HangmanSessionStatus   @default(ACTIVE)
+  totalRounds        Int
+  currentRoundNumber Int                    @default(1)
+  startedAt          DateTime               @default(now()) @db.Timestamptz(6)
+  finishedAt         DateTime?              @db.Timestamptz(6)
+  cancelledAt        DateTime?              @db.Timestamptz(6)
+  cancellationReason String?                @db.VarChar(160)
+  room               GameRoom               @relation(fields: [roomId, communityId], references: [id, communityId], onDelete: Cascade)
+  players            HangmanSessionPlayer[]
+  rounds             HangmanRound[]
+
+  @@unique([id, communityId])
+  @@index([communityId, status, finishedAt, id])
+  @@index([roomId, status, startedAt])
+}
+
+model HangmanSessionPlayer {
+  sessionId String         @db.Uuid
+  userId    String         @db.Uuid
+  name      String         @db.VarChar(80)
+  turnOrder Int
+  score     Int            @default(0)
+  session   HangmanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, userId])
+  @@unique([sessionId, turnOrder])
+  @@index([userId])
+}
+
+model HangmanRound {
+  id                String               @id @default(uuid()) @db.Uuid
+  sessionId         String               @db.Uuid
+  roundNumber       Int
+  setterId          String               @db.Uuid
+  setterName        String               @db.VarChar(80)
+  status            HangmanRoundStatus   @default(SETTING_WORD)
+  outcome           HangmanRoundOutcome?
+  secretWord        String?              @db.VarChar(80)
+  normalizedWord    String?              @db.VarChar(80)
+  clue              String?              @db.VarChar(160)
+  guessedLetters    String               @default("") @db.VarChar(32)
+  wrongCount        Int                  @default(0)
+  currentTurnUserId String?              @db.Uuid
+  winnerId          String?              @db.Uuid
+  winnerName        String?              @db.VarChar(80)
+  startedAt         DateTime             @default(now()) @db.Timestamptz(6)
+  wordSetAt         DateTime?            @db.Timestamptz(6)
+  finishedAt        DateTime?            @db.Timestamptz(6)
+  session           HangmanSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  guesses           HangmanGuess[]
+
+  @@unique([sessionId, roundNumber])
+  @@index([sessionId, status, roundNumber])
+  @@index([winnerId, finishedAt])
+}
+
+model HangmanGuess {
+  id              String           @id @default(uuid()) @db.Uuid
+  roundId         String           @db.Uuid
+  userId          String           @db.Uuid
+  userName        String           @db.VarChar(80)
+  type            HangmanGuessType
+  value           String           @db.VarChar(80)
+  normalizedValue String           @db.VarChar(80)
+  correct         Boolean
+  turnNumber      Int
+  createdAt       DateTime         @default(now()) @db.Timestamptz(6)
+  round           HangmanRound     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, turnNumber])
+  @@index([roundId, createdAt, id])
+  @@index([userId])
+}
+
+model BellHopRun {
+  id          String           @id @default(uuid()) @db.Uuid
+  communityId String           @db.Uuid
+  userId      String           @db.Uuid
+  playerName  String           @db.VarChar(80)
+  status      BellHopRunStatus @default(ACTIVE)
+  seed        Int
+  score       Int?
+  bellsHit    Int?
+  maxHeight   Int?
+  durationMs  Int?
+  startedAt   DateTime         @default(now()) @db.Timestamptz(6)
+  finishedAt  DateTime?        @db.Timestamptz(6)
+  community   Community        @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, status, finishedAt, score, id])
+  @@index([communityId, userId, startedAt])
+  @@index([userId])
+}
+
+model TowerStackRun {
+  id             String              @id @default(uuid()) @db.Uuid
+  communityId    String              @db.Uuid
+  userId         String              @db.Uuid
+  playerName     String              @db.VarChar(80)
+  status         TowerStackRunStatus @default(ACTIVE)
+  seed           Int
+  score          Int?
+  blocksPlaced   Int?
+  maxHeight      Int?
+  livesRemaining Int?
+  durationMs     Int?
+  startedAt      DateTime            @default(now()) @db.Timestamptz(6)
+  finishedAt     DateTime?           @db.Timestamptz(6)
+  community      Community           @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, status, finishedAt, score, id])
+  @@index([communityId, userId, startedAt])
   @@index([userId])
 }
 

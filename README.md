@@ -1,6 +1,6 @@
 # Juntaê
 
-Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis, rateios de despesas, comunicação social e e-mail segregado por comunidade.
+Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis, rateios de despesas, comunicação social, e-mail segregado por comunidade e minigames com rankings.
 
 O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e conversar em um feed privado com textos, imagens, vídeos, comentários e reações. Comunicados administrativos aceitam formatação segura e podem ser enviados aos membros pelo SMTP próprio da comunidade. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
 
@@ -36,7 +36,7 @@ npm run dev:local
 
 Abra [http://localhost:3000](http://localhost:3000).
 
-O seed cria a comunidade `Juntaê`, oito usuários, escalas de demonstração, overrides, eventos, votações e um sorteio salvo com datas calculadas em relação ao dia da execução. Para entrar com um usuário de demonstração, use qualquer e-mail `@juntae.local` criado no seed (por exemplo, `ana@juntae.local`) e a senha `demo1234`. Ao ser executado sobre uma instalação anterior, o seed migra os registros de demonstração `@galera.local` e o slug `galera` sem trocar seus IDs.
+O seed cria a comunidade `Juntaê`, oito usuários, escalas de demonstração, overrides, eventos, votações, um sorteio salvo e uma sala de jogo da velha com histórico. As datas são calculadas em relação ao dia da execução. Para entrar com um usuário de demonstração, use qualquer e-mail `@juntae.local` criado no seed (por exemplo, `ana@juntae.local`) e a senha `demo1234`. Ao ser executado sobre uma instalação anterior, o seed migra os registros de demonstração `@galera.local` e o slug `galera` sem trocar seus IDs.
 
 Em um banco vazio, abra `/register` e informe o `REGISTRATION_BOOTSTRAP_TOKEN` para criar a primeira
 conta. O código inicial deixa de funcionar assim que existir um usuário. Depois, crie uma comunidade
@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.12.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.16.2 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.12.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.12.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.12.0` também publica automaticamente as tags `0.12.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.16.2` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.16.2` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.16.2` também publica automaticamente as tags `0.16.2` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -142,7 +142,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.12.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.16.2`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -199,7 +199,7 @@ O projeto usa um monólito modular full-stack:
 - `prisma/seed.ts`: dados de demonstração, mantidos fora das migrations;
 - `tests/unit`, `tests/integration`, `tests/e2e`: testes por camada.
 
-O núcleo modela usuários, comunidades, memberships, convites, escalas, overrides, feriados, eventos, RSVP, votações, opções, votos, snapshots de sorteios e rateios de despesas. Timestamps são armazenados em UTC; datas civis de escala, feriados, compras e opções de data usam `DATE` no PostgreSQL. O timezone inicial é explícito e configurável.
+O núcleo modela usuários, comunidades, memberships, convites, escalas, overrides, feriados, eventos, RSVP, votações, opções, votos, snapshots de sorteios, rateios de despesas, salas e partidas de jogos. Timestamps são armazenados em UTC; datas civis de escala, feriados, compras e opções de data usam `DATE` no PostgreSQL. O timezone inicial é explícito e configurável.
 
 Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `secure` em HTTPS. Senhas são armazenadas somente como hash bcrypt; trocar a senha invalida as demais sessões. O rate limit dos endpoints sensíveis é atômico e persistido no PostgreSQL, funcionando entre múltiplas instâncias. A aplicação também envia CSP, HSTS, proteção contra framing e outros headers defensivos. A autorização não depende da interface: os helpers server-side verificam membership e papel antes de qualquer consulta ou mutação privada.
 
@@ -382,6 +382,10 @@ Rotas principais desta fase:
 - `/app/[community]/randomizers/[runId]`: snapshot permanente de um resultado salvo;
 - `/app/[community]/cost-shares`: criação e histórico de rateios;
 - `/app/[community]/cost-shares/[costShareId]`: compras, saldos e acerto final do rateio;
+- `/app/[community]/games`: catálogo inicial, salas abertas e rankings;
+- `/app/[community]/games/[roomId]`: sala de espera e partidas de jogo da velha ou forca;
+- `/app/[community]/games/bell-hop`: arcade solo Salto dos Sinos e seus rankings;
+- `/app/[community]/games/tower-stack`: arcade solo Torre em Equilíbrio e seus rankings;
 - `/settings/profile`: perfil pessoal e segurança;
 - `/join/[token]`: aceite de convite.
 - `/sobre`: informações do projeto e histórico de versões.
@@ -389,6 +393,47 @@ Rotas principais desta fase:
 Recuperação de senha por e-mail ainda não foi adicionada: apesar do SMTP por comunidade, esse fluxo
 precisa de verificação do endereço pessoal e de uma política para escolher o remetente correto. A
 troca autenticada de senha continua disponível no perfil.
+
+## Jogos da comunidade
+
+Acesse **Jogos** no menu da comunidade (no celular: **Mais → Jogos**). Qualquer membro pode criar
+uma sala de jogo da velha e ocupa a primeira das duas vagas; abrir uma sala captura automaticamente
+a vaga disponível. Quando os dois jogadores marcam
+**Estou pronto**, a rodada começa automaticamente; X joga primeiro e cada pessoa marca uma casa
+vazia por vez. Vitória, empate e desistência ficam registrados, e a sala retorna à espera para a
+próxima rodada.
+
+O criador e administradores escolhem se o jogador inicial alterna a cada rodada ou é sorteado.
+Essa regra só muda enquanto ninguém está pronto. Os placares mostram vitórias da semana atual
+(segunda a domingo) e do mês atual no fuso `DEFAULT_TIMEZONE`. A atualização da sala ocorre a cada
+menos de um segundo enquanto a aba está visível; jogadas e mudanças continuam validadas atomicamente
+no servidor, inclusive sob cliques simultâneos. Sair retorna à página de jogos. Se o último jogador
+sair, a sala some da listagem, mas suas partidas permanecem no histórico dos rankings.
+
+A migration `0021_games_tic_tac_toe` cria salas, vagas e histórico de partidas, com no máximo uma
+partida ativa por sala. Em uma instalação existente, atualize a imagem ou execute `npm run
+db:generate && npm run db:migrate`; não é necessário rodar o seed.
+
+O catálogo também oferece **Jogo da forca** para 2 a 5 pessoas. A sala sorteia a ordem e o mestre
+da primeira palavra; os demais arriscam uma letra ou a palavra inteira em seus turnos. Cada erro
+desenha uma das dez partes do boneco e cada palavra descoberta vale um ponto. O criador escolhe de
+1 a 20 palavras, e há rankings próprios semanais e mensais. A migration `0022_hangman_game`
+armazena sessões, rodadas, palpites e placares; a palavra secreta permanece no servidor até o fim
+da rodada.
+
+O terceiro jogo é **Salto dos Sinos**, um arcade solo original inspirado na mecânica clássica de
+subir por plataformas. Mouse, toque ou setas movem o coelho; o salto é automático ao pousar e os
+sinos ficam menores, mais distantes e mais rápidos ao longo da subida. A pontuação cresce a cada sino, é recalculada no servidor e
+alimenta recordes semanais e mensais da comunidade. A migration `0023_bell_hop_arcade` guarda as
+tentativas, sementes e métricas validadas. Nenhum asset ou código do jogo de referência é utilizado.
+
+O quarto jogo é **Torre em Equilíbrio**, um arcade solo de um toque. Cada bloco oscila em um pêndulo
+antes de cair; encaixes fora do centro fazem a construção inclinar e balançar, mas a torre permanece
+de pé enquanto o centro de massa dos andares superiores continuar sobre uma base segura. São três
+vidas por tentativa; o lado inicial alterna e blocos, velocidade e inércia aumentam a exigência com a altura. O servidor recalcula pontos e metros a partir
+dos andares válidos. A câmera usa uma escala aberta e blocos rejeitados ricocheteiam nas pontas ou
+andares inferiores em vez de atravessar a torre. A migration `0024_tower_stack_arcade` guarda tentativas e rankings semanais e
+mensais sem usar código ou assets do jogo de referência.
 
 ## E-mail próprio por comunidade
 
@@ -525,4 +570,4 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Escopo posterior ao MVP
 
-Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação e SMTP por comunidade já estão implementados. Recuperação de senha por e-mail, notificações automáticas, PWA, Games, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, SMTP por comunidade e a primeira fundação de Games já estão implementados. Recuperação de senha por e-mail, notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

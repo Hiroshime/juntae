@@ -6,6 +6,8 @@ import {
   parseCivilDate,
   zonedDateTimeToUtc,
 } from "../src/lib/dates/civil-date";
+import { bellHopScore } from "../src/lib/games/bell-hop";
+import { towerStackHeight, towerStackScore } from "../src/lib/games/tower-stack";
 import { generateRandomResult } from "../src/server/domain/randomizer";
 
 const prisma = new PrismaClient();
@@ -93,6 +95,9 @@ async function main() {
   await prisma.pollOption.deleteMany({ where: { poll: { communityId: community.id } } });
   await prisma.poll.deleteMany({ where: { communityId: community.id } });
   await prisma.randomizerRun.deleteMany({ where: { communityId: community.id } });
+  await prisma.bellHopRun.deleteMany({ where: { communityId: community.id } });
+  await prisma.towerStackRun.deleteMany({ where: { communityId: community.id } });
+  await prisma.gameRoom.deleteMany({ where: { communityId: community.id } });
 
   const startDate = parseCivilDate(date(-30));
   const mondayToFriday = {
@@ -309,6 +314,109 @@ async function main() {
       inputSnapshot: randomizerParticipants,
       result: randomizerResult as Prisma.InputJsonValue,
     },
+  });
+
+  const gameRoom = await prisma.gameRoom.create({
+    data: {
+      communityId: community.id,
+      createdById: owner.id,
+      gameType: "TIC_TAC_TOE",
+      name: "Clássico da turma",
+      rules: { version: 1, starterMode: "ALTERNATE" },
+      roundNumber: 3,
+    },
+  });
+  await prisma.gameRoomPlayer.createMany({
+    data: [
+      { roomId: gameRoom.id, communityId: community.id, userId: users[0].id, seat: 1 },
+      { roomId: gameRoom.id, communityId: community.id, userId: users[1].id, seat: 2 },
+    ],
+  });
+  const finishedAt = new Date();
+  for (const [index, result] of [
+    { board: "XXXOO----", outcome: "X_WON" as const, winner: users[0] },
+    { board: "XX-OOO-X-", outcome: "O_WON" as const, winner: users[1] },
+    { board: "XOXXOOOXX", outcome: "DRAW" as const, winner: null },
+  ].entries()) {
+    const matchFinishedAt = new Date(finishedAt.getTime() - (3 - index) * 60 * 60 * 1_000);
+    await prisma.gameMatch.create({
+      data: {
+        roomId: gameRoom.id,
+        communityId: community.id,
+        gameType: "TIC_TAC_TOE",
+        roundNumber: index + 1,
+        status: "FINISHED",
+        outcome: result.outcome,
+        board: result.board,
+        playerXId: users[0].id,
+        playerXName: users[0].name,
+        playerOId: users[1].id,
+        playerOName: users[1].name,
+        winnerId: result.winner?.id,
+        winnerName: result.winner?.name,
+        startedAt: new Date(matchFinishedAt.getTime() - 5 * 60 * 1_000),
+        finishedAt: matchFinishedAt,
+      },
+    });
+  }
+
+  const hangmanRoom = await prisma.gameRoom.create({
+    data: {
+      communityId: community.id,
+      createdById: owner.id,
+      gameType: "HANGMAN",
+      name: "Forca de sexta",
+      rules: { version: 1, wordCount: 5 },
+    },
+  });
+  await prisma.gameRoomPlayer.createMany({
+    data: users.slice(0, 3).map((user, index) => ({
+      roomId: hangmanRoom.id,
+      communityId: community.id,
+      userId: user.id,
+      seat: index + 1,
+    })),
+  });
+
+  await prisma.bellHopRun.createMany({
+    data: users.slice(0, 5).map((user, index) => {
+      const bellsHit = 12 - index * 2;
+      const runFinishedAt = new Date(finishedAt.getTime() - index * 45 * 60 * 1_000);
+      return {
+        communityId: community.id,
+        userId: user.id,
+        playerName: index === 0 ? "Aninha" : user.name,
+        status: "FINISHED" as const,
+        seed: 10_000 + index,
+        score: bellHopScore(bellsHit),
+        bellsHit,
+        maxHeight: bellsHit * 108,
+        durationMs: bellsHit * 900,
+        startedAt: new Date(runFinishedAt.getTime() - bellsHit * 900),
+        finishedAt: runFinishedAt,
+      };
+    }),
+  });
+
+  await prisma.towerStackRun.createMany({
+    data: users.slice(0, 5).map((user, index) => {
+      const blocksPlaced = 15 - index * 2;
+      const runFinishedAt = new Date(finishedAt.getTime() - index * 35 * 60 * 1_000);
+      return {
+        communityId: community.id,
+        userId: user.id,
+        playerName: index === 0 ? "Aninha" : user.name,
+        status: "FINISHED" as const,
+        seed: 20_000 + index,
+        score: towerStackScore(blocksPlaced),
+        blocksPlaced,
+        maxHeight: towerStackHeight(blocksPlaced),
+        livesRemaining: 0,
+        durationMs: blocksPlaced * 1_100 + 4_000,
+        startedAt: new Date(runFinishedAt.getTime() - (blocksPlaced * 1_100 + 4_000)),
+        finishedAt: runFinishedAt,
+      };
+    }),
   });
 
   console.log(`Seed concluído: ${community.name} com ${users.length} usuários.`);

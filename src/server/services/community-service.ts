@@ -8,6 +8,7 @@ import type {
   updateCommunitySchema,
 } from "@/lib/validation/community";
 import { AppError, assertFound } from "@/server/errors";
+import { prepareGamesForMemberRemoval } from "@/server/services/game-service";
 
 type CreateCommunityInput = z.infer<typeof createCommunitySchema>;
 type UpdateCommunityInput = z.infer<typeof updateCommunitySchema>;
@@ -222,6 +223,7 @@ export async function removeMember(actorId: string, communityId: string, targetU
         if (owners <= 1)
           throw new AppError("A comunidade precisa manter pelo menos um owner.", 409, "LAST_OWNER");
       }
+      await prepareGamesForMemberRemoval(tx, communityId, targetUserId);
       await tx.communityMember.delete({
         where: { communityId_userId: { communityId, userId: targetUserId } },
       });

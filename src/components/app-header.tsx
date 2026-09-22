@@ -85,6 +85,12 @@ export function AppHeader({
           icon: "🏆",
           children: true,
         },
+        {
+          href: `/app/${community.slug}/games`,
+          label: "Jogos",
+          icon: "🎮",
+          children: true,
+        },
       ]
     : [];
 
@@ -176,6 +182,7 @@ export function AppHeader({
                 <Link href={`/app/${community.slug}/randomizers`}>Sorteios e geradores</Link>
                 <Link href={`/app/${community.slug}/cost-shares`}>Rateios e despesas</Link>
                 <Link href={`/app/${community.slug}/challenges`}>Desafios (Beta)</Link>
+                <Link href={`/app/${community.slug}/games`}>Jogos</Link>
                 <Link href={`/app/${community.slug}/social`}>Comunicação</Link>
                 <Link href={`/app/${community.slug}/members`}>Membros</Link>
                 {role !== "MEMBER" && (

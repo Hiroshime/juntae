@@ -1035,8 +1035,10 @@ h2 {
 }
 .section-nav {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
-  overflow-x: auto;
+  overflow-x: visible;
   margin-top: 12px;
   border: 1px solid var(--border);
   border-radius: 15px;
@@ -4809,5 +4811,952 @@ h2 {
   }
   .calendar-month-day > small {
     display: none;
+  }
+}
+
+/* Games */
+.games-heading {
+  align-items: center;
+}
+.games-heading-icon {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  place-items: center;
+  border: 1px solid var(--primary-border);
+  border-radius: 28px;
+  background: linear-gradient(145deg, var(--primary-soft), var(--surface));
+  box-shadow: 0 18px 40px rgb(var(--shadow-rgb) / 12%);
+  font-size: 3rem;
+  transform: rotate(4deg);
+}
+.games-catalog-grid,
+.game-leaderboards,
+.tic-tac-toe-layout {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.8fr);
+}
+.games-catalog-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.games-page,
+.games-catalog-grid > *,
+.game-create-form > * {
+  min-width: 0;
+}
+.game-catalog-card {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 130px minmax(0, 1fr);
+  align-items: start;
+  overflow: hidden;
+}
+.game-cover {
+  display: grid;
+  width: 130px;
+  height: 130px;
+  grid-template-columns: repeat(3, 1fr);
+  place-items: center;
+  border-radius: 24px;
+  color: var(--on-strong);
+  background:
+    linear-gradient(rgb(255 255 255 / 15%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 15%) 1px, transparent 1px), var(--surface-strong);
+  background-size: 33.333% 33.333%;
+  font-size: 2rem;
+  font-weight: 800;
+}
+.hangman-cover {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: linear-gradient(145deg, var(--surface-strong), var(--primary-dark));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.65rem;
+  line-height: 0.85;
+}
+.hangman-cover span:first-child {
+  align-self: flex-start;
+  margin-left: 27px;
+  font-size: 2.4rem;
+}
+.arcade-catalog-card {
+  grid-column: 1 / -1;
+  grid-template-columns: 180px minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: var(--primary-border-strong);
+  background:
+    radial-gradient(circle at 75% 0, rgb(var(--accent-rgb) / 18%), transparent 34%),
+    linear-gradient(145deg, var(--surface), var(--primary-surface));
+}
+.arcade-catalog-card > .button {
+  min-width: 150px;
+}
+.bell-hop-cover {
+  position: relative;
+  width: 180px;
+  height: 145px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 24% 18%, rgb(255 255 255 / 90%) 0 2px, transparent 3px),
+    radial-gradient(circle at 78% 33%, rgb(255 255 255 / 72%) 0 2px, transparent 3px),
+    linear-gradient(165deg, #163d67, #77acc3 72%, #d8eff0);
+}
+.bell-hop-cover-bunny {
+  position: absolute;
+  right: 35px;
+  bottom: 28px;
+  display: grid;
+  width: 34px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid #bad2df;
+  border-radius: 55% 55% 45% 45%;
+  color: #264b62;
+  background: #f8fcff;
+  font-size: 0.5rem;
+  box-shadow: 0 8px 12px rgb(21 52 76 / 20%);
+}
+.bell-hop-cover-bunny::before,
+.bell-hop-cover-bunny::after {
+  position: absolute;
+  top: -21px;
+  width: 10px;
+  height: 27px;
+  border: 2px solid #bad2df;
+  border-radius: 50%;
+  background: #f8fcff;
+  content: "";
+}
+.bell-hop-cover-bunny::before {
+  left: 4px;
+  transform: rotate(-9deg);
+}
+.bell-hop-cover-bunny::after {
+  right: 4px;
+  transform: rotate(9deg);
+}
+.bell-hop-cover-bell {
+  position: absolute;
+  top: 26px;
+  left: 34px;
+  color: #ffd66a;
+  font-size: 3.2rem;
+  line-height: 1;
+  transform: rotate(45deg);
+}
+.bell-hop-cover-bell.second {
+  top: 78px;
+  left: 83px;
+  font-size: 2.3rem;
+}
+.tower-catalog-card {
+  background:
+    radial-gradient(circle at 78% 8%, rgb(247 180 99 / 24%), transparent 34%),
+    linear-gradient(145deg, var(--surface), var(--primary-surface));
+}
+.tower-stack-cover {
+  position: relative;
+  width: 180px;
+  height: 145px;
+  overflow: hidden;
+  background: linear-gradient(165deg, #29365f, #c96d71 62%, #f7c779);
+}
+.tower-cover-rope {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 3px;
+  height: 48px;
+  background: #413a48;
+  transform: rotate(-16deg);
+  transform-origin: top;
+}
+.tower-cover-block {
+  position: absolute;
+  left: 50%;
+  width: 92px;
+  height: 24px;
+  border: 2px solid rgb(65 49 57 / 58%);
+  border-radius: 5px;
+  background: #ee7d52;
+  box-shadow: inset 0 4px rgb(255 255 255 / 25%);
+  transform: translateX(-50%);
+}
+.tower-cover-block.swinging {
+  top: 37px;
+  background: #f2b84b;
+  transform: translateX(-34%) rotate(-8deg);
+}
+.tower-cover-block.floor-one {
+  bottom: 8px;
+  width: 112px;
+  background: #628ec7;
+}
+.tower-cover-block.floor-two {
+  bottom: 34px;
+  background: #63a78f;
+  transform: translateX(-47%) rotate(2deg);
+}
+.tower-cover-block.floor-three {
+  bottom: 60px;
+  width: 86px;
+  background: #956eb2;
+  transform: translateX(-40%) rotate(4deg);
+}
+.game-create-form {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.game-create-form label,
+.game-rule-controls label {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.game-create-form input,
+.game-create-form select,
+.game-rule-controls input,
+.game-rule-controls select,
+.hangman-play-form input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: var(--foreground);
+  background: var(--surface);
+}
+.game-create-form > .button {
+  grid-column: 1 / -1;
+}
+.game-create-form .error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.game-coming-card {
+  display: grid;
+  align-content: center;
+  background: linear-gradient(145deg, var(--surface), var(--surface-muted));
+}
+.game-coming-card > span {
+  color: var(--primary);
+  font-size: 3.5rem;
+  font-weight: 300;
+}
+.games-room-section {
+  margin: 34px 0;
+}
+.games-ranking-section {
+  margin: 34px 0;
+}
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.section-title-row h2,
+.game-player-list + * {
+  margin-top: 0;
+}
+.game-room-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  margin-top: 18px;
+}
+.game-room-card {
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.game-room-card:hover {
+  border-color: var(--primary-border-strong);
+  box-shadow: 0 14px 30px rgb(var(--shadow-rgb) / 10%);
+  transform: translateY(-2px);
+}
+.game-room-status {
+  display: inline-flex;
+  padding: 6px 11px;
+  border: 1px solid var(--primary-border);
+  border-radius: 999px;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.game-room-status-playing {
+  color: #7c3611;
+  border-color: #e9b47c;
+  background: #fff1d9;
+}
+.game-room-status-closed {
+  color: var(--muted);
+  border-color: var(--border);
+  background: var(--surface-muted);
+}
+.compact-empty-state {
+  margin-top: 18px;
+}
+.game-ranking-card h2 {
+  margin-bottom: 0;
+}
+.game-ranking-list {
+  display: grid;
+  gap: 4px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.game-ranking-list li {
+  display: grid;
+  grid-template-columns: 38px minmax(100px, 1fr) auto;
+  gap: 5px 10px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.game-ranking-list li:last-child {
+  border-bottom: 0;
+}
+.game-ranking-position {
+  grid-row: span 2;
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+.game-ranking-name {
+  font-weight: 700;
+}
+.game-ranking-list .small {
+  grid-column: 2 / -1;
+}
+.game-room-heading {
+  align-items: center;
+}
+.tic-tac-toe-layout {
+  grid-template-columns: minmax(320px, 1.35fr) minmax(280px, 0.75fr);
+  align-items: start;
+}
+.tic-tac-toe-stage {
+  display: grid;
+  justify-items: center;
+  min-height: 540px;
+  align-content: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgb(var(--primary-rgb) / 10%), transparent 45%),
+    var(--surface);
+}
+.tic-tac-toe-board {
+  display: grid;
+  width: min(100%, 390px);
+  aspect-ratio: 1;
+  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 8px;
+  border-radius: 24px;
+  background: var(--surface-strong);
+  box-shadow: 0 20px 50px rgb(var(--shadow-rgb) / 20%);
+}
+.tic-tac-toe-cell {
+  display: grid;
+  min-width: 0;
+  min-height: 72px;
+  place-items: center;
+  border: 0;
+  border-radius: 16px;
+  color: var(--primary-dark);
+  background: var(--surface);
+  font-size: clamp(2.8rem, 9vw, 5rem);
+  font-weight: 900;
+  line-height: 1;
+  transition:
+    transform 120ms ease,
+    background 120ms ease;
+}
+.tic-tac-toe-cell:not(:disabled):hover {
+  background: var(--primary-soft);
+  transform: scale(0.97);
+}
+.tic-tac-toe-cell.is-winning {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.tic-tac-toe-cell:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.game-result {
+  display: flex;
+  width: min(100%, 390px);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--primary-border-strong);
+  border-radius: 14px;
+  background: var(--primary-soft);
+}
+.game-result > span {
+  font-size: 1.8rem;
+}
+.game-result div,
+.game-player div {
+  display: grid;
+}
+.game-result small,
+.game-player small {
+  color: var(--muted);
+}
+.game-turn-message {
+  min-height: 28px;
+  margin-top: 24px;
+  text-align: center;
+}
+.game-room-sidebar {
+  display: grid;
+  gap: 18px;
+}
+.game-player-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+.game-player {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+.game-player.is-ready {
+  border-color: var(--primary-border-strong);
+  background: var(--primary-soft);
+}
+.game-player-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--on-strong);
+  background: var(--surface-strong);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+.game-room-actions,
+.game-rule-controls {
+  display: grid;
+  gap: 10px;
+}
+.game-auto-join {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--primary-border);
+  border-radius: 12px;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  font-weight: 700;
+  text-align: center;
+}
+.game-rules-card ul {
+  padding-left: 20px;
+  color: var(--muted);
+}
+.game-rule-controls {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Hangman */
+.hangman-layout {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(360px, 1.35fr) minmax(300px, 0.75fr);
+  align-items: start;
+}
+.hangman-stage {
+  display: grid;
+  gap: 22px;
+  justify-items: center;
+  min-height: 650px;
+  align-content: center;
+  background:
+    radial-gradient(circle at 50% 28%, rgb(var(--primary-rgb) / 11%), transparent 42%),
+    linear-gradient(150deg, var(--surface), var(--surface-muted));
+}
+.hangman-drawing {
+  display: grid;
+  width: min(100%, 320px);
+  justify-items: center;
+  gap: 9px;
+}
+.hangman-drawing svg {
+  width: 100%;
+  max-height: 270px;
+  overflow: visible;
+  filter: drop-shadow(0 12px 16px rgb(var(--shadow-rgb) / 10%));
+}
+.hangman-gallows,
+.hangman-part {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hangman-gallows {
+  stroke: var(--surface-strong);
+}
+.hangman-part {
+  opacity: 0;
+  transform-origin: center;
+  transform: scale(0.75);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+.hangman-part.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.hangman-part circle {
+  fill: var(--foreground);
+  stroke: none;
+}
+.hangman-error-meter {
+  display: grid;
+  width: min(100%, 260px);
+  gap: 5px;
+  grid-template-columns: repeat(10, 1fr);
+}
+.hangman-error-meter span {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.hangman-error-meter span.is-wrong {
+  background: #c64b42;
+}
+.hangman-word-area,
+.hangman-word-placeholder {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+}
+.hangman-word-area p {
+  margin: 0;
+}
+.hangman-word {
+  max-width: 100%;
+  color: var(--primary-dark);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(1.5rem, 5vw, 2.65rem);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.hangman-word-placeholder {
+  min-height: 90px;
+  align-content: center;
+  padding: 18px;
+  border: 1px dashed var(--primary-border-strong);
+  border-radius: 16px;
+  color: var(--muted);
+  background: var(--primary-soft);
+}
+.hangman-word-placeholder strong {
+  color: var(--foreground);
+}
+.hangman-play-form {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--primary-border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 14px 36px rgb(var(--shadow-rgb) / 9%);
+}
+.hangman-play-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.hangman-guess-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+.hangman-guess-tabs button {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+}
+.hangman-guess-tabs button.is-active {
+  color: var(--primary-dark);
+  background: var(--surface);
+  box-shadow: 0 3px 10px rgb(var(--shadow-rgb) / 10%);
+}
+.hangman-wait-message,
+.hangman-round-result {
+  display: flex;
+  width: min(100%, 520px);
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border: 1px solid var(--primary-border);
+  border-radius: 15px;
+  background: var(--primary-soft);
+  text-align: center;
+}
+.hangman-wait-message span {
+  font-size: 1.6rem;
+}
+.hangman-round-result {
+  display: grid;
+  gap: 4px;
+}
+.hangman-scoreboard {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0;
+}
+.hangman-scoreboard > div {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-muted);
+}
+.hangman-scoreboard > div.is-current {
+  border-color: var(--primary-border-strong);
+  background: var(--primary-soft);
+  box-shadow: inset 4px 0 var(--primary);
+}
+.hangman-scoreboard > div.is-setter {
+  border-style: dashed;
+}
+.hangman-scoreboard > div > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+.hangman-scoreboard small {
+  color: var(--muted);
+}
+.hangman-player-order {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--on-strong);
+  background: var(--surface-strong);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+.hangman-history ul {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  margin: 16px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.hangman-history li {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.hangman-history li > span:first-child {
+  color: var(--primary);
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+.hangman-history li > span:last-child {
+  display: grid;
+}
+.hangman-history small {
+  color: var(--muted);
+}
+
+/* Bell Hop arcade */
+.bell-hop-heading {
+  align-items: center;
+}
+.bell-hop-sound {
+  min-width: 132px;
+}
+.bell-hop-layout {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  align-items: start;
+}
+.bell-hop-game-card {
+  min-width: 0;
+  overflow: hidden;
+  padding: 16px;
+  background: linear-gradient(160deg, var(--surface), var(--primary-surface));
+}
+.bell-hop-hud {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 12px;
+}
+.bell-hop-hud span {
+  display: grid;
+  justify-items: center;
+  border: 1px solid var(--primary-border);
+  border-radius: 13px;
+  padding: 8px 10px;
+  background: var(--surface);
+}
+.bell-hop-hud small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bell-hop-hud strong {
+  color: var(--primary-dark);
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+}
+.bell-hop-canvas-wrap {
+  position: relative;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 38%);
+  border-radius: 22px;
+  background: linear-gradient(#183f68, #4f8eb3 55%, #c9e8ee);
+  box-shadow: 0 18px 45px rgb(22 63 104 / 24%);
+}
+.bell-hop-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 720 / 760;
+  touch-action: none;
+  cursor: crosshair;
+}
+.bell-hop-canvas:focus-visible {
+  outline-offset: -5px;
+}
+.bell-hop-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 28px;
+  color: #f3fbff;
+  background: linear-gradient(rgb(13 42 70 / 36%), rgb(13 42 70 / 74%));
+  backdrop-filter: blur(3px);
+  text-align: center;
+}
+.bell-hop-overlay .eyebrow {
+  color: #ffdd83;
+}
+.bell-hop-overlay h2 {
+  max-width: 480px;
+  margin: 8px 0 10px;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+}
+.bell-hop-overlay p {
+  max-width: 440px;
+  margin: 0 0 20px;
+  color: #deedf5;
+}
+.bell-hop-overlay .button {
+  color: #17384f;
+  background: #ffd66a;
+}
+.bell-hop-overlay small {
+  margin-top: 12px;
+  color: #d1e4ed;
+}
+.bell-hop-help {
+  margin: 14px 4px 0;
+  text-align: center;
+}
+.bell-hop-side {
+  display: grid;
+  gap: 18px;
+}
+.bell-hop-ranking-card {
+  min-width: 0;
+}
+.bell-hop-ranking-card .card-header {
+  align-items: flex-start;
+}
+.bell-hop-ranking-card .card-header > span {
+  text-align: right;
+}
+
+/* Tower Stack arcade */
+.tower-stack-card {
+  background: linear-gradient(160deg, var(--surface), rgb(247 180 99 / 10%));
+}
+.tower-stack-hud {
+  grid-template-columns: repeat(4, 1fr);
+}
+.tower-stack-hud span:last-child strong {
+  color: #c44855;
+  letter-spacing: 0.08em;
+}
+.tower-stack-canvas-wrap {
+  background: linear-gradient(#28355f, #d47072 55%, #f8c977);
+  box-shadow: 0 18px 45px rgb(74 48 69 / 26%);
+}
+.tower-stack-canvas {
+  cursor: pointer;
+}
+.tower-stack-overlay {
+  background: linear-gradient(rgb(29 34 64 / 34%), rgb(42 36 58 / 76%));
+}
+.tower-stack-overlay .eyebrow {
+  color: #ffd289;
+}
+.tower-stack-overlay .button {
+  color: #392d3a;
+  background: #f5bd5d;
+}
+.tower-stack-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) 1fr;
+  gap: 14px;
+  align-items: center;
+  margin-top: 14px;
+}
+.tower-stack-controls p {
+  margin: 0;
+}
+.tower-stack-rules ul {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+@media (max-width: 800px) {
+  .games-catalog-grid,
+  .game-leaderboards,
+  .tic-tac-toe-layout,
+  .hangman-layout {
+    grid-template-columns: 1fr;
+  }
+  .bell-hop-layout {
+    grid-template-columns: 1fr;
+  }
+  .games-heading-icon {
+    display: none;
+  }
+  .tic-tac-toe-stage {
+    min-height: auto;
+  }
+  .hangman-stage {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 980px) {
+  .games-catalog-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .game-catalog-card,
+  .game-create-form {
+    grid-template-columns: 1fr;
+  }
+  .arcade-catalog-card {
+    grid-template-columns: 1fr;
+  }
+  .arcade-catalog-card > .button {
+    width: 100%;
+  }
+  .game-cover {
+    width: 100%;
+    height: 110px;
+  }
+  .bell-hop-cover {
+    height: 140px;
+  }
+  .bell-hop-game-card {
+    padding: 10px;
+  }
+  .tower-stack-hud {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tower-stack-controls {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .bell-hop-overlay {
+    padding: 18px;
+  }
+  .tic-tac-toe-stage {
+    padding: 18px 12px;
+  }
+  .hangman-stage {
+    padding: 20px 12px;
+  }
+  .hangman-drawing {
+    width: min(100%, 260px);
+  }
+  .hangman-play-form {
+    padding: 16px;
+  }
+  .tic-tac-toe-board {
+    gap: 5px;
+    padding: 5px;
+    border-radius: 18px;
+  }
+  .tic-tac-toe-cell {
+    min-height: 64px;
+    border-radius: 12px;
+  }
+  .game-ranking-list li {
+    grid-template-columns: 34px 1fr;
+  }
+  .game-ranking-list li > strong {
+    grid-column: 2;
   }
 }

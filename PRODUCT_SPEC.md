@@ -1858,27 +1858,128 @@ criar votação de datas
 
 ## 30.1 Módulo Games
 
-Perfis podem cadastrar:
+O módulo Games reúne minigames privados da própria comunidade e uma fundação extensível para jogos
+individuais ou em equipe. O catálogo atual contém jogo da velha, forca e dois arcades solo.
+Perfis de plataformas, catálogo de títulos externos e Game Night permanecem como evoluções futuras.
 
-- Steam;
-- PSN;
-- Xbox;
-- Riot;
-- Battle.net;
-- Discord;
-- plataforma preferida.
+### 30.1.1 Fundação de salas e partidas
 
-Criar catálogo comunitário de jogos.
+- Qualquer membro pode criar uma sala e ocupa automaticamente a primeira vaga. Abrir uma sala em
+  espera captura automaticamente uma vaga disponível, sem confirmação adicional. A sala pertence à
+  comunidade e nenhuma leitura ou ação aceita usuários externos, IDs de outra comunidade ou e-mails.
+- `GameRoom` mantém jogo, nome, regras JSON versionadas, estado, rodada e jogadores. `GameMatch`
+  preserva cada resultado e snapshots dos nomes; novos tipos podem acrescentar seus próprios motores
+  sem misturar regras na UI. A enumeração inicial contém `TIC_TAC_TOE` e `HANGMAN`.
+- Estados da sala: `WAITING`, `PLAYING` e `CLOSED`. Uma sala de jogo da velha comporta exatamente duas
+  vagas. Ambos os jogadores precisam marcar pronto; a segunda confirmação cria uma única partida
+  ativa e muda a sala atomicamente para `PLAYING`.
+- Criador da sala, OWNER ou ADMIN pode alterar regras enquanto a sala espera e ninguém está pronto,
+  além de fechar/reabrir uma sala fora de partida. Qualquer jogador pode sair e volta à página de
+  jogos; durante a partida a saída é registrada como desistência e dá a vitória ao adversário. Uma
+  sala sem jogadores é arquivada e some das salas abertas, preservando partidas para os rankings.
+- Mutações usam transações serializáveis, retry de conflitos e escrita no registro pai da sala. Uma
+  restrição parcial no banco permite no máximo uma partida ativa por sala. Jogadas repetidas,
+  simultâneas, em casa ocupada ou fora do turno são recusadas pelo servidor.
+- A sala usa atualização adaptativa sem sobreposição enquanto a aba está visível: aproximadamente
+  600 ms durante a partida e 900 ms na espera. O servidor é a fonte de verdade; polling não concede
+  autoridade ao cliente nem substitui a validação transacional.
 
-Features futuras:
+### 30.1.2 Jogo da velha
 
-- “Quem joga este jogo?”;
-- “O que podemos jogar hoje?”;
-- Game Night;
-- sorteio de times utilizando o módulo genérico de Geradores Aleatórios;
-- balanceamento por nível;
-- ranking interno;
-- histórico de partidas.
+- Tabuleiro 3×3, X inicia e os jogadores alternam uma casa vazia por turno. Três símbolos iguais em
+  linha, coluna ou diagonal vencem; tabuleiro cheio sem vencedor é empate.
+- Regra configurável para o jogador que recebe X: alternar entre os participantes a cada rodada ou
+  sortear a cada nova partida. A regra é exibida na sala de espera.
+- Ao terminar, anunciar resultado, guardar tabuleiro/vencedor, desmarcar ambos como prontos e retornar
+  a sala a `WAITING`. Outra partida só começa após duas novas confirmações.
+- Remover um membro da comunidade durante uma partida encerra a rodada como desistência antes de
+  remover sua vaga, evitando salas travadas.
+
+### 30.1.3 Jogo da forca
+
+- A sala comporta de duas a cinco pessoas. A partida começa quando todos os ocupantes marcam pronto;
+  nesse momento a ordem dos jogadores é sorteada e o primeiro da ordem se torna mestre da palavra.
+- O criador configura de uma a vinte palavras por partida. Em cada rodada, somente o mestre informa a
+  palavra ou expressão e uma dica opcional. A palavra aceita letras, espaços, hífen e apóstrofo, é
+  comparada sem diferenciar caixa ou acentos e nunca é entregue aos demais clientes antes do fim da
+  rodada.
+- O mestre não participa dos palpites da própria palavra. Os demais seguem a ordem sorteada e, em seu
+  turno, escolhem uma letra ainda não usada ou arriscam a palavra completa. Toda tentativa válida passa
+  o turno, inclusive uma letra correta; letras repetidas e ações fora do turno são recusadas.
+- Letras corretas revelam todas as ocorrências. Uma letra ou palavra errada acrescenta uma das dez
+  partes visuais do boneco: cabeça, corpo, braços, pernas, olhos, boca, nariz e cabelo. A rodada termina
+  com o primeiro acerto da palavra ou após dez erros.
+- Quem completa ou acerta a palavra recebe um ponto. Sem acerto não há pontuação. O próximo jogador na
+  ordem se torna mestre e a partida continua até a quantidade configurada; maior pontuação vence e
+  empates são permitidos.
+- Sair ou ser removido durante uma partida cancela a sessão para evitar turnos travados. A sala retorna
+  à espera, limpa os estados de pronto e preserva o histórico como cancelado.
+
+### 30.1.4 Salto dos Sinos
+
+- Arcade solo e infinito com arte e código próprios do Juntaê. O personagem é um coelho controlado
+  horizontalmente por mouse, toque ou setas; o primeiro impulso acontece ao iniciar e todo pouso em
+  um sino ainda não utilizado produz automaticamente o próximo salto.
+- A câmera acompanha apenas a subida. Cair abaixo da área visível encerra a única vida da tentativa.
+  Os sinos usam percurso reproduzível por semente e ficam progressivamente menores até um limite
+  jogável. A redução de tamanho deve continuar por uma parte longa da subida; amplitude, velocidade
+  lateral e distância vertical também crescem gradualmente para evitar um platô de dificuldade.
+- O primeiro sino vale 10 pontos, o segundo 20 e assim sucessivamente. O servidor não aceita uma
+  pontuação enviada pelo cliente: recebe quantidade de sinos, altura e duração, valida plausibilidade
+  temporal e recalcula o total. Iniciar novamente abandona atomicamente qualquer tentativa ativa.
+- Cada comunidade possui rankings de maior pontuação na semana e no mês. Considerar somente o melhor
+  resultado de cada membro no período, mostrar a quantidade de tentativas e compartilhar posição em
+  empates. Membros externos não leem nem registram partidas.
+- O jogo deve ser responsivo, ter instruções fora do canvas, placar textual atualizado, controle de
+  som, foco por teclado e resultado acessível. A experiência não depende de assets ou código do jogo
+  usado apenas como referência de mecânica.
+
+### 30.1.5 Torre em Equilíbrio
+
+- Arcade solo e infinito, com arte e código próprios do Juntaê. Um bloco fica suspenso em um pêndulo;
+  toque, clique, Espaço ou Enter o solta sobre o último andar da torre. Não copiar assets, código,
+  nome comercial ou identidade dos jogos utilizados somente como referência de mecânica.
+- Cada tentativa começa com três vidas. Um bloco que não encontra apoio ou deixa o centro de massa
+  da parte superior fora da base segura consome uma vida; a terceira queda encerra e salva o resultado.
+- Encaixes imperfeitos são permitidos: a estabilidade considera a posição e massa relativa de todos
+  os blocos acima de cada apoio. Enquanto o centro de massa permanecer sustentado, a torre inclina e
+  balança visualmente sem cair. A câmera deve manter o pêndulo e o topo visíveis com espaço suficiente
+  para acompanhar a queda e uma escala aberta que preserve a leitura da construção. Blocos rejeitados
+  devem colidir e ricochetear nas pontas ou andares inferiores, sem atravessar visualmente a torre.
+  O lado inicial alterna a cada bloco; velocidade, amplitude, movimento transferido à queda e redução
+  da largura tornam-se progressivamente mais exigentes com a altura.
+- Cada andar vale progressivamente mais pontos: 25 no primeiro, 50 no segundo e assim por diante.
+  O servidor recebe apenas andares, vidas e duração, valida plausibilidade e recalcula pontuação e
+  altura; nunca aceita o placar calculado pelo cliente. Reiniciar abandona a tentativa ativa anterior.
+- Cada comunidade possui rankings semanal e mensal pelo melhor resultado de cada membro, com tentativas
+  e posições compartilhadas em empates. A tela deve ser responsiva, acessível por teclado, anunciar
+  quedas/encaixes em texto e permitir desativar som.
+
+### 30.1.6 Rankings, UX e segurança
+
+- Rankings competitivos são calculados para a semana civil atual (segunda a domingo) e para o mês
+  civil atual, usando `DEFAULT_TIMEZONE`. Jogos de confronto mostram partidas, vitórias, derrotas e
+  empates; o arcade mostra o maior placar e tentativas. Na forca, todos os líderes da pontuação vencem
+  a sessão. Empates compartilham posição e ex-membros não aparecem, mas o histórico fica.
+- Rotas privadas: `/app/[community]/games`, `/app/[community]/games/[roomId]`,
+  `/app/[community]/games/bell-hop` e `/app/[community]/games/tower-stack`; APIs sob
+  `/api/communities/[communityId]/games`. Mutações exigem
+  sessão, membership, mesma origem, entrada estrita e rate limit.
+- Os jogos devem funcionar em mobile, ter alvos adequados, foco visível, nomes acessíveis e anúncio
+  textual de turno/resultado. A forca desenha separadamente todas as dez partes e também expõe a
+  contagem de erros em texto. Não existe dinheiro, aposta nem prêmio.
+- Aceite: testar motores puros, isolamento, limite concorrente de vagas, prontidão, alternância, turnos,
+  casa ocupada, vitória, empate, desistência, remoção de membro, permissões e rankings. Para a forca,
+  testar limite de cinco vagas, segredo por usuário, mestre, turnos, acentos, repetição, dez erros,
+  rotação de rodadas, pontuação e cancelamento. Nos arcades, testar percursos/regras determinísticos,
+  equilíbrio, três vidas, recálculo server-side e rankings. Lint, tipos, testes e build devem passar.
+
+### 30.1.7 Evoluções futuras
+
+- perfis Steam, PSN, Xbox, Riot, Battle.net e Discord;
+- catálogo comunitário, “Quem joga este jogo?” e “O que podemos jogar hoje?”;
+- Game Night, jogos em equipe e uso dos Geradores Aleatórios para formar times;
+- balanceamento por nível e novos rankings/históricos por jogo.
 
 ## 30.2 Caronas
 
