@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.16.2 \
+  --tag docker.io/SEU_USUARIO/juntae:0.17.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.16.2` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.16.2` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.16.2` também publica automaticamente as tags `0.16.2` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.17.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.17.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.17.0` também publica automaticamente as tags `0.17.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -142,7 +142,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.16.2`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.17.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -410,6 +410,12 @@ menos de um segundo enquanto a aba está visível; jogadas e mudanças continuam
 no servidor, inclusive sob cliques simultâneos. Sair retorna à página de jogos. Se o último jogador
 sair, a sala some da listagem, mas suas partidas permanecem no histórico dos rankings.
 
+Cada membro pode ocupar somente uma sala aberta por comunidade; entrar ou criar outra transfere a vaga
+e deixa a anterior atomicamente. Ao usar o menu, voltar ou fechar a página, o navegador registra a
+saída; uma partida em andamento segue a regra de desistência ou cancelamento do jogo. Na espera, a lista
+mostra quem é o anfitrião e os estados **Pronto** e **Aguardando**. Placar e posições ficam reservados
+para a partida e seu resultado.
+
 A migration `0021_games_tic_tac_toe` cria salas, vagas e histórico de partidas, com no máximo uma
 partida ativa por sala. Em uma instalação existente, atualize a imagem ou execute `npm run
 db:generate && npm run db:migrate`; não é necessário rodar o seed.
@@ -434,6 +440,17 @@ vidas por tentativa; o lado inicial alterna e blocos, velocidade e inércia aume
 dos andares válidos. A câmera usa uma escala aberta e blocos rejeitados ricocheteiam nas pontas ou
 andares inferiores em vez de atravessar a torre. A migration `0024_tower_stack_arcade` guarda tentativas e rankings semanais e
 mensais sem usar código ou assets do jogo de referência.
+
+O quinto jogo é **Stop da Turma**, para 2 a 10 pessoas. Na página de jogos, informe o nome e crie a
+sala; dentro dela, escolha de 4 a 10 rodadas, um tempo de 15, 20, 25 ou 30 segundos, as letras do
+sorteio e pelo menos oito categorias. As respostas ficam privadas durante a rodada e são salvas
+automaticamente. Qualquer jogador pode apertar STOP; se ninguém apertar até o fim do tempo inicial,
+todos recebem mais 10 segundos. Em seguida, a turma revisa uma categoria por vez durante 20 segundos,
+ou somente 10 quando ninguém respondeu naquela categoria. Respostas com letra incorreta são recusadas
+automaticamente e a maioria dos demais jogadores pode invalidar as outras. O servidor avança a revisão
+automaticamente. Cada resposta válida vale um ponto, e os líderes finais alimentam rankings semanais e mensais. A migration `0025_stop_game` preserva
+sessões, rodadas, respostas, votos de invalidação e placares; a `0026_stop_review_deadline` adiciona
+o prazo automático de revisão de forma compatível com bancos que já receberam a migration anterior.
 
 ## E-mail próprio por comunidade
 
@@ -570,4 +587,4 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Escopo posterior ao MVP
 
-Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, SMTP por comunidade e a primeira fundação de Games já estão implementados. Recuperação de senha por e-mail, notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, SMTP por comunidade e Games já estão implementados. Recuperação de senha por e-mail, notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

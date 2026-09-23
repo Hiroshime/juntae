@@ -10,6 +10,24 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.17.0",
+    releasedAt: "2026-09-22",
+    title: "Stop da Turma",
+    summary: "O clássico jogo de categorias chegou às salas da comunidade.",
+    highlights: [
+      "Crie salas para 2 a 10 pessoas e escolha entre 4 e 10 rodadas.",
+      "Personalize o tempo, as letras sorteáveis e uma lista com pelo menos oito categorias.",
+      "Respostas ficam escondidas durante a rodada e o primeiro a terminar pode apertar STOP.",
+      "Se ninguém apertar STOP, todos recebem dez segundos extras antes da revisão.",
+      "As configurações ficam dentro da sala, e a revisão avança a categoria automaticamente a cada 20 segundos.",
+      "Categorias sem nenhuma resposta avançam em 10 segundos para manter a partida dinâmica.",
+      "A turma decide por maioria quais respostas são inválidas.",
+      "Cada resposta válida vale um ponto, com resultado final e rankings semanal e mensal.",
+      "Cada pessoa ocupa apenas uma sala aberta e sai automaticamente ao navegar para outra tela.",
+      "A espera identifica o anfitrião e mostra claramente quem está pronto ou aguardando.",
+    ],
+  },
+  {
     version: "0.16.2",
     releasedAt: "2026-09-22",
     title: "Colisões mais naturais na torre",

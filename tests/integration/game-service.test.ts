@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 import { removeMember } from "@/server/services/community-service";
 import {
@@ -69,6 +69,15 @@ describe("salas e partidas de jogos", () => {
     });
   });
 
+  afterEach(async () => {
+    if (!communityId) return;
+    await prisma.gameRoomPlayer.deleteMany({ where: { communityId } });
+    await prisma.gameRoom.updateMany({
+      where: { communityId, status: { not: "CLOSED" } },
+      data: { status: "CLOSED" },
+    });
+  });
+
   async function create(userId = owner, starterMode: "ALTERNATE" | "RANDOM" = "ALTERNATE") {
     return createGameRoom(userId, communityId, {
       gameType: "TIC_TAC_TOE",
@@ -92,13 +101,22 @@ describe("salas e partidas de jogos", () => {
     await expect(getGameRoom(owner, otherCommunityId, room.id)).rejects.toMatchObject({
       status: 404,
     });
-
     const joins = await Promise.allSettled([
       changeGameRoom(member, communityId, room.id, { action: "JOIN" }),
       changeGameRoom(admin, communityId, room.id, { action: "JOIN" }),
     ]);
     expect(joins.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect((await getGameRoom(owner, communityId, room.id)).players).toHaveLength(2);
+    const firstRoom = await getGameRoom(owner, communityId, room.id);
+    expect(firstRoom.players).toHaveLength(2);
+
+    const nextRoom = await create();
+    const transferredUser = firstRoom.players.find((player) => player.userId !== owner)!.userId;
+    await changeGameRoom(transferredUser, communityId, nextRoom.id, { action: "JOIN" });
+    expect(
+      await prisma.gameRoomPlayer.count({ where: { communityId, userId: transferredUser } }),
+    ).toBe(1);
+    expect(await prisma.gameRoomPlayer.count({ where: { communityId, userId: owner } })).toBe(1);
+    expect((await getGameRoom(owner, communityId, nextRoom.id)).players).toHaveLength(2);
   });
 
   it("inicia com os dois prontos, valida turnos e encerra preservando o resultado", async () => {

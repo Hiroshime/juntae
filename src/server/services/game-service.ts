@@ -15,6 +15,11 @@ import {
   revealHangmanWord,
 } from "@/lib/games/hangman";
 import {
+  stopAnswerStartsWithLetter,
+  stopInvalidVoteThreshold,
+  stopReviewSeconds,
+} from "@/lib/games/stop-game";
+import {
   applyTicTacToeMove,
   evaluateTicTacToe,
   oppositeTicTacToeMark,
@@ -27,6 +32,7 @@ import {
   hangmanGuessSchema,
   hangmanRulesSchema,
   hangmanSecretSchema,
+  stopRulesSchema,
   ticTacToeMoveSchema,
   ticTacToeRulesSchema,
   type CreateGameRoomInput,
@@ -36,6 +42,11 @@ import {
   type TicTacToeMoveInput,
 } from "@/lib/validation/games";
 import { AppError, assertFound } from "@/server/errors";
+import {
+  cancelStopSession,
+  startStopSession,
+  syncStopRoomTimer,
+} from "@/server/services/stop-game-service";
 
 const LEADERBOARD_LIMIT = 10;
 const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || "America/Sao_Paulo";
@@ -108,6 +119,24 @@ const roomInclude = {
         orderBy: { roundNumber: "desc" },
         take: 2,
         include: { guesses: { orderBy: { turnNumber: "asc" } } },
+      },
+    },
+  },
+  stopSessions: {
+    orderBy: { startedAt: "desc" },
+    take: 2,
+    include: {
+      players: { orderBy: { seat: "asc" } },
+      categories: { orderBy: { sortOrder: "asc" } },
+      rounds: {
+        orderBy: { roundNumber: "desc" },
+        take: 2,
+        include: {
+          answers: {
+            orderBy: [{ categoryId: "asc" }, { userName: "asc" }],
+            include: { invalidVotes: true },
+          },
+        },
       },
     },
   },
@@ -209,13 +238,106 @@ function serializeHangmanSession(session: HangmanSessionWithDetails | undefined,
   };
 }
 
-function serializeRoom(room: RoomWithDetails, userId: string, role: CommunityRole) {
+type StopSessionWithDetails = RoomWithDetails["stopSessions"][number];
+
+function serializeStopSession(
+  session: StopSessionWithDetails | undefined,
+  userId: string,
+  now: Date,
+) {
+  if (!session) return null;
+  const currentRound = session.rounds.find(
+    (round) => round.roundNumber === session.currentRoundNumber,
+  );
+  const previousRound = session.rounds.find(
+    (round) => round.status === "FINISHED" && round.id !== currentRound?.id,
+  );
+  const maxScore = Math.max(...session.players.map((player) => player.score));
+  const serializeRound = (round: (typeof session.rounds)[number] | undefined) => {
+    if (!round) return null;
+    const revealAll = round.status !== "ANSWERING";
+    const reviewCategory = session.categories[round.reviewCategoryIndex];
+    const hasReviewAnswers = reviewCategory
+      ? round.answers.some((answer) => answer.categoryId === reviewCategory.id)
+      : false;
+    return {
+      id: round.id,
+      roundNumber: round.roundNumber,
+      letter: round.letter,
+      status: round.status,
+      reviewCategoryIndex: round.reviewCategoryIndex,
+      answerDeadline: round.answerDeadline.toISOString(),
+      bonusDeadline: round.bonusDeadline.toISOString(),
+      reviewDeadline: round.reviewDeadline?.toISOString() ?? null,
+      reviewSeconds: stopReviewSeconds(hasReviewAnswers),
+      bonusActive:
+        round.status === "ANSWERING" && now >= round.answerDeadline && now < round.bonusDeadline,
+      stoppedById: round.stoppedById,
+      stoppedByName: round.stoppedByName,
+      answers: round.answers.map((answer) => ({
+        id: answer.id,
+        categoryId: answer.categoryId,
+        userId: answer.userId,
+        userName: answer.userName,
+        value: revealAll || answer.userId === userId ? answer.value : null,
+        startsWithLetter: revealAll ? stopAnswerStartsWithLetter(answer.value, round.letter) : null,
+        invalidVotes: revealAll ? answer.invalidVotes.length : 0,
+        viewerMarkedInvalid: revealAll
+          ? answer.invalidVotes.some((vote) => vote.voterId === userId)
+          : false,
+        finalValid: answer.finalValid,
+        awardedPoints: answer.awardedPoints,
+      })),
+      startedAt: round.startedAt.toISOString(),
+      finishedAt: round.finishedAt?.toISOString() ?? null,
+    };
+  };
+  return {
+    id: session.id,
+    status: session.status,
+    totalRounds: session.totalRounds,
+    answerSeconds: session.answerSeconds,
+    currentRoundNumber: session.currentRoundNumber,
+    invalidVoteThreshold: stopInvalidVoteThreshold(session.players.length),
+    categories: session.categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      sortOrder: category.sortOrder,
+    })),
+    players: session.players.map((player) => ({
+      userId: player.userId,
+      name: player.name,
+      seat: player.seat,
+      score: player.score,
+      winner: session.status === "FINISHED" && player.score === maxScore,
+    })),
+    currentRound: serializeRound(currentRound),
+    previousRound: serializeRound(previousRound),
+    cancellationReason: session.cancellationReason,
+    startedAt: session.startedAt.toISOString(),
+    finishedAt: session.finishedAt?.toISOString() ?? null,
+  };
+}
+
+function roomCapacity(room: Pick<RoomWithDetails, "gameType" | "rules">) {
+  if (room.gameType === "STOP") return stopRulesSchema.parse(room.rules).maxPlayers;
+  return room.gameType === "HANGMAN" ? 5 : 2;
+}
+
+function serializeRoom(
+  room: RoomWithDetails,
+  userId: string,
+  role: CommunityRole,
+  now = new Date(),
+) {
   const currentMatch = room.matches.find((match) => match.status === "ACTIVE");
   const lastMatch = room.matches.find((match) => match.status === "FINISHED");
   const currentHangmanSession = room.hangmanSessions.find((session) => session.status === "ACTIVE");
   const lastHangmanSession = room.hangmanSessions.find((session) => session.status !== "ACTIVE");
+  const currentStopSession = room.stopSessions.find((session) => session.status === "ACTIVE");
+  const lastStopSession = room.stopSessions.find((session) => session.status !== "ACTIVE");
   const player = room.players.find((candidate) => candidate.userId === userId);
-  const capacity = room.gameType === "HANGMAN" ? 5 : 2;
+  const capacity = roomCapacity(room);
   return {
     id: room.id,
     communityId: room.communityId,
@@ -225,10 +347,14 @@ function serializeRoom(room: RoomWithDetails, userId: string, role: CommunityRol
     rules:
       room.gameType === "HANGMAN"
         ? hangmanRulesSchema.parse(room.rules)
-        : ticTacToeRulesSchema.parse(room.rules),
+        : room.gameType === "STOP"
+          ? stopRulesSchema.parse(room.rules)
+          : ticTacToeRulesSchema.parse(room.rules),
+    capacity,
     roundNumber: room.roundNumber,
     version: room.version,
     createdByName: room.createdBy.name,
+    createdById: room.createdById,
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),
     players: room.players.map((item) => ({
@@ -244,6 +370,10 @@ function serializeRoom(room: RoomWithDetails, userId: string, role: CommunityRol
     hangman: {
       currentSession: serializeHangmanSession(currentHangmanSession, userId),
       lastSession: serializeHangmanSession(lastHangmanSession, userId),
+    },
+    stop: {
+      currentSession: serializeStopSession(currentStopSession, userId, now),
+      lastSession: serializeStopSession(lastStopSession, userId, now),
     },
     viewer: {
       userId,
@@ -272,6 +402,41 @@ async function roomById(db: Prisma.TransactionClient, communityId: string, roomI
   );
 }
 
+async function lockMemberGameRooms(
+  db: Prisma.TransactionClient,
+  userId: string,
+  communityId: string,
+) {
+  await db.$queryRaw`
+    SELECT "userId"
+    FROM "CommunityMember"
+    WHERE "communityId" = ${communityId}::uuid AND "userId" = ${userId}::uuid
+    FOR UPDATE
+  `;
+}
+
+async function leaveOtherOpenRooms(
+  db: Prisma.TransactionClient,
+  userId: string,
+  communityId: string,
+  memberName: string,
+  exceptRoomId?: string,
+) {
+  const existing = await db.gameRoomPlayer.findMany({
+    where: {
+      communityId,
+      userId,
+      roomId: exceptRoomId ? { not: exceptRoomId } : undefined,
+      room: { status: { not: "CLOSED" } },
+    },
+    select: { roomId: true },
+  });
+  for (const player of existing) {
+    const room = await roomById(db, communityId, player.roomId);
+    await leaveRoomMembership(db, room, userId, memberName);
+  }
+}
+
 export async function createGameRoom(
   userId: string,
   communityId: string,
@@ -280,7 +445,9 @@ export async function createGameRoom(
   const parsed = createGameRoomSchema.safeParse(rawInput);
   if (!parsed.success) throw new AppError(parsed.error.issues[0].message);
   return transaction(async (db) => {
-    await membership(db, userId, communityId);
+    const member = await membership(db, userId, communityId);
+    await lockMemberGameRooms(db, userId, communityId);
+    await leaveOtherOpenRooms(db, userId, communityId, displayName(member));
     const room = await db.gameRoom.create({
       data: {
         communityId,
@@ -300,6 +467,7 @@ export async function createGameRoom(
 
 export async function getGameRoom(userId: string, communityId: string, roomId: string) {
   const member = await membership(prisma, userId, communityId);
+  await syncStopRoomTimer(roomId, communityId);
   return serializeRoom(await roomById(prisma, communityId, roomId), userId, member.role);
 }
 
@@ -440,7 +608,16 @@ function buildHangmanRanking(members: RankingMember[], sessions: HangmanRankingS
 export async function listGameHub(userId: string, communityId: string, now = new Date()) {
   await membership(prisma, userId, communityId);
   const bounds = periodBounds(now);
-  const [rooms, members, weekMatches, monthMatches, hangmanWeek, hangmanMonth] = await Promise.all([
+  const [
+    rooms,
+    members,
+    weekMatches,
+    monthMatches,
+    hangmanWeek,
+    hangmanMonth,
+    stopWeek,
+    stopMonth,
+  ] = await Promise.all([
     prisma.gameRoom.findMany({
       where: { communityId, status: { not: "CLOSED" } },
       orderBy: [{ status: "asc" }, { updatedAt: "desc" }, { id: "asc" }],
@@ -449,6 +626,7 @@ export async function listGameHub(userId: string, communityId: string, now = new
         id: true,
         name: true,
         gameType: true,
+        rules: true,
         status: true,
         updatedAt: true,
         players: {
@@ -502,10 +680,32 @@ export async function listGameHub(userId: string, communityId: string, now = new
       },
       select: { players: { select: { userId: true, score: true } } },
     }),
+    prisma.stopSession.findMany({
+      where: {
+        communityId,
+        status: "FINISHED",
+        finishedAt: { gte: bounds.week.start, lt: bounds.week.end },
+      },
+      select: { players: { select: { userId: true, score: true } } },
+    }),
+    prisma.stopSession.findMany({
+      where: {
+        communityId,
+        status: "FINISHED",
+        finishedAt: { gte: bounds.month.start, lt: bounds.month.end },
+      },
+      select: { players: { select: { userId: true, score: true } } },
+    }),
   ]);
   return {
-    rooms: rooms.map((room) => ({
+    rooms: rooms.map(({ rules, ...room }) => ({
       ...room,
+      capacity:
+        room.gameType === "STOP"
+          ? stopRulesSchema.parse(rules).maxPlayers
+          : room.gameType === "HANGMAN"
+            ? 5
+            : 2,
       updatedAt: room.updatedAt.toISOString(),
       players: room.players.map((player) => ({
         userId: player.userId,
@@ -534,6 +734,18 @@ export async function listGameHub(userId: string, communityId: string, now = new
         startDate: bounds.month.startDate,
         endDate: bounds.month.endDate,
         entries: buildHangmanRanking(members, hangmanMonth),
+      },
+    },
+    stopLeaderboards: {
+      week: {
+        startDate: bounds.week.startDate,
+        endDate: bounds.week.endDate,
+        entries: buildHangmanRanking(members, stopWeek),
+      },
+      month: {
+        startDate: bounds.month.startDate,
+        endDate: bounds.month.endDate,
+        entries: buildHangmanRanking(members, stopMonth),
       },
     },
   };
@@ -670,6 +882,29 @@ async function finishByForfeit(
   });
 }
 
+async function leaveRoomMembership(
+  db: Prisma.TransactionClient,
+  room: RoomWithDetails,
+  userId: string,
+  memberName: string,
+) {
+  if (!room.players.some((player) => player.userId === userId)) return;
+  if (room.status === "PLAYING") {
+    if (room.gameType === "HANGMAN")
+      await cancelHangmanSession(db, room.id, `${memberName} saiu durante a partida.`);
+    else if (room.gameType === "STOP")
+      await cancelStopSession(db, room.id, `${memberName} saiu durante a partida.`);
+    else await finishByForfeit(db, room.id, userId);
+  }
+  await db.gameRoomPlayer.delete({
+    where: { roomId_userId: { roomId: room.id, userId } },
+  });
+  if (room.players.length === 1) {
+    // Keep the room row and its matches for leaderboard history, but remove it from active lists.
+    await db.gameRoom.update({ where: { id: room.id }, data: { status: "CLOSED" } });
+  }
+}
+
 export async function changeGameRoom(
   userId: string,
   communityId: string,
@@ -680,6 +915,7 @@ export async function changeGameRoom(
   if (!parsed.success) throw new AppError(parsed.error.issues[0].message);
   await transaction(async (db) => {
     const member = await membership(db, userId, communityId);
+    await lockMemberGameRooms(db, userId, communityId);
     let room = await roomById(db, communityId, roomId);
     await db.gameRoom.update({ where: { id: room.id }, data: { version: { increment: 1 } } });
     const action = parsed.data;
@@ -687,7 +923,8 @@ export async function changeGameRoom(
     if (action.action === "JOIN") {
       if (room.status !== "WAITING") throw new AppError("A partida já começou.", 409);
       if (room.players.some((player) => player.userId === userId)) return;
-      const capacity = room.gameType === "HANGMAN" ? 5 : 2;
+      await leaveOtherOpenRooms(db, userId, communityId, displayName(member), roomId);
+      const capacity = roomCapacity(room);
       if (room.players.length >= capacity) throw new AppError("A sala já está cheia.", 409);
       const seat = Array.from({ length: capacity }, (_, index) => index + 1).find(
         (candidate) => !room.players.some((player) => player.seat === candidate),
@@ -698,17 +935,7 @@ export async function changeGameRoom(
     }
 
     if (action.action === "LEAVE") {
-      if (!room.players.some((player) => player.userId === userId)) return;
-      if (room.status === "PLAYING") {
-        if (room.gameType === "HANGMAN")
-          await cancelHangmanSession(db, roomId, `${displayName(member)} saiu durante a partida.`);
-        else await finishByForfeit(db, roomId, userId);
-      }
-      await db.gameRoomPlayer.delete({ where: { roomId_userId: { roomId, userId } } });
-      if (room.players.length === 1) {
-        // Keep the room row and its matches for leaderboard history, but remove it from active lists.
-        await db.gameRoom.update({ where: { id: roomId }, data: { status: "CLOSED" } });
-      }
+      await leaveRoomMembership(db, room, userId, displayName(member));
       return;
     }
 
@@ -722,6 +949,7 @@ export async function changeGameRoom(
       });
       room = await roomById(db, communityId, roomId);
       if (room.gameType === "HANGMAN") await startHangmanSession(db, room);
+      else if (room.gameType === "STOP") await startStopSession(db, room);
       else await startTicTacToeMatch(db, room);
       return;
     }
@@ -735,8 +963,16 @@ export async function changeGameRoom(
       const rules =
         room.gameType === "HANGMAN"
           ? hangmanRulesSchema.safeParse(action.rules)
-          : ticTacToeRulesSchema.safeParse(action.rules);
+          : room.gameType === "STOP"
+            ? stopRulesSchema.safeParse(action.rules)
+            : ticTacToeRulesSchema.safeParse(action.rules);
       if (!rules.success) throw new AppError("Regras incompatíveis com este jogo.");
+      if (
+        room.gameType === "STOP" &&
+        "maxPlayers" in rules.data &&
+        rules.data.maxPlayers < room.players.length
+      )
+        throw new AppError("O limite não pode ser menor que a quantidade de pessoas na sala.", 409);
       await db.gameRoom.update({ where: { id: roomId }, data: { rules: rules.data } });
       return;
     }
@@ -1039,6 +1275,12 @@ export async function prepareGamesForMemberRemoval(
     });
     if (room.gameType === "HANGMAN")
       await cancelHangmanSession(
+        db,
+        seat.roomId,
+        `${displayName(room.players.find((player) => player.userId === userId)!.member)} foi removido da comunidade.`,
+      );
+    else if (room.gameType === "STOP")
+      await cancelStopSession(
         db,
         seat.roomId,
         `${displayName(room.players.find((player) => player.userId === userId)!.member)} foi removido da comunidade.`,

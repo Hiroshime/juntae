@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_STOP_CATEGORIES, DEFAULT_STOP_LETTERS } from "@/lib/games/stop-game";
 
 export const ticTacToeRulesSchema = z
   .object({
@@ -13,6 +14,43 @@ export const hangmanRulesSchema = z
     wordCount: z.number().int().min(1).max(20).default(5),
   })
   .strict();
+
+const stopCategorySchema = z.string().trim().min(2).max(60);
+
+export const stopRulesSchema = z
+  .object({
+    version: z.literal(1).default(1),
+    maxPlayers: z.number().int().min(2).max(10).default(10),
+    roundCount: z.number().int().min(4).max(10).default(6),
+    answerSeconds: z
+      .union([z.literal(15), z.literal(20), z.literal(25), z.literal(30)])
+      .default(20),
+    letters: z
+      .array(z.string().regex(/^[A-Z]$/))
+      .min(1)
+      .max(26)
+      .default(DEFAULT_STOP_LETTERS),
+    categories: z.array(stopCategorySchema).min(8).max(20).default(DEFAULT_STOP_CATEGORIES),
+  })
+  .strict()
+  .superRefine((rules, context) => {
+    if (new Set(rules.letters).size !== rules.letters.length)
+      context.addIssue({ code: "custom", path: ["letters"], message: "Não repita letras." });
+    const normalizedCategories = rules.categories.map((category) =>
+      category
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLocaleLowerCase("pt-BR"),
+    );
+    if (new Set(normalizedCategories).size !== normalizedCategories.length)
+      context.addIssue({
+        code: "custom",
+        path: ["categories"],
+        message: "Não repita categorias.",
+      });
+  });
 
 const roomNameSchema = z.string().trim().min(2, "Informe um nome para a sala.").max(80);
 
@@ -31,9 +69,16 @@ export const createGameRoomSchema = z.discriminatedUnion("gameType", [
       rules: hangmanRulesSchema,
     })
     .strict(),
+  z
+    .object({
+      gameType: z.literal("STOP"),
+      name: roomNameSchema,
+      rules: stopRulesSchema,
+    })
+    .strict(),
 ]);
 
-export const gameRulesSchema = z.union([ticTacToeRulesSchema, hangmanRulesSchema]);
+export const gameRulesSchema = z.union([ticTacToeRulesSchema, hangmanRulesSchema, stopRulesSchema]);
 
 export const gameRoomActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("JOIN") }).strict(),
@@ -91,6 +136,28 @@ export const hangmanGuessSchema = z.discriminatedUnion("type", [
     .strict(),
 ]);
 
+export const stopGameActionSchema = z.discriminatedUnion("action", [
+  z
+    .object({
+      action: z.literal("SAVE_ANSWERS"),
+      roundId: z.string().uuid(),
+      answers: z
+        .array(
+          z.object({ categoryId: z.string().uuid(), value: z.string().trim().max(80) }).strict(),
+        )
+        .max(20),
+    })
+    .strict(),
+  z.object({ action: z.literal("STOP_ROUND"), roundId: z.string().uuid() }).strict(),
+  z
+    .object({
+      action: z.literal("TOGGLE_INVALID"),
+      roundId: z.string().uuid(),
+      answerId: z.string().uuid(),
+    })
+    .strict(),
+]);
+
 export const finishBellHopRunSchema = z
   .object({
     bellsHit: z.number().int().min(0).max(5_000),
@@ -123,10 +190,12 @@ export const towerStackRunParamsSchema = gameCommunityParamsSchema
 
 export type TicTacToeRules = z.infer<typeof ticTacToeRulesSchema>;
 export type HangmanRules = z.infer<typeof hangmanRulesSchema>;
+export type StopRules = z.infer<typeof stopRulesSchema>;
 export type CreateGameRoomInput = z.infer<typeof createGameRoomSchema>;
 export type GameRoomAction = z.infer<typeof gameRoomActionSchema>;
 export type TicTacToeMoveInput = z.infer<typeof ticTacToeMoveSchema>;
 export type HangmanSecretInput = z.infer<typeof hangmanSecretSchema>;
 export type HangmanGuessInput = z.infer<typeof hangmanGuessSchema>;
+export type StopGameAction = z.infer<typeof stopGameActionSchema>;
 export type FinishBellHopRunInput = z.infer<typeof finishBellHopRunSchema>;
 export type FinishTowerStackRunInput = z.infer<typeof finishTowerStackRunSchema>;

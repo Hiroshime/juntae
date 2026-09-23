@@ -67,6 +67,8 @@ test("jogos: duas pessoas entram, ficam prontas e concluem uma partida no mobile
     await ticTacToeCard.getByRole("button", { name: "Criar sala" }).click();
     await expect(ownerPage).toHaveURL(new RegExp(`${gamesPath}/[a-f0-9-]{36}$`));
     const roomUrl = ownerPage.url();
+    const roomId = roomUrl.split("/").at(-1);
+    if (!roomId) throw new Error("Sala criada sem identificador.");
 
     await login(memberPage, member.email, password);
     await memberPage.goto(roomUrl);
@@ -74,7 +76,12 @@ test("jogos: duas pessoas entram, ficam prontas e concluem uma partida no mobile
     const players = memberPage.locator(".game-player-list");
     await expect(players.getByText("Jogadora X", { exact: true })).toBeVisible();
     await expect(players.getByText("Jogador O", { exact: true })).toBeVisible({ timeout: 4_000 });
+    await expect(players.getByText("Anfitrião da sala", { exact: true })).toBeVisible();
+    await expect(players.getByText("Aguardando", { exact: true })).toHaveCount(2);
     await ownerPage.getByRole("button", { name: "Estou pronto" }).click();
+    await expect(
+      memberPage.locator(".room-lobby-list").getByText("Pronto", { exact: true }),
+    ).toHaveCount(1, { timeout: 4_000 });
     await memberPage.getByRole("button", { name: "Estou pronto" }).click();
     await expect(ownerPage.getByText("Sua vez — você joga com X")).toBeVisible({ timeout: 4_000 });
 
@@ -102,8 +109,17 @@ test("jogos: duas pessoas entram, ficam prontas e concluem uma partida no mobile
         where: { communityId: community.id, status: "FINISHED", winnerId: owner.id },
       }),
     ).toBe(1);
-    await ownerPage.getByRole("button", { name: "Sair da sala", exact: true }).click();
+    await ownerPage.getByRole("link", { name: "Voltar aos jogos" }).click();
     await expect(ownerPage).toHaveURL(new RegExp(`${gamesPath}$`));
+    await expect
+      .poll(
+        () =>
+          db.gameRoomPlayer.count({
+            where: { roomId, userId: owner.id },
+          }),
+        { timeout: 4_000 },
+      )
+      .toBe(0);
     await memberPage.getByRole("button", { name: "Sair da sala", exact: true }).click();
     await expect(memberPage).toHaveURL(new RegExp(`${gamesPath}$`));
     await expect(memberPage.locator(".game-room-card")).toHaveCount(0);
@@ -236,6 +252,123 @@ test("forca: sorteia o mestre, protege a palavra e encerra o placar no mobile", 
         where: { communityId: community.id, status: "FINISHED" },
       }),
     ).toBe(1);
+  } finally {
+    await ownerContext.close();
+    await memberContext.close();
+    if (communityId) await db.community.delete({ where: { id: communityId } });
+    await db.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
+    await db.$disconnect();
+  }
+});
+
+test("Stop da Turma: cria sala, oculta respostas e revisa por votação no mobile", async ({
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const db = new PrismaClient();
+  const suffix = randomUUID();
+  const password = "senha-stop-e2e";
+  const passwordHash = await hash(password, 4);
+  const [owner, member] = await Promise.all([
+    db.user.create({
+      data: { name: "Ana Stop", email: `stop-a-${suffix}@test.local`, passwordHash },
+    }),
+    db.user.create({
+      data: { name: "Beto Stop", email: `stop-b-${suffix}@test.local`, passwordHash },
+    }),
+  ]);
+  let communityId: string | undefined;
+  const ownerContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const memberContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const ownerPage = await ownerContext.newPage();
+  const memberPage = await memberContext.newPage();
+  try {
+    const community = await db.community.create({
+      data: {
+        name: "Turma do Stop",
+        slug: `stop-e2e-${suffix}`,
+        createdById: owner.id,
+        members: {
+          create: [
+            { userId: owner.id, role: "OWNER" },
+            { userId: member.id, role: "MEMBER" },
+          ],
+        },
+      },
+    });
+    communityId = community.id;
+    const gamesPath = `/app/${community.slug}/games`;
+    await login(ownerPage, owner.email, password);
+    await ownerPage.goto(gamesPath);
+    const stopCard = ownerPage
+      .locator(".stop-catalog-card")
+      .filter({ has: ownerPage.getByRole("heading", { name: "Stop da Turma" }) });
+    await stopCard.scrollIntoViewIfNeeded();
+    await stopCard.getByLabel("Nome da sala").fill("Stop de sábado");
+    await stopCard.getByRole("button", { name: "Criar sala" }).click();
+    await expect(ownerPage).toHaveURL(new RegExp(`${gamesPath}/[a-f0-9-]{36}$`));
+    const roomUrl = ownerPage.url();
+    const rulesEditor = ownerPage.locator(".stop-rule-editor");
+    await rulesEditor.getByLabel("Máximo de jogadores").selectOption("2");
+    await rulesEditor.getByLabel("Rodadas").selectOption("4");
+    await rulesEditor.getByLabel("Tempo").selectOption("30");
+    await rulesEditor.getByRole("button", { name: "Salvar regras" }).click();
+    await expect(ownerPage.getByText("4 rodadas.", { exact: true })).toBeVisible();
+
+    await login(memberPage, member.email, password);
+    await memberPage.goto(roomUrl);
+    await expect(
+      memberPage.locator(".room-lobby-list").getByText("Beto Stop", { exact: false }),
+    ).toBeVisible({ timeout: 4_000 });
+    await ownerPage.getByRole("button", { name: "Estou pronto" }).click();
+    await memberPage.getByRole("button", { name: "Estou pronto" }).click();
+    await expect(ownerPage.locator(".stop-answer-stage")).toBeVisible({ timeout: 4_000 });
+    await expect(memberPage.locator(".stop-answer-stage")).toBeVisible({ timeout: 4_000 });
+
+    const letter = (await ownerPage.locator(".stop-letter").textContent())?.trim();
+    if (!letter) throw new Error("Letra da rodada não encontrada.");
+    await ownerPage.locator(".stop-answer-grid input").first().fill(`${letter}na`);
+    await memberPage.locator(".stop-answer-grid input").first().fill(`${letter}manda`);
+    await ownerPage.getByRole("button", { name: "STOP!" }).click();
+
+    await expect(ownerPage.getByRole("heading", { name: "Nome" })).toBeVisible({
+      timeout: 4_000,
+    });
+    await expect(memberPage.getByRole("heading", { name: "Nome" })).toBeVisible({
+      timeout: 4_000,
+    });
+    await expect(memberPage.locator(".stop-review-countdown")).toContainText(/(19|20)s/);
+    await expect(memberPage.getByText(`${letter}na`, { exact: true })).toBeVisible();
+    await memberPage.getByRole("button", { name: "Marcar inválida" }).click();
+    await expect(ownerPage.getByText("1/1 inválida", { exact: true })).toBeVisible({
+      timeout: 4_000,
+    });
+    const activeRound = await db.stopRound.findFirstOrThrow({
+      where: { session: { communityId: community.id, status: "ACTIVE" } },
+      orderBy: { roundNumber: "desc" },
+    });
+    await db.stopRound.update({
+      where: { id: activeRound.id },
+      data: { reviewDeadline: new Date(Date.now() - 1_000) },
+    });
+    await expect(ownerPage.getByRole("heading", { name: "Animal" })).toBeVisible({
+      timeout: 4_000,
+    });
+    await expect(
+      ownerPage.locator(".stop-scoreboard").getByText("1 pt", { exact: true }),
+    ).toBeVisible();
+    expect(await ownerPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    expect((await new AxeBuilder({ page: ownerPage }).analyze()).violations).toEqual([]);
+
+    await ownerPage.getByRole("button", { name: "Cancelar partida e sair" }).click();
+    await expect(ownerPage).toHaveURL(new RegExp(`${gamesPath}$`));
+    await expect(memberPage.getByRole("button", { name: "Sair da sala" })).toBeVisible({
+      timeout: 4_000,
+    });
+    await memberPage.getByRole("button", { name: "Sair da sala" }).click();
+    await expect(memberPage).toHaveURL(new RegExp(`${gamesPath}$`));
   } finally {
     await ownerContext.close();
     await memberContext.close();

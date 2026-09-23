@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { HANGMAN_PARTS } from "@/lib/games/hangman";
 import type { GameRoomAction, HangmanRules } from "@/lib/validation/games";
 import type { GameRoomDetail } from "@/server/services/game-service";
+import { RoomLobbyPlayers } from "./room-lobby-players";
+import { useRoomDeparture } from "./use-room-departure";
 
 function HangmanDrawing({ wrongCount }: { wrongCount: number }) {
   const visible = (part: number) => (wrongCount >= part ? " is-visible" : "");
@@ -75,6 +77,7 @@ export function HangmanRoom({
   const [error, setError] = useState("");
   const autoJoinAttempted = useRef(false);
   const baseUrl = `/api/communities/${communityId}/games/rooms/${room.id}`;
+  const { markDeparted } = useRoomDeparture(`${baseUrl}/actions`, room.viewer.isPlayer);
 
   const refresh = useCallback(async () => {
     try {
@@ -143,6 +146,7 @@ export function HangmanRoom({
 
   async function leaveRoom() {
     if (!(await action({ action: "LEAVE" }))) return;
+    markDeparted();
     window.location.assign(`/app/${communitySlug}/games`);
   }
 
@@ -364,37 +368,33 @@ export function HangmanRoom({
               <h2>Jogadores</h2>
               <span className="muted small">{room.players.length}/5</span>
             </div>
-            <div className="hangman-scoreboard">
-              {(
-                shownSession?.players ??
-                room.players.map((player, index) => ({
-                  ...player,
-                  turnOrder: index + 1,
-                  score: 0,
-                  winner: false,
-                }))
-              ).map((player) => (
-                <div
-                  className={`${player.userId === round?.currentTurnUserId ? "is-current" : ""}${player.userId === round?.setterId ? " is-setter" : ""}`}
-                  key={player.userId}
-                >
-                  <span className="hangman-player-order">{player.turnOrder}º</span>
-                  <span>
-                    <strong>{player.name}</strong>
-                    <small>
-                      {player.userId === round?.setterId
-                        ? "Mestre da palavra"
-                        : player.userId === round?.currentTurnUserId
-                          ? "Jogando agora"
-                          : "Na rodada"}
-                    </small>
-                  </span>
-                  <strong>
-                    {player.score} pt{player.score === 1 ? "" : "s"}
-                  </strong>
-                </div>
-              ))}
-            </div>
+            {room.status !== "PLAYING" ? (
+              <RoomLobbyPlayers capacity={5} room={room} />
+            ) : (
+              <div className="hangman-scoreboard">
+                {shownSession?.players.map((player) => (
+                  <div
+                    className={`${player.userId === round?.currentTurnUserId ? "is-current" : ""}${player.userId === round?.setterId ? " is-setter" : ""}`}
+                    key={player.userId}
+                  >
+                    <span className="hangman-player-order">{player.turnOrder}º</span>
+                    <span>
+                      <strong>{player.name}</strong>
+                      <small>
+                        {player.userId === round?.setterId
+                          ? "Mestre da palavra"
+                          : player.userId === round?.currentTurnUserId
+                            ? "Jogando agora"
+                            : "Na rodada"}
+                      </small>
+                    </span>
+                    <strong>
+                      {player.score} pt{player.score === 1 ? "" : "s"}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="game-room-actions">
               {room.viewer.canJoin && (

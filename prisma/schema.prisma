@@ -115,6 +115,7 @@ enum EmailDeliveryStatus {
 enum GameType {
   TIC_TAC_TOE
   HANGMAN
+  STOP
 }
 
 enum GameRoomStatus {
@@ -157,6 +158,18 @@ enum HangmanRoundOutcome {
 enum HangmanGuessType {
   LETTER
   WORD
+}
+
+enum StopSessionStatus {
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+enum StopRoundStatus {
+  ANSWERING
+  REVIEWING
+  FINISHED
 }
 
 enum BellHopRunStatus {
@@ -391,6 +404,7 @@ model GameRoom {
   players         GameRoomPlayer[]
   matches         GameMatch[]
   hangmanSessions HangmanSession[]
+  stopSessions    StopSession[]
 
   @@unique([id, communityId])
   @@index([communityId, status, updatedAt, id])
@@ -515,6 +529,107 @@ model HangmanGuess {
   @@unique([roundId, turnNumber])
   @@index([roundId, createdAt, id])
   @@index([userId])
+}
+
+model StopSession {
+  id                 String              @id @default(uuid()) @db.Uuid
+  roomId             String              @db.Uuid
+  communityId        String              @db.Uuid
+  status             StopSessionStatus   @default(ACTIVE)
+  totalRounds        Int
+  answerSeconds      Int
+  currentRoundNumber Int                 @default(1)
+  startedAt          DateTime            @default(now()) @db.Timestamptz(6)
+  finishedAt         DateTime?           @db.Timestamptz(6)
+  cancelledAt        DateTime?           @db.Timestamptz(6)
+  cancellationReason String?             @db.VarChar(160)
+  room               GameRoom            @relation(fields: [roomId, communityId], references: [id, communityId], onDelete: Cascade)
+  players            StopSessionPlayer[]
+  categories         StopCategory[]
+  rounds             StopRound[]
+
+  @@unique([id, communityId])
+  @@index([communityId, status, finishedAt, id])
+  @@index([roomId, status, startedAt])
+}
+
+model StopSessionPlayer {
+  sessionId String      @db.Uuid
+  userId    String      @db.Uuid
+  name      String      @db.VarChar(80)
+  seat      Int
+  score     Int         @default(0)
+  session   StopSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, userId])
+  @@unique([sessionId, seat])
+  @@index([userId])
+}
+
+model StopCategory {
+  id        String       @id @default(uuid()) @db.Uuid
+  sessionId String       @db.Uuid
+  name      String       @db.VarChar(60)
+  sortOrder Int
+  session   StopSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answers   StopAnswer[]
+
+  @@unique([sessionId, sortOrder])
+  @@index([sessionId, id])
+}
+
+model StopRound {
+  id                  String          @id @default(uuid()) @db.Uuid
+  sessionId           String          @db.Uuid
+  roundNumber         Int
+  letter              String          @db.Char(1)
+  status              StopRoundStatus @default(ANSWERING)
+  reviewCategoryIndex Int             @default(0)
+  answerDeadline      DateTime        @db.Timestamptz(6)
+  bonusDeadline       DateTime        @db.Timestamptz(6)
+  stoppedById         String?         @db.Uuid
+  stoppedByName       String?         @db.VarChar(80)
+  stoppedAt           DateTime?       @db.Timestamptz(6)
+  startedAt           DateTime        @default(now()) @db.Timestamptz(6)
+  reviewStartedAt     DateTime?       @db.Timestamptz(6)
+  reviewDeadline      DateTime?       @db.Timestamptz(6)
+  finishedAt          DateTime?       @db.Timestamptz(6)
+  session             StopSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answers             StopAnswer[]
+
+  @@unique([sessionId, roundNumber])
+  @@index([sessionId, status, roundNumber])
+}
+
+model StopAnswer {
+  id              String            @id @default(uuid()) @db.Uuid
+  roundId         String            @db.Uuid
+  categoryId      String            @db.Uuid
+  userId          String            @db.Uuid
+  userName        String            @db.VarChar(80)
+  value           String            @db.VarChar(80)
+  normalizedValue String            @db.VarChar(80)
+  finalValid      Boolean?
+  awardedPoints   Int?
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
+  round           StopRound         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  category        StopCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  invalidVotes    StopInvalidVote[]
+
+  @@unique([roundId, categoryId, userId])
+  @@index([roundId, categoryId])
+  @@index([userId])
+}
+
+model StopInvalidVote {
+  answerId  String     @db.Uuid
+  voterId   String     @db.Uuid
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  answer    StopAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@id([answerId, voterId])
+  @@index([voterId])
 }
 
 model BellHopRun {

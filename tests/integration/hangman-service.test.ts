@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 import {
   changeGameRoom,
@@ -48,6 +48,23 @@ describe("partidas de jogo da forca", () => {
   afterAll(async () => {
     if (communityId) await prisma.community.delete({ where: { id: communityId } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+  });
+
+  afterEach(async () => {
+    if (!communityId) return;
+    await prisma.hangmanSession.updateMany({
+      where: { communityId, status: "ACTIVE" },
+      data: {
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+        cancellationReason: "Limpeza do teste",
+      },
+    });
+    await prisma.gameRoomPlayer.deleteMany({ where: { communityId } });
+    await prisma.gameRoom.updateMany({
+      where: { communityId, status: { not: "CLOSED" } },
+      data: { status: "CLOSED" },
+    });
   });
 
   async function create(wordCount = 2) {

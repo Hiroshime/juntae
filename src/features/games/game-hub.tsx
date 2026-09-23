@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { DEFAULT_STOP_CATEGORIES, DEFAULT_STOP_LETTERS } from "@/lib/games/stop-game";
 import type { GameHub as GameHubData } from "@/server/services/game-service";
 
 function formatPeriod(startDate: string, endDate: string) {
@@ -59,12 +60,13 @@ export function GameHub({
   const [name, setName] = useState("Jogo da velha");
   const [hangmanName, setHangmanName] = useState("Forca da turma");
   const [wordCount, setWordCount] = useState(5);
+  const [stopName, setStopName] = useState("Stop da turma");
   const [starterMode, setStarterMode] = useState<"ALTERNATE" | "RANDOM">("ALTERNATE");
-  const [creating, setCreating] = useState<"TIC_TAC_TOE" | "HANGMAN" | null>(null);
+  const [creating, setCreating] = useState<"TIC_TAC_TOE" | "HANGMAN" | "STOP" | null>(null);
   const [error, setError] = useState("");
-  const [errorGame, setErrorGame] = useState<"TIC_TAC_TOE" | "HANGMAN" | null>(null);
+  const [errorGame, setErrorGame] = useState<"TIC_TAC_TOE" | "HANGMAN" | "STOP" | null>(null);
 
-  async function createRoom(event: FormEvent, gameType: "TIC_TAC_TOE" | "HANGMAN") {
+  async function createRoom(event: FormEvent, gameType: "TIC_TAC_TOE" | "HANGMAN" | "STOP") {
     event.preventDefault();
     setCreating(gameType);
     setError("");
@@ -76,7 +78,20 @@ export function GameHub({
         body: JSON.stringify(
           gameType === "HANGMAN"
             ? { gameType, name: hangmanName, rules: { version: 1, wordCount } }
-            : { gameType, name, rules: { version: 1, starterMode } },
+            : gameType === "STOP"
+              ? {
+                  gameType,
+                  name: stopName,
+                  rules: {
+                    version: 1,
+                    maxPlayers: 10,
+                    roundCount: 6,
+                    answerSeconds: 20,
+                    letters: DEFAULT_STOP_LETTERS,
+                    categories: DEFAULT_STOP_CATEGORIES,
+                  },
+                }
+              : { gameType, name, rules: { version: 1, starterMode } },
         ),
       });
       const payload = (await response.json()) as { room?: { id: string }; error?: string };
@@ -243,6 +258,49 @@ export function GameHub({
             )}
           </form>
         </section>
+
+        <section className="card game-catalog-card stop-catalog-card">
+          <div className="game-cover stop-cover" aria-hidden="true">
+            <span>S</span>
+            <span>T</span>
+            <span>O</span>
+            <span>P</span>
+          </div>
+          <div>
+            <div className="eyebrow">2 a 10 jogadores · palavras e velocidade</div>
+            <h2>Stop da Turma</h2>
+            <p className="muted">
+              Responda às categorias com a letra sorteada, aperte STOP e revise com todo mundo.
+            </p>
+          </div>
+          <form
+            className="game-create-form stop-create-form"
+            onSubmit={(event) => void createRoom(event, "STOP")}
+          >
+            <label>
+              Nome da sala
+              <input
+                maxLength={80}
+                minLength={2}
+                onChange={(event) => setStopName(event.target.value)}
+                required
+                value={stopName}
+              />
+            </label>
+            <p className="muted small stop-create-hint">
+              Depois de criar, configure jogadores, rodadas, tempo, letras e categorias dentro da
+              sala.
+            </p>
+            <button className="button" disabled={creating !== null} type="submit">
+              {creating === "STOP" ? "Criando…" : "Criar sala"}
+            </button>
+            {error && errorGame === "STOP" && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+          </form>
+        </section>
       </div>
 
       <section className="games-room-section">
@@ -268,11 +326,15 @@ export function GameHub({
                     {room.status === "PLAYING" ? "Em partida" : "Aguardando"}
                   </span>
                   <span className="muted small">
-                    {room.players.length}/{room.gameType === "HANGMAN" ? 5 : 2}
+                    {room.players.length}/{room.capacity}
                   </span>
                 </div>
                 <div className="eyebrow">
-                  {room.gameType === "HANGMAN" ? "Forca" : "Jogo da velha"}
+                  {room.gameType === "HANGMAN"
+                    ? "Forca"
+                    : room.gameType === "STOP"
+                      ? "Stop da Turma"
+                      : "Jogo da velha"}
                 </div>
                 <h3>{room.name}</h3>
                 <p className="muted">
@@ -281,9 +343,7 @@ export function GameHub({
                     : "Sala vazia"}
                 </p>
                 <strong>
-                  {room.players.length < (room.gameType === "HANGMAN" ? 5 : 2)
-                    ? "Há uma vaga →"
-                    : "Abrir sala →"}
+                  {room.players.length < room.capacity ? "Há uma vaga →" : "Abrir sala →"}
                 </strong>
               </Link>
             ))}
@@ -325,6 +385,19 @@ export function GameHub({
             title="Mais vitórias na semana"
           />
           <Leaderboard period={initialHub.hangmanLeaderboards.month} title="Mais vitórias no mês" />
+        </div>
+      </section>
+
+      <section className="games-ranking-section">
+        <div className="section-title-row">
+          <div>
+            <div className="eyebrow">Stop da Turma</div>
+            <h2>Mentes mais rápidas</h2>
+          </div>
+        </div>
+        <div className="game-leaderboards">
+          <Leaderboard period={initialHub.stopLeaderboards.week} title="Mais vitórias na semana" />
+          <Leaderboard period={initialHub.stopLeaderboards.month} title="Mais vitórias no mês" />
         </div>
       </section>
     </>

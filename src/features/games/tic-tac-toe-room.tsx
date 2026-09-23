@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameRoomAction, TicTacToeRules } from "@/lib/validation/games";
 import type { GameRoomDetail } from "@/server/services/game-service";
+import { RoomLobbyPlayers } from "./room-lobby-players";
+import { useRoomDeparture } from "./use-room-departure";
 
 const outcomeLabel = {
   X_WON: "Vitória de X",
@@ -40,6 +42,7 @@ export function TicTacToeRoom({
   const [error, setError] = useState("");
   const autoJoinAttempted = useRef(false);
   const baseUrl = `/api/communities/${communityId}/games/rooms/${room.id}`;
+  const { markDeparted } = useRoomDeparture(`${baseUrl}/actions`, room.viewer.isPlayer);
 
   const refresh = useCallback(async () => {
     try {
@@ -108,6 +111,7 @@ export function TicTacToeRoom({
 
   async function leaveRoom() {
     if (!(await action({ action: "LEAVE" }))) return;
+    markDeparted();
     window.location.assign(`/app/${communitySlug}/games`);
   }
 
@@ -215,28 +219,24 @@ export function TicTacToeRoom({
               <h2>Jogadores</h2>
               <span className="muted small">{room.players.length}/2</span>
             </div>
-            <div className="game-player-list">
-              {[1, 2].map((seat) => {
-                const player = room.players.find((candidate) => candidate.seat === seat);
-                return (
-                  <div className={`game-player${player?.ready ? " is-ready" : ""}`} key={seat}>
-                    <span className="game-player-mark">{player?.mark ?? seat}</span>
-                    <div>
-                      <strong>{player?.name ?? "Vaga disponível"}</strong>
-                      <small>
-                        {player
-                          ? room.status === "PLAYING"
-                            ? `Jogando com ${player.mark}`
-                            : player.ready
-                              ? "Pronto"
-                              : "Aguardando"
-                          : "Entre para jogar"}
-                      </small>
+            {room.status !== "PLAYING" ? (
+              <RoomLobbyPlayers capacity={2} room={room} showEmptySeats />
+            ) : (
+              <div className="game-player-list">
+                {[1, 2].map((seat) => {
+                  const player = room.players.find((candidate) => candidate.seat === seat);
+                  return (
+                    <div className="game-player" key={seat}>
+                      <span className="game-player-mark">{player?.mark ?? seat}</span>
+                      <div>
+                        <strong>{player?.name ?? "Vaga disponível"}</strong>
+                        <small>{player ? `Jogando com ${player.mark}` : "Entre para jogar"}</small>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="game-room-actions">
               {room.viewer.canJoin && (

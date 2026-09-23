@@ -1859,7 +1859,7 @@ criar votação de datas
 ## 30.1 Módulo Games
 
 O módulo Games reúne minigames privados da própria comunidade e uma fundação extensível para jogos
-individuais ou em equipe. O catálogo atual contém jogo da velha, forca e dois arcades solo.
+individuais ou em equipe. O catálogo atual contém jogo da velha, forca, Stop e dois arcades solo.
 Perfis de plataformas, catálogo de títulos externos e Game Night permanecem como evoluções futuras.
 
 ### 30.1.1 Fundação de salas e partidas
@@ -1869,7 +1869,7 @@ Perfis de plataformas, catálogo de títulos externos e Game Night permanecem co
   comunidade e nenhuma leitura ou ação aceita usuários externos, IDs de outra comunidade ou e-mails.
 - `GameRoom` mantém jogo, nome, regras JSON versionadas, estado, rodada e jogadores. `GameMatch`
   preserva cada resultado e snapshots dos nomes; novos tipos podem acrescentar seus próprios motores
-  sem misturar regras na UI. A enumeração inicial contém `TIC_TAC_TOE` e `HANGMAN`.
+  sem misturar regras na UI. A enumeração contém `TIC_TAC_TOE`, `HANGMAN` e `STOP`.
 - Estados da sala: `WAITING`, `PLAYING` e `CLOSED`. Uma sala de jogo da velha comporta exatamente duas
   vagas. Ambos os jogadores precisam marcar pronto; a segunda confirmação cria uma única partida
   ativa e muda a sala atomicamente para `PLAYING`.
@@ -1877,6 +1877,12 @@ Perfis de plataformas, catálogo de títulos externos e Game Night permanecem co
   além de fechar/reabrir uma sala fora de partida. Qualquer jogador pode sair e volta à página de
   jogos; durante a partida a saída é registrada como desistência e dá a vitória ao adversário. Uma
   sala sem jogadores é arquivada e some das salas abertas, preservando partidas para os rankings.
+- Cada membro ocupa no máximo uma sala aberta por comunidade. Ao criar ou entrar em outra, o servidor
+  deixa atomicamente a anterior antes de ocupar a nova, inclusive sob ações concorrentes. Navegar para
+  outra tela, voltar ou fechar a página envia uma saída idempotente; se havia partida ativa, aplicam-se
+  suas regras normais de desistência ou cancelamento.
+- Na sala de espera, a lista identifica o anfitrião e mostra cada participante como `Pronto` ou
+  `Aguardando`. Pontos e posições aparecem apenas durante a partida e em seu resultado.
 - Mutações usam transações serializáveis, retry de conflitos e escrita no registro pai da sala. Uma
   restrição parcial no banco permite no máximo uma partida ativa por sala. Jogadas repetidas,
   simultâneas, em casa ocupada ou fora do turno são recusadas pelo servidor.
@@ -1955,12 +1961,39 @@ Perfis de plataformas, catálogo de títulos externos e Game Night permanecem co
   e posições compartilhadas em empates. A tela deve ser responsiva, acessível por teclado, anunciar
   quedas/encaixes em texto e permitir desativar som.
 
-### 30.1.6 Rankings, UX e segurança
+### 30.1.6 Stop da Turma
+
+- Jogo original do Juntaê inspirado no clássico Stop, sem copiar código, assets, marca ou identidade
+  visual de serviços externos. A sala comporta de 2 a 10 pessoas e começa quando todos os ocupantes
+  marcam pronto.
+- Na página geral, o criador informa somente o nome e entra na sala. Dentro dela, configura de 4 a 10
+  rodadas, limite de jogadores, duração inicial de 15, 20, 25 ou 30 segundos, letras válidas para
+  sorteio e de 8 a 20 categorias próprias. Essas regras só mudam na espera e enquanto ninguém está
+  pronto.
+- Cada rodada sorteia uma letra, evitando repetir imediatamente quando houver alternativa. Durante a
+  resposta, cada jogador vê somente seus próprios textos; eles são salvos automaticamente e ficam
+  ocultos dos demais até STOP ou fim do tempo.
+- Qualquer jogador pode apertar STOP após terminar. Se ninguém o fizer durante o tempo inicial, todos
+  recebem exatamente 10 segundos extras; ao fim do bônus, a rodada entra em revisão automaticamente.
+- A revisão exibe uma categoria por vez e avança automaticamente pelo servidor: são 20 segundos quando
+  existe ao menos uma resposta naquela categoria e 10 segundos quando ninguém respondeu. Uma resposta
+  vazia ou que não comece com a letra sorteada, desconsiderando caixa e acentos, é inválida. Nos demais
+  casos, cada participante pode marcar como inválida somente a resposta de outra pessoa; exige-se
+  maioria dos demais jogadores para invalidar, impedindo que uma única marcação decida salas com três
+  ou mais participantes.
+- Cada resposta válida vale um ponto. Após a última categoria começa a rodada seguinte; ao fim da
+  quantidade configurada, maior pontuação vence, empates são permitidos, a sessão é preservada e todos
+  voltam à sala de espera.
+- Sair ou ser removido durante a partida cancela a sessão, limpa a prontidão e devolve a sala à espera.
+  O histórico cancelado permanece sem produzir vitória no ranking.
+
+### 30.1.7 Rankings, UX e segurança
 
 - Rankings competitivos são calculados para a semana civil atual (segunda a domingo) e para o mês
   civil atual, usando `DEFAULT_TIMEZONE`. Jogos de confronto mostram partidas, vitórias, derrotas e
   empates; o arcade mostra o maior placar e tentativas. Na forca, todos os líderes da pontuação vencem
-  a sessão. Empates compartilham posição e ex-membros não aparecem, mas o histórico fica.
+  a sessão. No Stop, todos os líderes da pontuação vencem a sessão. Empates compartilham posição e
+  ex-membros não aparecem, mas o histórico fica.
 - Rotas privadas: `/app/[community]/games`, `/app/[community]/games/[roomId]`,
   `/app/[community]/games/bell-hop` e `/app/[community]/games/tower-stack`; APIs sob
   `/api/communities/[communityId]/games`. Mutações exigem
@@ -1971,10 +2004,12 @@ Perfis de plataformas, catálogo de títulos externos e Game Night permanecem co
 - Aceite: testar motores puros, isolamento, limite concorrente de vagas, prontidão, alternância, turnos,
   casa ocupada, vitória, empate, desistência, remoção de membro, permissões e rankings. Para a forca,
   testar limite de cinco vagas, segredo por usuário, mestre, turnos, acentos, repetição, dez erros,
-  rotação de rodadas, pontuação e cancelamento. Nos arcades, testar percursos/regras determinísticos,
-  equilíbrio, três vidas, recálculo server-side e rankings. Lint, tipos, testes e build devem passar.
+  rotação de rodadas, pontuação e cancelamento. Para o Stop, testar limites das regras, sigilo das
+  respostas, STOP, bônus, revisão por maioria, pontuação, rodadas, cancelamento e ranking. Nos arcades,
+  testar percursos/regras determinísticos, equilíbrio, três vidas, recálculo server-side e rankings.
+  Lint, tipos, testes e build devem passar.
 
-### 30.1.7 Evoluções futuras
+### 30.1.8 Evoluções futuras
 
 - perfis Steam, PSN, Xbox, Riot, Battle.net e Discord;
 - catálogo comunitário, “Quem joga este jogo?” e “O que podemos jogar hoje?”;
