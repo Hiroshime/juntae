@@ -1889,6 +1889,9 @@ Perfis de plataformas, catálogo de títulos externos e Game Night permanecem co
 - A sala usa atualização adaptativa sem sobreposição enquanto a aba está visível: aproximadamente
   600 ms durante a partida e 900 ms na espera. O servidor é a fonte de verdade; polling não concede
   autoridade ao cliente nem substitui a validação transacional.
+- A página geral de jogos atualiza somente a lista de salas abertas aproximadamente a cada quatro
+  segundos enquanto a aba está visível e imediatamente ao recuperar o foco. A consulta não recalcula
+  rankings, não se sobrepõe e mantém a última lista válida caso a conexão falhe temporariamente.
 
 ### 30.1.2 Jogo da velha
 

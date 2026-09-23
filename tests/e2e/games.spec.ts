@@ -127,9 +127,11 @@ test("jogos: duas pessoas entram, ficam prontas e concluem uma partida no mobile
         { timeout: 4_000 },
       )
       .toBe(0);
+    await expect(ownerPage.locator(".game-room-card")).toHaveCount(1);
     await memberPage.getByRole("button", { name: "Sair da sala", exact: true }).click();
     await expect(memberPage).toHaveURL(new RegExp(`${gamesPath}$`));
     await expect(memberPage.locator(".game-room-card")).toHaveCount(0);
+    await expect(ownerPage.locator(".game-room-card")).toHaveCount(0, { timeout: 8_000 });
   } finally {
     await ownerContext.close();
     await memberContext.close();

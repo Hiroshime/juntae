@@ -5068,6 +5068,13 @@ h2 {
 .game-player-list + * {
   margin-top: 0;
 }
+.game-room-refresh-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  text-align: right;
+}
 .game-room-grid {
   display: grid;
   gap: 16px;

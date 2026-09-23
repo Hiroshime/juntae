@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { DEFAULT_STOP_CATEGORIES, DEFAULT_STOP_LETTERS } from "@/lib/games/stop-game";
 import type { GameHub as GameHubData } from "@/server/services/game-service";
 
@@ -65,6 +65,54 @@ export function GameHub({
   const [creating, setCreating] = useState<"TIC_TAC_TOE" | "HANGMAN" | "STOP" | null>(null);
   const [error, setError] = useState("");
   const [errorGame, setErrorGame] = useState<"TIC_TAC_TOE" | "HANGMAN" | "STOP" | null>(null);
+  const [rooms, setRooms] = useState(initialHub.rooms);
+  const [roomsRefreshFailed, setRoomsRefreshFailed] = useState(false);
+  const roomsRefreshPending = useRef(false);
+
+  const refreshRooms = useCallback(
+    async (signal?: AbortSignal) => {
+      if (roomsRefreshPending.current) return;
+      roomsRefreshPending.current = true;
+      try {
+        const response = await fetch(`/api/communities/${communityId}/games/rooms`, {
+          cache: "no-store",
+          signal,
+        });
+        if (!response.ok) throw new Error("Não foi possível atualizar as salas.");
+        const payload = (await response.json()) as Pick<GameHubData, "rooms">;
+        if (!signal?.aborted) {
+          setRooms(payload.rooms);
+          setRoomsRefreshFailed(false);
+        }
+      } catch {
+        if (!signal?.aborted) setRoomsRefreshFailed(true);
+      } finally {
+        roomsRefreshPending.current = false;
+      }
+    },
+    [communityId],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    let timer: number | undefined;
+    const poll = async () => {
+      if (document.visibilityState === "visible") await refreshRooms(controller.signal);
+      if (!cancelled) timer = window.setTimeout(poll, 4_000);
+    };
+    timer = window.setTimeout(poll, 4_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshRooms(controller.signal);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (timer !== undefined) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [refreshRooms]);
 
   async function createRoom(event: FormEvent, gameType: "TIC_TAC_TOE" | "HANGMAN" | "STOP") {
     event.preventDefault();
@@ -309,11 +357,16 @@ export function GameHub({
             <div className="eyebrow">Ao vivo</div>
             <h2>Salas abertas</h2>
           </div>
-          <span className="pill">{initialHub.rooms.length} salas</span>
+          <div className="game-room-refresh-summary">
+            <span className="muted small" role={roomsRefreshFailed ? "status" : undefined}>
+              {roomsRefreshFailed ? "Tentando reconectar…" : "Atualização automática"}
+            </span>
+            <span className="pill">{rooms.length} salas</span>
+          </div>
         </div>
-        {initialHub.rooms.length ? (
+        {rooms.length ? (
           <div className="game-room-grid">
-            {initialHub.rooms.map((room) => (
+            {rooms.map((room) => (
               <Link
                 className="card game-room-card"
                 href={`/app/${communitySlug}/games/${room.id}`}

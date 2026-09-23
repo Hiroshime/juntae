@@ -4,7 +4,7 @@ import { assertSameOrigin, routeErrorResponse } from "@/lib/http/route";
 import { createGameRoomSchema, gameCommunityParamsSchema } from "@/lib/validation/games";
 import { requireAuthenticatedUser } from "@/server/authorization";
 import { AppError } from "@/server/errors";
-import { createGameRoom, listGameHub } from "@/server/services/game-service";
+import { createGameRoom, listOpenGameRooms } from "@/server/services/game-service";
 
 type Context = { params: Promise<{ communityId: string }> };
 
@@ -13,7 +13,7 @@ export async function GET(_: Request, { params }: Context) {
     const user = await requireAuthenticatedUser();
     const ids = gameCommunityParamsSchema.safeParse(await params);
     if (!ids.success) throw new AppError("Comunidade inválida.");
-    return NextResponse.json(await listGameHub(user.id, ids.data.communityId));
+    return NextResponse.json({ rooms: await listOpenGameRooms(user.id, ids.data.communityId) });
   } catch (error) {
     return routeErrorResponse(error);
   }

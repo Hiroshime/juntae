@@ -10,6 +10,17 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.17.2",
+    releasedAt: "2026-09-23",
+    title: "Salas abertas sempre atualizadas",
+    summary: "A área de jogos agora acompanha automaticamente as salas disponíveis.",
+    highlights: [
+      "Salas criadas, ocupadas ou encerradas aparecem na listagem sem recarregar a página.",
+      "A atualização acontece a cada poucos segundos enquanto a aba está visível e imediatamente ao retornar.",
+      "Falhas temporárias de conexão preservam a última lista disponível e informam a tentativa de reconexão.",
+    ],
+  },
+  {
     version: "0.17.1",
     releasedAt: "2026-09-23",
     title: "Mais estabilidade na publicação",

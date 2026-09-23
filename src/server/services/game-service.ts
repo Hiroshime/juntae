@@ -605,6 +605,48 @@ function buildHangmanRanking(members: RankingMember[], sessions: HangmanRankingS
     });
 }
 
+async function openGameRooms(communityId: string) {
+  const rooms = await prisma.gameRoom.findMany({
+    where: { communityId, status: { not: "CLOSED" } },
+    orderBy: [{ status: "asc" }, { updatedAt: "desc" }, { id: "asc" }],
+    take: 30,
+    select: {
+      id: true,
+      name: true,
+      gameType: true,
+      rules: true,
+      status: true,
+      updatedAt: true,
+      players: {
+        orderBy: { seat: "asc" },
+        select: {
+          userId: true,
+          member: { select: { displayName: true, user: { select: { name: true } } } },
+        },
+      },
+    },
+  });
+  return rooms.map(({ rules, ...room }) => ({
+    ...room,
+    capacity:
+      room.gameType === "STOP"
+        ? stopRulesSchema.parse(rules).maxPlayers
+        : room.gameType === "HANGMAN"
+          ? 5
+          : 2,
+    updatedAt: room.updatedAt.toISOString(),
+    players: room.players.map((player) => ({
+      userId: player.userId,
+      name: displayName(player.member),
+    })),
+  }));
+}
+
+export async function listOpenGameRooms(userId: string, communityId: string) {
+  await membership(prisma, userId, communityId);
+  return openGameRooms(communityId);
+}
+
 export async function listGameHub(userId: string, communityId: string, now = new Date()) {
   await membership(prisma, userId, communityId);
   const bounds = periodBounds(now);
@@ -618,26 +660,7 @@ export async function listGameHub(userId: string, communityId: string, now = new
     stopWeek,
     stopMonth,
   ] = await Promise.all([
-    prisma.gameRoom.findMany({
-      where: { communityId, status: { not: "CLOSED" } },
-      orderBy: [{ status: "asc" }, { updatedAt: "desc" }, { id: "asc" }],
-      take: 30,
-      select: {
-        id: true,
-        name: true,
-        gameType: true,
-        rules: true,
-        status: true,
-        updatedAt: true,
-        players: {
-          orderBy: { seat: "asc" },
-          select: {
-            userId: true,
-            member: { select: { displayName: true, user: { select: { name: true } } } },
-          },
-        },
-      },
-    }),
+    openGameRooms(communityId),
     prisma.communityMember.findMany({
       where: { communityId },
       select: {
@@ -698,20 +721,7 @@ export async function listGameHub(userId: string, communityId: string, now = new
     }),
   ]);
   return {
-    rooms: rooms.map(({ rules, ...room }) => ({
-      ...room,
-      capacity:
-        room.gameType === "STOP"
-          ? stopRulesSchema.parse(rules).maxPlayers
-          : room.gameType === "HANGMAN"
-            ? 5
-            : 2,
-      updatedAt: room.updatedAt.toISOString(),
-      players: room.players.map((player) => ({
-        userId: player.userId,
-        name: displayName(player.member),
-      })),
-    })),
+    rooms,
     leaderboards: {
       week: {
         startDate: bounds.week.startDate,
