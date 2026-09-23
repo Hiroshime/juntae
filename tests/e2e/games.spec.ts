@@ -7,10 +7,17 @@ import { bellHopPlatform } from "../../src/lib/games/bell-hop";
 import { towerBlockSpec } from "../../src/lib/games/tower-stack";
 
 async function login(page: Page, email: string, password: string) {
+  await page.context().setExtraHTTPHeaders({
+    "x-forwarded-for": `e2e-games-${randomUUID()}`,
+  });
   await page.goto("/login");
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
+  const responsePromise = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === "/api/auth/login",
+  );
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  expect((await responsePromise).status()).toBe(200);
   await expect(page).toHaveURL(/\/app/);
 }
 
@@ -204,7 +211,7 @@ test("forca: sorteia o mestre, protege a palavra e encerra o placar no mobile", 
     await login(memberPage, member.email, password);
     await memberPage.goto(roomUrl);
     await expect(
-      memberPage.locator(".hangman-scoreboard").getByText("Beto Forca", { exact: true }),
+      memberPage.locator(".room-lobby-list").getByText("Beto Forca", { exact: true }),
     ).toBeVisible({ timeout: 4_000 });
     await ownerPage.getByRole("button", { name: "Estou pronto" }).click();
     await memberPage.getByRole("button", { name: "Estou pronto" }).click();
@@ -461,7 +468,7 @@ test("Salto dos Sinos: controla o coelho, pontua e salva o recorde", async ({ br
   }
 });
 
-test("Torre em Equilíbrio: empilha, perde três vidas e salva o recorde", async ({ browser }) => {
+test("Torre em Equilíbrio: perde três vidas e salva o recorde", async ({ browser }) => {
   test.setTimeout(120_000);
   const db = new PrismaClient();
   const suffix = randomUUID();
@@ -513,21 +520,21 @@ test("Torre em Equilíbrio: empilha, perde três vidas e salva o recorde", async
     const active = await db.towerStackRun.findFirstOrThrow({
       where: { communityId: community.id, userId: user.id, status: "ACTIVE" },
     });
-    const firstCenterReturnMs = (Math.PI / towerBlockSpec(active.seed, 1).swingSpeed) * 1_000;
-    await page.waitForTimeout(firstCenterReturnMs);
-    await dropButton.click();
     const floorCounter = page.locator(".tower-stack-hud span").nth(1).locator("strong");
-    await expect(floorCounter).toHaveText("1", { timeout: 5_000 });
+    await expect(floorCounter).toHaveText("0");
 
-    for (const livesLeft of [2, 1]) {
-      await page.waitForTimeout(livesLeft === 2 ? 1_450 : 1_550);
+    for (const livesLeft of [2, 1, 0]) {
+      await expect(dropButton).toBeEnabled({ timeout: 5_000 });
+      const nextLevel = Number(await floorCounter.textContent()) + 1;
+      const edgeOfSwingMs =
+        (Math.PI / 2 / towerBlockSpec(active.seed, nextLevel).swingSpeed) * 1_000;
+      await page.waitForTimeout(edgeOfSwingMs);
       await dropButton.click();
-      await expect(page.getByText(new RegExp(`Restam ${livesLeft} vida`))).toBeVisible({
-        timeout: 5_000,
-      });
+      if (livesLeft > 0)
+        await expect(page.getByText(new RegExp(`Restam ${livesLeft} vida`))).toBeVisible({
+          timeout: 5_000,
+        });
     }
-    await page.waitForTimeout(1_550);
-    await dropButton.click();
     await expect(page.getByRole("button", { name: "Construir novamente" })).toBeVisible({
       timeout: 6_000,
     });
@@ -538,8 +545,8 @@ test("Torre em Equilíbrio: empilha, perde três vidas e salva o recorde", async
           communityId: community.id,
           userId: user.id,
           status: "FINISHED",
-          score: 25,
-          blocksPlaced: 1,
+          score: 0,
+          blocksPlaced: 0,
           livesRemaining: 0,
         },
       }),

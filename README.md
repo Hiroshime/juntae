@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.17.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.17.1 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.17.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.17.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.17.0` também publica automaticamente as tags `0.17.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.17.1` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.17.1` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.17.1` também publica automaticamente as tags `0.17.1` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -142,7 +142,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.17.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.17.1`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 

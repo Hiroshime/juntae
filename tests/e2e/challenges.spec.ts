@@ -22,6 +22,9 @@ test("desafios: criar, editar, participar e cancelar com privacidade e acesso mo
   });
   let communityId: string | undefined;
   try {
+    await page.context().setExtraHTTPHeaders({
+      "x-forwarded-for": `e2e-challenge-${suffix}`,
+    });
     const community = await db.community.create({
       data: {
         name: "Turma em movimento",
@@ -40,7 +43,14 @@ test("desafios: criar, editar, participar e cancelar com privacidade e acesso mo
     await expect(page).toHaveURL(/\/app/);
     await page.goto(path);
     await expect(page.getByText("Nenhum desafio por aqui")).toBeVisible();
-    await page.getByRole("link", { name: "Criar desafio", exact: true }).click();
+    const createChallengeLink = page.getByRole("link", {
+      name: "Criar desafio",
+      exact: true,
+    });
+    await expect(createChallengeLink).toHaveAttribute("href", `${path}/new`);
+    await createChallengeLink.click();
+    await expect(page).toHaveURL(new RegExp(`${path}/new$`));
+    await expect(page.getByRole("form", { name: "Novo desafio" })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

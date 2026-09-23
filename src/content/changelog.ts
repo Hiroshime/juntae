@@ -10,6 +10,18 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    releasedAt: "2026-09-23",
+    title: "Mais estabilidade na publicação",
+    summary:
+      "A atualização reforça a confiabilidade dos fluxos principais antes de cada publicação.",
+    highlights: [
+      "As verificações automáticas de jogos, desafios, contas e eventos ficaram mais estáveis.",
+      "O login dos cenários de validação agora permanece isolado e não interfere em outros testes.",
+      "A pré-visualização de fotos locais nos treinos voltou a funcionar com a política de segurança do aplicativo.",
+    ],
+  },
+  {
     version: "0.17.0",
     releasedAt: "2026-09-22",
     title: "Stop da Turma",

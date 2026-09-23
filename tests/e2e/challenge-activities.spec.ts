@@ -24,6 +24,9 @@ test("treinos: publicação com álbum, ranking, privacidade e remoção no celu
   });
   let communityId: string | undefined;
   try {
+    await page.context().setExtraHTTPHeaders({
+      "x-forwarded-for": `e2e-activity-${suffix}`,
+    });
     const community = await db.community.create({
       data: {
         name: "Treinos E2E",
@@ -86,6 +89,7 @@ test("treinos: publicação com álbum, ranking, privacidade e remoção no celu
     await form.getByLabel("Fotos do treino", { exact: true }).setInputFiles(photos);
     await form.getByRole("button", { name: "Publicar treino" }).click();
     await expect(page.getByText("Treino publicado! O ranking foi atualizado.")).toBeVisible();
+    await page.reload();
     const activity = page.getByRole("article", { name: "Volta no parque", exact: true });
     await expect(activity).toBeVisible();
     await expect(activity.getByText(/Caminhada na areia/)).toBeVisible();
@@ -148,7 +152,14 @@ test("treinos: publicação com álbum, ranking, privacidade e remoção no celu
     });
     expect(extra.status()).toBe(409);
     await activity.getByRole("button", { name: "Remover treino" }).click();
+    const deleteResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname.startsWith(`${endpoint}/`) &&
+        response.request().method() === "DELETE",
+    );
     await activity.getByRole("button", { name: "Confirmar remoção" }).click();
+    expect((await deleteResponse).status()).toBe(200);
+    await page.reload();
     await expect(activity).toHaveCount(0);
     await expect(
       page.locator("#challenge-ranking").getByText("0 km", { exact: true }),

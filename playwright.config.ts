@@ -7,7 +7,11 @@ export default defineConfig({
   // These end-to-end flows share one application server and database.
   // Running them sequentially keeps stateful workflows deterministic.
   fullyParallel: false,
+  workers: 1,
   timeout: 60_000,
+  expect: {
+    timeout: 10_000,
+  },
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:3100",

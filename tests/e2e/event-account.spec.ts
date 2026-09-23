@@ -25,6 +25,9 @@ test("conta do evento: habilitar, registrar parcelas e reembolso, fechar e reabr
   );
   let communityId: string | undefined;
   try {
+    await page.context().setExtraHTTPHeaders({
+      "x-forwarded-for": `e2e-event-account-${suffix}`,
+    });
     const community = await db.community.create({
       data: {
         name: "Contas E2E",

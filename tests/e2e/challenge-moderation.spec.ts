@@ -17,6 +17,9 @@ test("moderação mobile: motivo, restauração, histórico e resultado definiti
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {
+    await page.context().setExtraHTTPHeaders({
+      "x-forwarded-for": `e2e-moderation-${suffix}`,
+    });
     const passwordHash = await hash("senha-moderacao-e2e", 4);
     const owner = await db.user.create({
       data: { name: "Organizador", email: `moderator-${suffix}@test.local`, passwordHash },
@@ -127,13 +130,27 @@ test("moderação mobile: motivo, restauração, histórico e resultado definiti
     await card.getByRole("button", { name: "Desconsiderar treino", exact: true }).click();
     await card.getByLabel("Motivo da revisão").fill(input.reason);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    const invalidateResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === moderationEndpoint &&
+        response.request().method() === "POST",
+    );
     await card.getByRole("button", { name: "Confirmar revisão" }).click();
+    expect((await invalidateResponse).status()).toBe(200);
+    await page.reload();
     await expect(card.getByText("Desconsiderado · não pontua")).toBeVisible();
     await expect(ranking.getByText("0 pts", { exact: true })).toBeVisible();
     await expect(page.locator("#challenge-audit").getByText(input.reason)).toBeVisible();
     await card.getByRole("button", { name: "Restabelecer treino", exact: true }).click();
     await card.getByLabel("Motivo da revisão").fill("Comprovante revisado e aceito.");
+    const restoreResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === moderationEndpoint &&
+        response.request().method() === "POST",
+    );
     await card.getByRole("button", { name: "Confirmar revisão" }).click();
+    expect((await restoreResponse).status()).toBe(200);
+    await page.reload();
     await expect(ranking.getByText("10 pts", { exact: true })).toBeVisible();
     await db.challenge.update({
       where: { id: challenge.id },

@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag da imagem, por exemplo 0.17.0
+        description: Tag da imagem, por exemplo 0.17.1
         required: true
-        default: 0.17.0
+        default: 0.17.1
   push:
     tags:
       - "v*"
