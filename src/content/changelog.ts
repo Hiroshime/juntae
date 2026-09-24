@@ -10,6 +10,21 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.18.0",
+    releasedAt: "2026-09-24",
+    title: "Arena dos Campeões e recuperação de senha",
+    summary:
+      "Comece sua jornada como gladiador e recupere o acesso à conta com segurança por e-mail.",
+    highlights: [
+      "A Arena dos Campeões estreia com criação e personalização de gladiadores por comunidade.",
+      "Distribua pontos entre sete atributos e acompanhe nível, experiência, moedas, fama e histórico de vitórias.",
+      "Conheça a vila da Arena, com ficha do personagem, inventário e os futuros destinos da campanha.",
+      "A tela de login agora oferece recuperação de senha por um link seguro enviado por e-mail.",
+      "Os links expiram em 30 minutos, funcionam uma única vez e pedidos novos invalidam os anteriores.",
+      "Ao redefinir a senha, as sessões antigas da conta são encerradas automaticamente.",
+    ],
+  },
+  {
     version: "0.17.2",
     releasedAt: "2026-09-23",
     title: "Salas abertas sempre atualizadas",

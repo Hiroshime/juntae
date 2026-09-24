@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Brand } from "@/components/brand";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AuthLayout } from "@/features/auth/auth-layout";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,10 +47,9 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout
-      title="Bem-vindo de volta"
-      subtitle="Entre para continuar organizando os encontros do seu grupo."
-    >
+    <AuthLayout>
+      <h1>Bem-vindo de volta</h1>
+      <p className="muted">Entre para continuar organizando os encontros do seu grupo.</p>
       <form className="form" onSubmit={submit}>
         {error && (
           <div className="error" role="alert">
@@ -63,7 +61,10 @@ export default function LoginPage() {
           <input id="email" name="email" type="email" autoComplete="email" required />
         </div>
         <div className="field">
-          <label htmlFor="password">Senha</label>
+          <div className="auth-field-heading">
+            <label htmlFor="password">Senha</label>
+            <Link href="/forgot-password">Esqueci minha senha</Link>
+          </div>
           <input
             id="password"
             name="password"
@@ -87,29 +88,5 @@ export default function LoginPage() {
         )}
       </form>
     </AuthLayout>
-  );
-}
-
-function AuthLayout({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <main className="auth-wrap">
-      <section className="auth-card card">
-        <div className="auth-brand-row">
-          <Brand />
-          <ThemeSwitcher />
-        </div>
-        <h1>{title}</h1>
-        <p className="muted">{subtitle}</p>
-        {children}
-      </section>
-    </main>
   );
 }

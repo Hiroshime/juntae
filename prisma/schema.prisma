@@ -222,6 +222,7 @@ model User {
   gameRoomsCreated         GameRoom[]               @relation("GameRoomCreator")
   bellHopRuns              BellHopRun[]
   towerStackRuns           TowerStackRun[]
+  passwordResetTokens      PasswordResetToken[]
 }
 
 model RateLimitBucket {
@@ -231,6 +232,19 @@ model RateLimitBucket {
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   @@index([resetsAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.VarChar(64)
+  expiresAt DateTime  @db.Timestamptz(6)
+  usedAt    DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model Community {
@@ -382,9 +396,58 @@ model CommunityMember {
   user                    User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   challengeParticipations ChallengeParticipant[]
   gameRoomPlayers         GameRoomPlayer[]
+  arenaGladiator          ArenaGladiator?
 
   @@id([communityId, userId])
   @@index([userId])
+}
+
+model ArenaGladiator {
+  id                 String               @id @default(uuid()) @db.Uuid
+  communityId        String               @db.Uuid
+  userId             String               @db.Uuid
+  name               String               @db.VarChar(40)
+  pronouns           String               @db.VarChar(16)
+  origin             String               @db.VarChar(32)
+  entryLine          String?              @db.VarChar(120)
+  victoryLine        String?              @db.VarChar(120)
+  appearance         Json
+  level              Int                  @default(1)
+  experience         Int                  @default(0)
+  gold               Int                  @default(500)
+  fame               Int                  @default(0)
+  unspentSkillPoints Int                  @default(0)
+  strength           Int
+  agility            Int
+  technique          Int
+  defence            Int
+  vitality           Int
+  presence           Int
+  stamina            Int
+  wins               Int                  @default(0)
+  losses             Int                  @default(0)
+  createdAt          DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime             @updatedAt @db.Timestamptz(6)
+  member             CommunityMember      @relation(fields: [communityId, userId], references: [communityId, userId], onDelete: Cascade)
+  inventory          ArenaInventoryItem[]
+
+  @@unique([communityId, userId])
+  @@index([communityId, fame, level, id])
+  @@index([userId])
+}
+
+model ArenaInventoryItem {
+  id             String         @id @default(uuid()) @db.Uuid
+  gladiatorId    String         @db.Uuid
+  catalogItemKey String         @db.VarChar(80)
+  quantity       Int            @default(1)
+  equippedSlot   String?        @db.VarChar(32)
+  metadata       Json?
+  acquiredAt     DateTime       @default(now()) @db.Timestamptz(6)
+  gladiator      ArenaGladiator @relation(fields: [gladiatorId], references: [id], onDelete: Cascade)
+
+  @@index([gladiatorId, acquiredAt, id])
+  @@index([catalogItemKey])
 }
 
 model GameRoom {

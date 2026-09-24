@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Brand } from "@/components/brand";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AuthLayout } from "@/features/auth/auth-layout";
 import { RegisterForm } from "@/features/auth/register-form";
 import { isInitialRegistrationAvailable } from "@/server/services/auth-service";
 import { getInvitePreview } from "@/server/services/community-service";
@@ -21,7 +20,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
     try {
       const preview = await getInvitePreview(inviteToken);
       return (
-        <RegistrationLayout>
+        <AuthLayout>
           <div className="eyebrow">Cadastro por convite</div>
           <h1>Crie sua conta</h1>
           <p className="muted">
@@ -30,11 +29,11 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
           </p>
           <RegisterForm mode="invite" inviteToken={inviteToken} />
           <LoginLink next={`/join/${encodeURIComponent(inviteToken)}`} />
-        </RegistrationLayout>
+        </AuthLayout>
       );
     } catch {
       return (
-        <RegistrationLayout>
+        <AuthLayout>
           <h1>Convite indisponível</h1>
           <p className="muted">
             Este link é inválido, expirou, foi revogado ou atingiu o limite de usos.
@@ -42,14 +41,14 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
           <Link className="button" href="/login">
             Entrar em uma conta existente
           </Link>
-        </RegistrationLayout>
+        </AuthLayout>
       );
     }
   }
 
   if (await isInitialRegistrationAvailable()) {
     return (
-      <RegistrationLayout>
+      <AuthLayout>
         <div className="eyebrow">Configuração inicial</div>
         <h1>Crie a primeira conta</h1>
         <p className="muted">
@@ -58,12 +57,12 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
         </p>
         <RegisterForm mode="bootstrap" />
         <LoginLink />
-      </RegistrationLayout>
+      </AuthLayout>
     );
   }
 
   return (
-    <RegistrationLayout>
+    <AuthLayout>
       <div className="eyebrow">Comunidade privada</div>
       <h1>Cadastro somente por convite</h1>
       <p className="muted">
@@ -73,7 +72,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
       <Link className="button" href="/login">
         Entrar
       </Link>
-    </RegistrationLayout>
+    </AuthLayout>
   );
 }
 
@@ -86,19 +85,5 @@ function LoginLink({ next }: { next?: string }) {
         Entrar
       </Link>
     </p>
-  );
-}
-
-function RegistrationLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="auth-wrap">
-      <section className="auth-card card">
-        <div className="auth-brand-row">
-          <Brand />
-          <ThemeSwitcher />
-        </div>
-        {children}
-      </section>
-    </main>
   );
 }

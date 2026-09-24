@@ -170,6 +170,24 @@ export function GameHub({
       </div>
 
       <div className="games-catalog-grid">
+        <section className="card game-catalog-card arena-catalog-card">
+          <div className="game-cover arena-cover" aria-hidden="true">
+            <span className="arena-cover-sun" />
+            <span className="arena-cover-gate" />
+            <span className="arena-cover-helmet">♞</span>
+          </div>
+          <div>
+            <div className="eyebrow">RPG solo · campanha de gladiadores</div>
+            <h2>Arena dos Campeões</h2>
+            <p className="muted">
+              Crie um gladiador, escolha seus atributos e conheça a vila que prepara sua jornada.
+            </p>
+          </div>
+          <Link className="button arena-catalog-button" href={`/app/${communitySlug}/games/arena`}>
+            Entrar na vila
+          </Link>
+        </section>
+
         <section className="card game-catalog-card arcade-catalog-card">
           <div className="game-cover bell-hop-cover" aria-hidden="true">
             <span className="bell-hop-cover-bunny">●</span>

@@ -565,3 +565,97 @@ test("Torre em Equilíbrio: perde três vidas e salva o recorde", async ({ brows
     await db.$disconnect();
   }
 });
+
+test("Arena dos Campeões: cria, personaliza e edita o gladiador", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const db = new PrismaClient();
+  const suffix = randomUUID();
+  const password = "senha-arena-e2e";
+  const passwordHash = await hash(password, 4);
+  const user = await db.user.create({
+    data: { name: "Gladiadora E2E", email: `arena-${suffix}@test.local`, passwordHash },
+  });
+  let communityId: string | undefined;
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    const community = await db.community.create({
+      data: {
+        name: "Turma da arena",
+        slug: `arena-e2e-${suffix}`,
+        createdById: user.id,
+        members: { create: [{ userId: user.id, role: "OWNER" }] },
+      },
+    });
+    communityId = community.id;
+    await login(page, user.email, password);
+    await page.goto(`/app/${community.slug}/games`);
+    const catalogCard = page
+      .locator(".arena-catalog-card")
+      .filter({ has: page.getByRole("heading", { name: "Arena dos Campeões" }) });
+    await catalogCard.scrollIntoViewIfNeeded();
+    await expect(catalogCard).toBeInViewport();
+    await catalogCard.getByRole("link", { name: "Entrar na vila" }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/${community.slug}/games/arena$`));
+    await expect(page.getByRole("heading", { name: "Forje seu gladiador" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await page.getByLabel("Nome do gladiador").fill("Lysandra Solar");
+    await page.getByLabel("Origem").selectOption("ILHAS_TORMENTA");
+    await page.locator("#arena-hair").selectOption("LONG");
+    await page.getByRole("button", { name: "Tom de pele: Ébano" }).click();
+    await page.getByLabel("Frase de entrada").fill("A aurora chegou.");
+    await page.getByRole("button", { name: "Diminuir Força" }).click();
+    await expect(page.getByText("1 ponto livre", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Aumentar Agilidade" }).click();
+    await expect(page.getByLabel("Força: 2")).toHaveText("2");
+    await expect(page.getByLabel("Agilidade: 4")).toHaveText("4");
+    await page.getByRole("button", { name: "Entrar na vila" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Bem-vindo à areia, Lysandra Solar" }),
+    ).toBeVisible();
+    await expect(page.getByText("◈ 500 moedas", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Seu baú está vazio" })).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    expect(
+      await db.arenaGladiator.findUnique({
+        where: {
+          communityId_userId: {
+            communityId: community.id,
+            userId: user.id,
+          },
+        },
+      }),
+    ).toMatchObject({
+      name: "Lysandra Solar",
+      origin: "ILHAS_TORMENTA",
+      gold: 500,
+      strength: 2,
+      agility: 4,
+      appearance: expect.objectContaining({ skinTone: "EBONY", hairStyle: "LONG" }),
+    });
+
+    if (process.env.ARENA_VISUAL_SCREENSHOT)
+      await page.screenshot({ path: process.env.ARENA_VISUAL_SCREENSHOT, fullPage: true });
+    await page.getByRole("button", { name: "Editar visual" }).click();
+    await page.getByLabel("Nome do gladiador").fill("Lysandra Tempestade");
+    await page.getByRole("button", { name: "Salvar aparência" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Bem-vindo à areia, Lysandra Tempestade" }),
+    ).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  } finally {
+    await context.close();
+    if (communityId) await db.community.delete({ where: { id: communityId } });
+    await db.user.delete({ where: { id: user.id } });
+    await db.$disconnect();
+  }
+});

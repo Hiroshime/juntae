@@ -141,7 +141,7 @@ Gamificação pode existir futuramente, porém não deve bloquear nem poluir a e
 - confirmação de senha obrigatória no cadastro;
 - login;
 - logout;
-- recuperação de senha, se o mecanismo de autenticação escolhido suportar facilmente;
+- recuperação de senha por link seguro enviado pelo remetente transacional da instalação;
 - nome de exibição;
 - avatar opcional.
 
@@ -1501,7 +1501,7 @@ Adicione suas folgas ou sua escala de trabalho.
 
 - Login
 - Cadastro por convite; acesso direto informa que a instância é privada
-- Recuperação de senha, se aplicável
+- Recuperação de senha
 - Aceitar convite
 - Sobre (`/sobre`), contendo autor, versão atual, links oficiais para GitHub e Docker Hub e um
   changelog em linguagem simples. A versão deve vir do `package.json`, e um teste deve exigir que a
@@ -2012,7 +2012,38 @@ Perfis de plataformas, catálogo de títulos externos e Game Night permanecem co
   testar percursos/regras determinísticos, equilíbrio, três vidas, recálculo server-side e rankings.
   Lint, tipos, testes e build devem passar.
 
-### 30.1.8 Evoluções futuras
+### 30.1.8 Arena dos Campeões
+
+Arena dos Campeões é uma campanha solo de gladiadores com identidade, arte, nomes, áudio e regras
+originais do Juntaê. A referência é o ciclo curto de RPG gladiatorial clássico — criar, equipar,
+lutar e evoluir — sem reutilizar propriedade intelectual, personagens, falas, cenários ou assets de
+outros jogos. O combate futuro será lateral 2D, um contra um, em turnos e autoritativo no servidor.
+
+#### Fase 1 — gladiador e vila
+
+- Cada membro pode manter exatamente um gladiador por comunidade. Sair da comunidade remove esse
+  progresso; dados nunca atravessam comunidades.
+- A criação exige nome, pronomes, origem puramente narrativa, duas frases opcionais, aparência e a
+  distribuição exata de 14 pontos adicionais sobre sete atributos iniciados em 1: força, agilidade,
+  técnica, defesa, vitalidade, presença e fôlego. Na criação cada atributo fica entre 1 e 8.
+- O perfil começa no nível 1, com 500 moedas, zero de fama, experiência e vitórias, sem equipamentos.
+  Os atributos derivados são calculados por funções puras e não persistidos como fonte de verdade.
+- A aparência versionada contém porte físico, tom de pele, cabelo, cor do cabelo, barba e marca facial.
+  O avatar vetorial é montado em camadas e reage imediatamente às escolhas, sem copiar arte externa.
+- Depois da criação, nome, pronomes, origem, frases e aparência podem ser editados. Os atributos ficam
+  travados até a futura mecânica explícita de redistribuição.
+- A vila inicial apresenta ficha, inventário vazio, ferreiro, armeiro, treinador e portões da arena.
+  Comerciantes e combate aparecem como próximos destinos, sem operações fictícias nesta fase.
+- Rotas e serviços exigem sessão, vínculo com a comunidade, mesma origem nas mutações, entrada estrita,
+  rate limit e transações serializáveis. Criações concorrentes não produzem perfis duplicados.
+- Aceite: testar orçamento de atributos, derivados, validação da aparência, isolamento entre membros,
+  criação única, edição sem alterar atributos, persistência, responsividade, teclado e ausência de
+  overflow em mobile. Lint, tipos, testes e build devem passar.
+
+As próximas fases acrescentam: motor de combate e IA; economia, inventário e progressão; campanha,
+chefes, rankings e polimento audiovisual. PvP não faz parte da campanha inicial.
+
+### 30.1.9 Evoluções futuras
 
 - perfis Steam, PSN, Xbox, Riot, Battle.net e Discord;
 - catálogo comunitário, “Quem joga este jogo?” e “O que podemos jogar hoje?”;
@@ -2808,8 +2839,9 @@ membership válidas em todas as leituras, mutações e mídias.
 
 Cada comunidade pode usar sua própria conta Gmail, Google Workspace ou outro SMTP. Não existe uma
 credencial global compartilhada entre comunidades. A entrega cobre configuração, teste, convites
-opcionais e disparo manual de comunicados; notificações automáticas e recuperação de senha dependem
-de verificação dos endereços dos usuários e preferências individuais em uma evolução posterior.
+opcionais e disparo manual de comunicados. Notificações automáticas dependem de preferências
+individuais em uma evolução posterior. A recuperação de senha usa um remetente transacional da
+instalação, separado das comunidades, conforme a seção seguinte.
 
 - Somente `OWNER` consulta, cria, substitui ou remove a configuração SMTP. `ADMIN` não recebe
   usuário, host ou estado da credencial pela API, mas pode enviar convites usando uma configuração
@@ -2850,6 +2882,38 @@ de verificação dos endereços dos usuários e preferências individuais em uma
   convite por admin, comunicado por admin, formatação escapada, resultado parcial, controles de
   finalidade, bloqueio sem teste e rejeição de destinos internos; executar auditoria de dependências
   de produção, lint, tipos, testes e build.
+
+---
+
+## 30.12 Recuperação de senha
+
+A conta é global e pode participar de várias comunidades. Portanto, a recuperação nunca usa o SMTP
+controlado por uma comunidade: a instalação possui um remetente transacional opcional, configurado
+somente no ambiente do servidor por `PASSWORD_RESET_SMTP_HOST`, `PASSWORD_RESET_SMTP_PORT`,
+`PASSWORD_RESET_SMTP_USER`, `PASSWORD_RESET_SMTP_PASSWORD`, `PASSWORD_RESET_FROM_NAME` e
+`PASSWORD_RESET_FROM_EMAIL`. Configurar todos os campos juntos; porta 465 usa TLS direto e 587 usa
+STARTTLS. Aplicam-se as mesmas proteções de DNS público, TLS 1.2+, certificado, timeout e bloqueio de
+arquivo/URL usadas pelo SMTP comunitário.
+
+- `/forgot-password` recebe o e-mail e sempre confirma a solicitação com a mesma mensagem, exista ou
+  não a conta, esteja ou não o remetente configurado e funcione ou não o envio. Não revelar cadastro
+  pela resposta, tempo intencional, conteúdo de log ou quantidade de tokens.
+- Limitar solicitações por IP e por e-mail normalizado. O e-mail não é incluído em logs de falha.
+- Para uma conta existente com remetente configurado, gerar 32 bytes aleatórios, persistir somente
+  SHA-256 do token e validade de 30 minutos. Um pedido novo invalida links anteriores do usuário.
+- O link usa `/reset-password#token=...`: o fragmento não é enviado no request HTTP nem aparece em
+  access logs/referrer. O token é de uso único e a página só o envia no corpo da mutação.
+- A nova senha exige no mínimo 8 e no máximo 128 caracteres e confirmação idêntica. Redefinir usa
+  bcrypt custo 12, invalida todos os tokens da conta e incrementa `session_version`, encerrando todas
+  as sessões existentes. Não autenticar automaticamente após a troca.
+- Link ausente, desconhecido, expirado, revogado ou repetido recebe a mesma mensagem segura. Corridas
+  para usar o mesmo token permitem exatamente uma redefinição.
+- Falha de SMTP inutiliza o token criado e registra somente código sanitizado. Nunca persistir ou
+  registrar token bruto, senha, credencial SMTP ou corpo do e-mail.
+- APIs: `POST /api/auth/password/forgot` e `POST /api/auth/password/reset`, ambas com mesma origem,
+  validação estrita e rate limit persistido.
+- Aceite: testar não enumeração, remetente ausente, falha de envio, hash/expiração/revogação/uso único,
+  concorrência, confirmação, troca real do hash, invalidação de sessões, acessibilidade e mobile.
 
 ---
 
@@ -2898,8 +2962,8 @@ Não utilizar automação não oficial baseada em scraping de WhatsApp Web.
 
 # 33. Possíveis notificações futuras
 
-O transporte SMTP por comunidade, os convites e os comunicados manuais estão implementados na
-seção 30.11.
+O transporte SMTP por comunidade, os convites, os comunicados manuais e a recuperação de senha pelo
+remetente transacional da instalação estão implementados nas seções 30.11 e 30.12.
 Antes de automatizar as opções abaixo, implementar verificação de e-mail e preferências por usuário.
 
 - novo evento;

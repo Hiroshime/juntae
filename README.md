@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.17.2 \
+  --tag docker.io/SEU_USUARIO/juntae:0.18.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.17.2` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.17.2` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.17.2` também publica automaticamente as tags `0.17.2` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.18.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.18.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.18.0` também publica automaticamente as tags `0.18.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -114,6 +114,11 @@ Edite `.env.zima`:
 - `EMAIL_CREDENTIALS_ENCRYPTION_KEY`: quarto valor, usado para cifrar as senhas SMTP de cada comunidade;
 - `APP_URL`: URL exata usada no navegador, como `http://192.168.1.50:3080` ou um domínio HTTPS;
 - `JUNTAE_DATA_PATH`: diretório persistente do ZimaOS, por padrão `/DATA/AppData/juntae`.
+
+Para habilitar **Esqueci minha senha**, configure também as seis variáveis
+`PASSWORD_RESET_SMTP_*`/`PASSWORD_RESET_FROM_*` do arquivo. No Gmail, use `smtp.gmail.com`, porta
+`465`, o endereço da conta como usuário/remetente e uma senha de aplicativo sem espaços. Esse
+remetente pertence à instalação e não substitui o SMTP independente configurado dentro de cada grupo.
 
 O PostgreSQL não publica nenhuma porta no host. A aplicação acessa o banco internamente pelo nome
 `postgres`, nunca por `localhost`.
@@ -142,7 +147,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.17.2`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.18.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -176,15 +181,21 @@ npm run db:reset         # apaga e recria o banco local
 
 Copie `.env.example` para `.env`. Não comite `.env` nem valores reais.
 
-| Variável                           | Uso                                                                   |
-| ---------------------------------- | --------------------------------------------------------------------- |
-| `DATABASE_URL`                     | URL PostgreSQL usada pelo Prisma                                      |
-| `POSTGRES_PORT`                    | porta local publicada pelo Docker Compose, padrão `5433`              |
-| `AUTH_SECRET`                      | segredo de assinatura das sessões; use pelo menos 32 caracteres       |
-| `REGISTRATION_BOOTSTRAP_TOKEN`     | código secreto aceito somente para a primeira conta de um banco vazio |
-| `APP_URL`                          | URL pública/local da aplicação                                        |
-| `DEFAULT_TIMEZONE`                 | timezone IANA padrão, inicialmente `America/Sao_Paulo`                |
-| `EMAIL_CREDENTIALS_ENCRYPTION_KEY` | chave Base64 de 32 bytes para cifrar credenciais SMTP por comunidade  |
+| Variável                           | Uso                                                                    |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| `DATABASE_URL`                     | URL PostgreSQL usada pelo Prisma                                       |
+| `POSTGRES_PORT`                    | porta local publicada pelo Docker Compose, padrão `5433`               |
+| `AUTH_SECRET`                      | segredo de assinatura das sessões; use pelo menos 32 caracteres        |
+| `REGISTRATION_BOOTSTRAP_TOKEN`     | código secreto aceito somente para a primeira conta de um banco vazio  |
+| `APP_URL`                          | URL pública/local da aplicação                                         |
+| `DEFAULT_TIMEZONE`                 | timezone IANA padrão, inicialmente `America/Sao_Paulo`                 |
+| `EMAIL_CREDENTIALS_ENCRYPTION_KEY` | chave Base64 de 32 bytes para cifrar credenciais SMTP por comunidade   |
+| `PASSWORD_RESET_SMTP_HOST`         | hostname SMTP transacional; configure junto das outras cinco variáveis |
+| `PASSWORD_RESET_SMTP_PORT`         | `465` para TLS direto ou `587` para STARTTLS                           |
+| `PASSWORD_RESET_SMTP_USER`         | usuário da conta SMTP da instalação                                    |
+| `PASSWORD_RESET_SMTP_PASSWORD`     | senha SMTP/senha de aplicativo da instalação                           |
+| `PASSWORD_RESET_FROM_NAME`         | nome exibido no remetente, por exemplo `Juntaê`                        |
+| `PASSWORD_RESET_FROM_EMAIL`        | endereço exibido no remetente                                          |
 
 ## Arquitetura
 
@@ -199,7 +210,11 @@ O projeto usa um monólito modular full-stack:
 - `prisma/seed.ts`: dados de demonstração, mantidos fora das migrations;
 - `tests/unit`, `tests/integration`, `tests/e2e`: testes por camada.
 
-O núcleo modela usuários, comunidades, memberships, convites, escalas, overrides, feriados, eventos, RSVP, votações, opções, votos, snapshots de sorteios, rateios de despesas, salas e partidas de jogos. Timestamps são armazenados em UTC; datas civis de escala, feriados, compras e opções de data usam `DATE` no PostgreSQL. O timezone inicial é explícito e configurável.
+O núcleo modela usuários, tokens de recuperação armazenados somente como hash, comunidades,
+memberships, convites, escalas, overrides, feriados, eventos, RSVP, votações, opções, votos,
+snapshots de sorteios, rateios de despesas, salas e partidas de jogos. Timestamps são armazenados em
+UTC; datas civis de escala, feriados, compras e opções de data usam `DATE` no PostgreSQL. O timezone
+inicial é explícito e configurável.
 
 Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `secure` em HTTPS. Senhas são armazenadas somente como hash bcrypt; trocar a senha invalida as demais sessões. O rate limit dos endpoints sensíveis é atômico e persistido no PostgreSQL, funcionando entre múltiplas instâncias. A aplicação também envia CSP, HSTS, proteção contra framing e outros headers defensivos. A autorização não depende da interface: os helpers server-side verificam membership e papel antes de qualquer consulta ou mutação privada.
 
@@ -387,12 +402,15 @@ Rotas principais desta fase:
 - `/app/[community]/games/bell-hop`: arcade solo Salto dos Sinos e seus rankings;
 - `/app/[community]/games/tower-stack`: arcade solo Torre em Equilíbrio e seus rankings;
 - `/settings/profile`: perfil pessoal e segurança;
-- `/join/[token]`: aceite de convite.
+- `/forgot-password`: solicitação genérica de recuperação por e-mail;
+- `/reset-password#token=...`: criação da nova senha sem expor o token ao servidor no acesso inicial;
+- `/join/[token]`: aceite de convite;
 - `/sobre`: informações do projeto e histórico de versões.
 
-Recuperação de senha por e-mail ainda não foi adicionada: apesar do SMTP por comunidade, esse fluxo
-precisa de verificação do endereço pessoal e de uma política para escolher o remetente correto. A
-troca autenticada de senha continua disponível no perfil.
+Na tela de login, **Esqueci minha senha** envia um link de uso único válido por 30 minutos. O remetente
+é global da instalação porque a mesma conta pode participar de várias comunidades; credenciais de
+uma comunidade nunca podem redefinir uma conta inteira. Pedidos sempre exibem a mesma confirmação,
+sem revelar se um e-mail está cadastrado. A troca invalida links anteriores e todas as sessões abertas.
 
 ## Jogos da comunidade
 
@@ -587,4 +605,4 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Escopo posterior ao MVP
 
-Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, SMTP por comunidade e Games já estão implementados. Recuperação de senha por e-mail, notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, SMTP por comunidade, recuperação de senha e Games já estão implementados. Notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

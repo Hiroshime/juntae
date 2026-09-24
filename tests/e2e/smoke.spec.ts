@@ -119,6 +119,101 @@ test("cadastro direto informa que o acesso é somente por convite", async ({ pag
   await expect(page.getByRole("button", { name: "Criar conta" })).toHaveCount(0);
 });
 
+test("recuperação de senha usa link único e encerra sessões anteriores", async ({
+  browser,
+  page,
+}) => {
+  const suffix = randomUUID();
+  const email = `reset-e2e-${suffix}@test.local`;
+  const oldPassword = "senha-antiga-e2e";
+  const newPassword = "senha-nova-e2e-123";
+  const rawToken = randomBytes(32).toString("base64url");
+  const user = await database.user.create({
+    data: {
+      email,
+      name: "Recuperação E2E",
+      passwordHash: await hash(oldPassword, 4),
+      passwordResetTokens: {
+        create: {
+          tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+          expiresAt: new Date(Date.now() + 30 * 60 * 1_000),
+        },
+      },
+    },
+  });
+  const staleContext = await browser.newContext({
+    extraHTTPHeaders: { "x-forwarded-for": `reset-stale-${suffix}` },
+  });
+  const stalePage = await staleContext.newPage();
+  try {
+    await stalePage.goto("/login");
+    await stalePage.getByLabel("E-mail").fill(email);
+    await stalePage.getByLabel("Senha", { exact: true }).fill(oldPassword);
+    await stalePage.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(stalePage).toHaveURL(/\/app$/);
+
+    await page.goto("/login");
+    await page.getByRole("link", { name: "Esqueci minha senha" }).click();
+    await expect(page.getByRole("heading", { name: "Esqueci minha senha" })).toBeVisible();
+    await page.getByLabel("E-mail da conta").fill(`missing-${suffix}@test.local`);
+    await page.getByRole("button", { name: "Enviar instruções" }).click();
+    await expect(page.getByRole("heading", { name: "Solicitação recebida" })).toBeVisible();
+    await expect(page.getByText(/Se existir uma conta/)).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await page.goto(`/reset-password#token=${rawToken}`);
+    await expect(page.getByRole("heading", { name: "Crie uma nova senha" })).toBeVisible();
+    await page.getByLabel("Nova senha", { exact: true }).fill(newPassword);
+    await page.getByLabel("Confirmar nova senha").fill("senha-diferente-e2e");
+    await page.getByRole("button", { name: "Criar nova senha" }).click();
+    await expect(page.locator(".error[role='alert']")).toHaveText("As senhas não coincidem.");
+    await page.getByLabel("Confirmar nova senha").fill(newPassword);
+    await page.getByRole("button", { name: "Criar nova senha" }).click();
+    await expect(page.getByRole("heading", { name: "Senha alterada" })).toBeVisible();
+    expect(page.url()).not.toContain(rawToken);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await stalePage.goto("/app");
+    await expect(stalePage).toHaveURL(/\/login\?next=/);
+
+    await page.getByRole("link", { name: "Entrar com a nova senha" }).click();
+    await page.getByLabel("E-mail").fill(email);
+    await page.getByLabel("Senha", { exact: true }).fill(oldPassword);
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page.locator(".error[role='alert']")).toHaveText("E-mail ou senha inválidos.");
+    expect(browserErrors.get(page)).toEqual([
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    ]);
+    browserErrors.set(page, []);
+    await page.getByLabel("Senha", { exact: true }).fill(newPassword);
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page).toHaveURL(/\/app$/);
+
+    await page.context().clearCookies();
+    await page.goto(`/reset-password#token=${rawToken}`);
+    await page.getByLabel("Nova senha", { exact: true }).fill("terceira-senha-e2e");
+    await page.getByLabel("Confirmar nova senha").fill("terceira-senha-e2e");
+    await page.getByRole("button", { name: "Criar nova senha" }).click();
+    await expect(page.locator(".error[role='alert']")).toContainText("já foi usado ou expirou");
+    await page.waitForTimeout(100);
+    expect(
+      (browserErrors.get(page) ?? []).filter(
+        (message) =>
+          message !==
+          "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      ),
+    ).toEqual([]);
+    browserErrors.set(page, []);
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  } finally {
+    await staleContext.close();
+    await database.user.deleteMany({ where: { id: user.id } });
+  }
+});
+
 test("tema visual pode ser escolhido e persiste", async ({ page }) => {
   await page.goto("/");
   const picker = page.locator(".theme-picker");
