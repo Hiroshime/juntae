@@ -598,6 +598,7 @@ test("Arena dos Campeões: cria, personaliza e edita o gladiador", async ({ brow
     await catalogCard.getByRole("link", { name: "Entrar na vila" }).click();
     await expect(page).toHaveURL(new RegExp(`/app/${community.slug}/games/arena$`));
     await expect(page.getByRole("heading", { name: "Forje seu gladiador" })).toBeVisible();
+    await expect(page.getByLabel("Pronomes")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -618,19 +619,23 @@ test("Arena dos Campeões: cria, personaliza e edita o gladiador", async ({ brow
     await expect(
       page.getByRole("heading", { name: "Bem-vindo à areia, Lysandra Solar" }),
     ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Caminho até a Campeã Solar" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ranking dos gladiadores" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Expedições", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Mercadores", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Acampamento", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Arena de combate" })).toBeVisible();
     await expect(page.getByText("◈ 500 moedas", { exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Seu baú está vazio" })).toBeVisible();
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-    expect(
-      await db.arenaGladiator.findUnique({
-        where: {
-          communityId_userId: {
-            communityId: community.id,
-            userId: user.id,
-          },
+    const storedGladiator = await db.arenaGladiator.findUnique({
+      where: {
+        communityId_userId: {
+          communityId: community.id,
+          userId: user.id,
         },
-      }),
-    ).toMatchObject({
+      },
+    });
+    expect(storedGladiator).toMatchObject({
       name: "Lysandra Solar",
       origin: "ILHAS_TORMENTA",
       gold: 500,
@@ -638,9 +643,41 @@ test("Arena dos Campeões: cria, personaliza e edita o gladiador", async ({ brow
       agility: 4,
       appearance: expect.objectContaining({ skinTone: "EBONY", hairStyle: "LONG" }),
     });
+    if (!storedGladiator) throw new Error("Gladiador E2E não encontrado.");
+    await page.getByRole("link", { name: "Ir ao Acampamento" }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/${community.slug}/games/arena/camp$`));
+    await expect(page.getByRole("heading", { name: "Acampamento de lona" })).toBeVisible();
+    await expect(page.locator(".arena-shelter-scene")).toHaveAttribute("data-shelter-level", "1");
+    await expect(page.getByRole("button", { name: "Faltam 8 pontos" })).toBeDisabled();
+    await db.arenaShelter.update({
+      where: { gladiatorId: storedGladiator.id },
+      data: { points: 8 },
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "Melhorar para Cabana do combatente" }).click();
+    await expect(page.getByRole("heading", { name: "Cabana do combatente" })).toBeVisible();
+    await expect(page.locator(".arena-shelter-scene")).toHaveAttribute("data-shelter-level", "2");
+    expect(
+      await db.arenaShelter.findUnique({ where: { gladiatorId: storedGladiator.id } }),
+    ).toMatchObject({ level: 2, points: 0 });
+    const shelterChest = page.locator(".arena-camp-shop article").filter({
+      hasText: "Baú reforçado",
+    });
+    await shelterChest.getByRole("button", { name: "◈ 120" }).click();
+    await expect(shelterChest.getByRole("button", { name: "Instalado" })).toBeDisabled();
+    await expect(
+      page.locator('.arena-shelter-scene [data-item-key="REINFORCED_CHEST"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator(".arena-camp-stats span").filter({ hasText: "Defesa" }),
+    ).toContainText("5");
+    await expect(page.getByText("◈ 380 moedas", { exact: true })).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
     if (process.env.ARENA_VISUAL_SCREENSHOT)
       await page.screenshot({ path: process.env.ARENA_VISUAL_SCREENSHOT, fullPage: true });
+    await page.getByRole("link", { name: "Vila", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Caminho até a Campeã Solar" })).toBeVisible();
     await page.getByRole("button", { name: "Editar visual" }).click();
     await page.getByLabel("Nome do gladiador").fill("Lysandra Tempestade");
     await page.getByRole("button", { name: "Salvar aparência" }).click();
@@ -648,10 +685,106 @@ test("Arena dos Campeões: cria, personaliza e edita o gladiador", async ({ brow
       page.getByRole("heading", { name: "Bem-vindo à areia, Lysandra Tempestade" }),
     ).toBeVisible();
 
+    await page.getByRole("link", { name: "Mercadores", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/${community.slug}/games/arena/merchants$`));
+    await expect(page.getByRole("heading", { name: "Equipamentos dos mercadores" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Seu baú está vazio" })).toBeVisible();
+    const copperSword = page.locator(".arena-shop-item").filter({ hasText: "Gládio de cobre" });
+    await copperSword.scrollIntoViewIfNeeded();
+    await copperSword.getByRole("button", { name: "◈ 180" }).click();
+    await expect(page.getByText("◈ 200 moedas", { exact: true })).toBeVisible();
+    const inventoryItem = page.locator(".arena-inventory-list li").filter({
+      hasText: "Gládio de cobre",
+    });
+    await inventoryItem.getByRole("button", { name: "Equipar" }).click();
+    await expect(inventoryItem.getByRole("button", { name: "Remover" })).toBeVisible();
+    await expect(
+      page.locator('.arena-profile-card [data-item-key="COPPER_SHORT_SWORD"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator(".arena-derived-list span").filter({ hasText: "Dano base" }),
+    ).toContainText("8");
+
+    await page.getByRole("link", { name: "Expedições", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/${community.slug}/games/arena/expeditions$`));
+    const foundationTraining = page.locator(".arena-task").filter({
+      hasText: "Fundamentos da arena",
+    });
+    await foundationTraining.getByRole("button", { name: "Iniciar" }).click();
+    await expect(page.locator(".arena-active-occupation-copy > span")).toHaveText("Treinamento");
+    await expect(page.locator(".arena-occupation-countdown")).toContainText(/\d{2}:\d{2}:\d{2}/);
+    await expect(page.getByRole("button", { name: "Editar visual" })).toBeDisabled();
+    await db.arenaOccupation.updateMany({
+      where: { gladiatorId: storedGladiator.id, status: "ACTIVE" },
+      data: {
+        startedAt: new Date(Date.now() - 2 * 60 * 60_000),
+        endsAt: new Date(Date.now() - 60 * 60_000),
+      },
+    });
+    await page.reload();
+    await expect(page.getByText("Disponível", { exact: true })).toBeVisible();
+    await page.getByText("Ver atividades recentes", { exact: true }).click();
+    await expect(page.getByText("Fundamentos da arena foi concluído sem problemas.")).toBeVisible();
+    expect(await db.arenaOccupation.count({ where: { gladiatorId: storedGladiator.id } })).toBe(1);
+
+    await db.arenaGladiator.update({
+      where: { id: storedGladiator.id },
+      data: { fame: -1 },
+    });
+    await page.reload();
+    await page.getByRole("link", { name: "Vila", exact: true }).click();
+    await page.getByRole("button", { name: "Atravessar os portões" }).click();
+    await expect(page.getByRole("heading", { name: "Escolha seu adversário" })).toBeVisible();
+    await expect(page.getByRole("radio").filter({ hasText: "Nara Vento de Cobre" })).toBeDisabled();
+    await page.getByRole("radio").filter({ hasText: "Caio do Pátio" }).click();
+    await page.getByRole("button", { name: "Iniciar duelo" }).click();
+    await expect(page.getByRole("heading", { name: "A areia está em movimento" })).toBeVisible();
+    await expect(page.getByText("Fama negativa: o público está contra você")).toBeVisible();
+    await page.getByRole("button", { name: "🔊 Som ligado" }).click();
+    await expect(page.getByRole("button", { name: "🔇 Som desligado" })).toBeVisible();
+    await expect(
+      page.locator('.arena-fighter.player [data-item-key="COPPER_SHORT_SWORD"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('.arena-fighter.opponent [data-item-key="OAK_BUCKLER"]'),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Golpe rápido" })).toBeDisabled();
+    await page.getByRole("button", { name: "Avançar" }).click();
+    await expect(page.locator(".arena-battlefield")).toHaveAttribute("aria-busy", "true");
+    await expect(page.locator(".arena-fighter.player .arena-combat-effect")).toContainText(
+      "AVANÇA",
+    );
+    await expect(page.getByRole("button", { name: "Avançar" })).toBeDisabled();
+    await expect(page.getByText("Os movimentos da rodada estão acontecendo…")).toBeVisible();
+    await expect(page.locator(".arena-battlefield")).toHaveAttribute("aria-busy", "false");
+    await expect(page.locator(".arena-round-medallion strong")).toHaveText("2");
+    await expect(page.getByText(/Lysandra Tempestade avançou/)).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "A areia está em movimento" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "🔇 Som desligado" })).toBeVisible();
+    await expect(page.locator(".arena-round-medallion strong")).toHaveText("2");
+
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
+
+    await page.getByRole("button", { name: "Voltar à vila" }).click();
+    await expect(page.getByRole("heading", { name: "Conquistas do gladiador" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Duelos recentes" })).toBeVisible();
+    await page.getByRole("button", { name: "Reiniciar personagem" }).click();
+    const resetInput = page.getByLabel(/Digite Lysandra Tempestade para confirmar/);
+    await resetInput.fill("Lysandra Tempestade");
+    await page.getByRole("button", { name: "Apagar tudo e recomeçar" }).click();
+    await expect(page.getByRole("heading", { name: "Forje seu gladiador" })).toBeVisible();
+    expect(
+      await db.arenaGladiator.findUnique({
+        where: { communityId_userId: { communityId: community.id, userId: user.id } },
+      }),
+    ).toBeNull();
+    expect(await db.arenaOccupation.count({ where: { gladiatorId: storedGladiator.id } })).toBe(0);
   } finally {
     await context.close();
     if (communityId) await db.community.delete({ where: { id: communityId } });

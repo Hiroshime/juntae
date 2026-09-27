@@ -184,6 +184,49 @@ enum TowerStackRunStatus {
   ABANDONED
 }
 
+enum ArenaBattleStatus {
+  ACTIVE
+  WON
+  LOST
+  ABANDONED
+}
+
+enum ArenaBattleAction {
+  ADVANCE
+  RETREAT
+  QUICK_STRIKE
+  POWER_STRIKE
+  GUARD
+  RECOVER
+}
+
+enum ArenaBattleActor {
+  PLAYER
+  OPPONENT
+}
+
+enum ArenaOccupationKind {
+  TRAINING
+  MISSION
+}
+
+enum ArenaOccupationStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum ArenaIncidentKind {
+  ROBBED
+  BRUISED
+  EXHAUSTED
+}
+
+enum ArenaPvpRaidStatus {
+  ACTIVE
+  ATTACKER_WON
+  DEFENDER_WON
+}
+
 model User {
   id                       String                   @id @default(uuid()) @db.Uuid
   email                    String                   @unique @db.VarChar(320)
@@ -403,37 +446,118 @@ model CommunityMember {
 }
 
 model ArenaGladiator {
-  id                 String               @id @default(uuid()) @db.Uuid
-  communityId        String               @db.Uuid
-  userId             String               @db.Uuid
-  name               String               @db.VarChar(40)
-  pronouns           String               @db.VarChar(16)
-  origin             String               @db.VarChar(32)
-  entryLine          String?              @db.VarChar(120)
-  victoryLine        String?              @db.VarChar(120)
-  appearance         Json
-  level              Int                  @default(1)
-  experience         Int                  @default(0)
-  gold               Int                  @default(500)
-  fame               Int                  @default(0)
-  unspentSkillPoints Int                  @default(0)
-  strength           Int
-  agility            Int
-  technique          Int
-  defence            Int
-  vitality           Int
-  presence           Int
-  stamina            Int
-  wins               Int                  @default(0)
-  losses             Int                  @default(0)
-  createdAt          DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime             @updatedAt @db.Timestamptz(6)
-  member             CommunityMember      @relation(fields: [communityId, userId], references: [communityId, userId], onDelete: Cascade)
-  inventory          ArenaInventoryItem[]
+  id                  String               @id @default(uuid()) @db.Uuid
+  communityId         String               @db.Uuid
+  userId              String               @db.Uuid
+  name                String               @db.VarChar(40)
+  origin              String               @db.VarChar(32)
+  entryLine           String?              @db.VarChar(120)
+  victoryLine         String?              @db.VarChar(120)
+  appearance          Json
+  level               Int                  @default(1)
+  experience          Int                  @default(0)
+  gold                Int                  @default(500)
+  fame                Int                  @default(0)
+  unspentSkillPoints  Int                  @default(0)
+  strength            Int
+  agility             Int
+  technique           Int
+  defence             Int
+  vitality            Int
+  presence            Int
+  stamina             Int
+  wins                Int                  @default(0)
+  losses              Int                  @default(0)
+  campaignStep        Int                  @default(0)
+  campaignCompletions Int                  @default(0)
+  injuredUntil        DateTime?            @db.Timestamptz(6)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  member              CommunityMember      @relation(fields: [communityId, userId], references: [communityId, userId], onDelete: Cascade)
+  inventory           ArenaInventoryItem[]
+  battles             ArenaBattle[]
+  shelter             ArenaShelter?
+  occupations         ArenaOccupation[]
+  outgoingRaids       ArenaPvpRaid[]       @relation("ArenaPvpAttacker")
+  incomingRaids       ArenaPvpRaid[]       @relation("ArenaPvpDefender")
 
   @@unique([communityId, userId])
   @@index([communityId, fame, level, id])
+  @@index([communityId, campaignCompletions, fame, wins, id])
   @@index([userId])
+  @@index([injuredUntil])
+}
+
+model ArenaPvpRaid {
+  id               String             @id @default(uuid()) @db.Uuid
+  communityId      String             @db.Uuid
+  attackerId       String             @db.Uuid
+  defenderId       String             @db.Uuid
+  status           ArenaPvpRaidStatus @default(ACTIVE)
+  durationMinutes  Int
+  goldStolen       Int                @default(0)
+  experienceReward Int                @default(0)
+  attackerScore    Int?
+  defenderScore    Int?
+  attackerSnapshot Json
+  defenderSnapshot Json
+  startedAt        DateTime           @default(now()) @db.Timestamptz(6)
+  endsAt           DateTime           @db.Timestamptz(6)
+  resolvedAt       DateTime?          @db.Timestamptz(6)
+  injuryEndsAt     DateTime?          @db.Timestamptz(6)
+  attacker         ArenaGladiator     @relation("ArenaPvpAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  defender         ArenaGladiator     @relation("ArenaPvpDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, status, endsAt])
+  @@index([attackerId, startedAt, id])
+  @@index([defenderId, startedAt, id])
+}
+
+model ArenaOccupation {
+  id                  String                @id @default(uuid()) @db.Uuid
+  gladiatorId         String                @db.Uuid
+  taskKey             String                @db.VarChar(48)
+  kind                ArenaOccupationKind
+  status              ArenaOccupationStatus @default(ACTIVE)
+  durationHours       Int
+  goldReward          Int                   @default(0)
+  experienceReward    Int                   @default(0)
+  shelterPointsReward Int                   @default(0)
+  incident            ArenaIncidentKind?
+  resultMessage       String?               @db.VarChar(240)
+  startedAt           DateTime              @default(now()) @db.Timestamptz(6)
+  endsAt              DateTime              @db.Timestamptz(6)
+  finishedAt          DateTime?             @db.Timestamptz(6)
+  effectExpiresAt     DateTime?             @db.Timestamptz(6)
+  gladiator           ArenaGladiator        @relation(fields: [gladiatorId], references: [id], onDelete: Cascade)
+
+  @@index([gladiatorId, status, endsAt])
+  @@index([gladiatorId, finishedAt, id])
+  @@index([effectExpiresAt])
+}
+
+model ArenaShelter {
+  gladiatorId String             @id @db.Uuid
+  level       Int                @default(1)
+  points      Int                @default(0)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(6)
+  gladiator   ArenaGladiator     @relation(fields: [gladiatorId], references: [id], onDelete: Cascade)
+  items       ArenaShelterItem[]
+
+  @@index([level, points])
+}
+
+model ArenaShelterItem {
+  id             String       @id @default(uuid()) @db.Uuid
+  shelterId      String       @db.Uuid
+  catalogItemKey String       @db.VarChar(80)
+  acquiredAt     DateTime     @default(now()) @db.Timestamptz(6)
+  shelter        ArenaShelter @relation(fields: [shelterId], references: [gladiatorId], onDelete: Cascade)
+
+  @@unique([shelterId, catalogItemKey])
+  @@index([shelterId, acquiredAt, id])
+  @@index([catalogItemKey])
 }
 
 model ArenaInventoryItem {
@@ -446,8 +570,60 @@ model ArenaInventoryItem {
   acquiredAt     DateTime       @default(now()) @db.Timestamptz(6)
   gladiator      ArenaGladiator @relation(fields: [gladiatorId], references: [id], onDelete: Cascade)
 
+  @@unique([gladiatorId, catalogItemKey])
   @@index([gladiatorId, acquiredAt, id])
   @@index([catalogItemKey])
+}
+
+model ArenaBattle {
+  id                  String            @id @default(uuid()) @db.Uuid
+  gladiatorId         String            @db.Uuid
+  opponentKey         String            @db.VarChar(48)
+  status              ArenaBattleStatus @default(ACTIVE)
+  round               Int               @default(1)
+  playerHealth        Int
+  playerEnergy        Int
+  playerPosition      Int               @default(2)
+  playerGuarded       Boolean           @default(false)
+  opponentHealth      Int
+  opponentEnergy      Int
+  opponentPosition    Int               @default(8)
+  opponentGuarded     Boolean           @default(false)
+  goldReward          Int               @default(0)
+  experienceReward    Int               @default(0)
+  fameReward          Int               @default(0)
+  skillPointsReward   Int               @default(0)
+  shelterPointsReward Int               @default(0)
+  playerSnapshot      Json
+  opponentSnapshot    Json
+  createdAt           DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(6)
+  finishedAt          DateTime?         @db.Timestamptz(6)
+  gladiator           ArenaGladiator    @relation(fields: [gladiatorId], references: [id], onDelete: Cascade)
+  turns               ArenaBattleTurn[]
+
+  @@index([gladiatorId, status, createdAt])
+}
+
+model ArenaBattleTurn {
+  id               String            @id @default(uuid()) @db.Uuid
+  battleId         String            @db.Uuid
+  round            Int
+  playerAction     ArenaBattleAction
+  opponentAction   ArenaBattleAction
+  actingFirst      ArenaBattleActor
+  events           Json
+  playerHealth     Int
+  playerEnergy     Int
+  playerPosition   Int
+  opponentHealth   Int
+  opponentEnergy   Int
+  opponentPosition Int
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  battle           ArenaBattle       @relation(fields: [battleId], references: [id], onDelete: Cascade)
+
+  @@unique([battleId, round])
+  @@index([battleId, createdAt])
 }
 
 model GameRoom {

@@ -67,12 +67,6 @@ export const ARENA_ATTRIBUTE_DETAILS: Array<{
   },
 ];
 
-export const ARENA_PRONOUNS = [
-  { id: "ELE_DELE", label: "ele/dele" },
-  { id: "ELA_DELA", label: "ela/dela" },
-  { id: "ELU_DELU", label: "elu/delu" },
-] as const;
-
 export const ARENA_ORIGINS = [
   {
     id: "PORTOS_AMBAR",
@@ -194,8 +188,24 @@ export function isValidStartingArenaAttributes(attributes: ArenaAttributes) {
   );
 }
 
-export function arenaDerivedStats(attributes: ArenaAttributes) {
-  return {
+export type ArenaDerivedStats = {
+  maxHealth: number;
+  maxEnergy: number;
+  baseDamage: number;
+  accuracy: number;
+  evasion: number;
+  guard: number;
+  crowdBonus: number;
+  movement: number;
+};
+
+export type ArenaStatModifiers = Partial<ArenaDerivedStats>;
+
+export function arenaDerivedStats(
+  attributes: ArenaAttributes,
+  modifiers: ArenaStatModifiers = {},
+): ArenaDerivedStats {
+  const base: ArenaDerivedStats = {
     maxHealth: 35 + attributes.vitality * 7,
     maxEnergy: 25 + attributes.stamina * 5,
     baseDamage: 2 + attributes.strength * 2,
@@ -205,6 +215,12 @@ export function arenaDerivedStats(attributes: ArenaAttributes) {
     crowdBonus: attributes.presence * 2,
     movement: 2 + attributes.agility,
   };
+  return Object.fromEntries(
+    Object.entries(base).map(([key, value]) => [
+      key,
+      Math.max(1, value + (modifiers[key as keyof ArenaDerivedStats] ?? 0)),
+    ]),
+  ) as ArenaDerivedStats;
 }
 
 export function arenaOptionLabel(

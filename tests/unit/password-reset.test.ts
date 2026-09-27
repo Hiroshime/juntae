@@ -35,6 +35,7 @@ describe("recuperação de senha", () => {
   });
 
   it("mantém o SMTP de recuperação opcional, mas exige configuração completa", () => {
+    vi.stubEnv("DATABASE_URL", "postgresql://test:test@localhost:5432/test");
     vi.stubEnv("AUTH_SECRET", "test-secret-with-at-least-32-characters");
     vi.stubEnv("APP_URL", "http://localhost:3000");
     for (const key of resetEnvKeys) vi.stubEnv(key, "");

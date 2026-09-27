@@ -10,6 +10,24 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.19.0",
+    releasedAt: "2026-09-27",
+    title: "Arena dos Campeões completa",
+    summary:
+      "A Arena evoluiu para uma campanha jogável, com combate, economia, expedições, Refúgio e PvP.",
+    highlights: [
+      "Enfrente duelos táticos em turnos, com movimentação lateral, animações, sons e efeitos visuais para cada ação.",
+      "Evolua até o nível 60 em ligas progressivas, enfrente adversários variados e revisite a liga anterior para se preparar.",
+      "Compre armas e armaduras nos Mercadores, equipe os itens no gladiador e descubra novos conjuntos a cada cinco níveis.",
+      "Realize treinos e expedições com duração real para receber experiência, moedas e pontos de Refúgio, incluindo incidentes temporários.",
+      "Desenvolva o Refúgio por dez estágios e adquira melhorias visuais e defensivas para o Acampamento.",
+      "Ataque Refúgios de outros gladiadores em incursões PvP automáticas, com saque, experiência, ferimentos e notificações.",
+      "Alvos PvP preservam seus atributos secretos, enquanto o Refúgio contribui para a defesa contra invasores.",
+      "Derrotas a partir da Liga 6 reduzem a fama até -1; fama negativa aplica e comunica penalidades de energia e precisão.",
+      "Acompanhe rankings, histórico, conquistas e reinicie o personagem quando quiser começar uma nova jornada.",
+    ],
+  },
+  {
     version: "0.18.0",
     releasedAt: "2026-09-24",
     title: "Arena dos Campeões e recuperação de senha",

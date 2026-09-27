@@ -2023,14 +2023,14 @@ outros jogos. O combate futuro será lateral 2D, um contra um, em turnos e autor
 
 - Cada membro pode manter exatamente um gladiador por comunidade. Sair da comunidade remove esse
   progresso; dados nunca atravessam comunidades.
-- A criação exige nome, pronomes, origem puramente narrativa, duas frases opcionais, aparência e a
+- A criação exige nome, origem puramente narrativa, duas frases opcionais, aparência e a
   distribuição exata de 14 pontos adicionais sobre sete atributos iniciados em 1: força, agilidade,
   técnica, defesa, vitalidade, presença e fôlego. Na criação cada atributo fica entre 1 e 8.
 - O perfil começa no nível 1, com 500 moedas, zero de fama, experiência e vitórias, sem equipamentos.
   Os atributos derivados são calculados por funções puras e não persistidos como fonte de verdade.
 - A aparência versionada contém porte físico, tom de pele, cabelo, cor do cabelo, barba e marca facial.
   O avatar vetorial é montado em camadas e reage imediatamente às escolhas, sem copiar arte externa.
-- Depois da criação, nome, pronomes, origem, frases e aparência podem ser editados. Os atributos ficam
+- Depois da criação, nome, origem, frases e aparência podem ser editados. Os atributos ficam
   travados até a futura mecânica explícita de redistribuição.
 - A vila inicial apresenta ficha, inventário vazio, ferreiro, armeiro, treinador e portões da arena.
   Comerciantes e combate aparecem como próximos destinos, sem operações fictícias nesta fase.
@@ -2040,8 +2040,276 @@ outros jogos. O combate futuro será lateral 2D, um contra um, em turnos e autor
   criação única, edição sem alterar atributos, persistência, responsividade, teclado e ausência de
   overflow em mobile. Lint, tipos, testes e build devem passar.
 
-As próximas fases acrescentam: motor de combate e IA; economia, inventário e progressão; campanha,
-chefes, rankings e polimento audiovisual. PvP não faz parte da campanha inicial.
+#### Fase 2 — combate e inteligência artificial
+
+- Os portões da vila oferecem três adversários originais de dificuldade e estilo distintos. O jogador
+  pode conhecer a ficha resumida antes de iniciar e mantém no máximo um duelo ativo por gladiador.
+- O combate é lateral 2D, solo, um contra um e dividido em rodadas. Cada combatente ocupa uma das onze
+  posições da arena; eles nunca se cruzam e alcance é calculado pela distância entre as posições.
+- A cada rodada o jogador escolhe uma ação: avançar, recuar, golpe rápido, golpe pesado, firmar guarda
+  ou recuperar fôlego. Movimento depende de agilidade; golpes consomem energia e consideram técnica,
+  esquiva, força, alcance e variação aleatória limitada; guarda reduz o próximo dano; golpe pesado pode
+  empurrar. A ordem de atuação considera agilidade e alterna empates entre rodadas.
+- A IA escolhe somente ações válidas e diferencia os estilos equilibrado, agressivo e tático. Ela
+  considera distância, energia e proporção de vida, sem consultar decisões futuras do jogador.
+- O cliente envia apenas a ação pretendida. Estado, IA, chance de acerto, dano, nocaute e resultado são
+  resolvidos no servidor dentro de transação serializável. Snapshots dos combatentes e cada rodada são
+  persistidos para impedir que alterações futuras de balanceamento reescrevam duelos iniciados.
+- Um duelo pode ser retomado após navegar ou recarregar. Abandonar conta como derrota. Vitória e
+  derrota atualizam exatamente uma vez o histórico do gladiador; moedas, experiência, itens, fama e
+  evolução de nível permanecem reservados à Fase 3.
+- A interface mostra vida, energia, distância, guarda, rodada, posições, disponibilidade das ações e
+  relato textual. Caminhada, ataques, defesa, dano, recuperação e nocaute são animados na ordem dos
+  eventos autoritativos da rodada, sem permitir nova ação durante a sequência. Cada evento também
+  apresenta feedback sobre o combatente correspondente: valor do dano, bloqueio, erro, guarda,
+  recuperação, movimento ou nocaute. As mesmas mensagens são anunciadas por leitores de tela e ficam
+  legíveis sem animação quando o usuário prefere movimento reduzido. Deve funcionar com teclado,
+  leitores de tela, movimento reduzido, desktop e mobile.
+- APIs privadas sob `/api/communities/[communityId]/games/arena/battles`; todas exigem sessão,
+  membership do dono do gladiador, mesma origem, entrada estrita, rate limit e isolamento por UUID.
+- Aceite: testar movimento/alcance, energia, acerto/dano, guarda, empurrão, iniciativa, IA, nocaute,
+  persistência das rodadas, duelo ativo único, retomada, abandono, concorrência, atualização única do
+  histórico, autorização, responsividade, acessibilidade e ausência de overflow. Lint, tipos, testes e
+  build devem passar.
+
+#### Fase 3 — economia, equipamentos e progressão
+
+- Cada adversário concede uma recompensa fixa por dificuldade quando derrotado: moedas, experiência e
+  fama. Uma derrota concluída concede apenas uma pequena quantidade de experiência; abandono não concede
+  recompensa. Os valores ficam gravados no duelo e são aplicados exatamente uma vez na mesma transação
+  que encerra o combate.
+- A experiência é cumulativa. Ao cruzar um ou mais limites de nível, o gladiador recebe dois pontos de
+  atributo por nível obtido, inclusive quando uma única recompensa cruza vários limites. Cada atributo
+  pode evoluir até 20; o gasto de pontos é validado e serializado no servidor.
+- A Forja da Aurora vende armas; o Bastião de Bronze vende armaduras, elmos e escudos. O catálogo é
+  versionado em código e define preço, nível mínimo, slot e modificadores. Compra concorrente não pode
+  duplicar um item nem deixar saldo negativo; o preço e nome adquiridos ficam registrados no metadata.
+- O inventário permite equipar e remover itens. Há no máximo um item equipado por slot. Somente itens do
+  próprio gladiador podem ser alterados, e equipar outro item do mesmo slot substitui o anterior
+  atomicamente.
+- Bônus de todos os itens equipados compõem os atributos derivados exibidos na ficha e são congelados no
+  snapshot ao iniciar o próximo duelo. Alterar equipamento nunca modifica um combate já iniciado.
+- Armas, armaduras, elmos e escudos equipados aparecem como camadas vetoriais próprias no avatar da
+  ficha e no combate. As chaves dos itens visuais também ficam congeladas no snapshot do duelo, para que
+  uma troca posterior não altere a aparência de uma luta em andamento. Adversários possuem conjuntos
+  visuais coerentes com sua identidade e dificuldade.
+- A Vila mostra saldo, fama, nível, barra de experiência, pontos disponíveis, catálogo, bloqueios por
+  nível/saldo e inventário com estado equipado. O resultado do duelo informa cada recompensa recebida.
+- O campo de pronomes não faz parte da ficha. A migration da Fase 3 remove a coluna legada sem afetar os
+  demais dados do gladiador.
+- APIs privadas de economia permanecem sob `/api/communities/[communityId]/games/arena/gladiator`; todas
+  exigem sessão, membership, mesma origem nas mutações, entrada estrita, rate limit e isolamento por UUID.
+- Aceite: testar cálculo de nível, recompensa por resultado, concessão única sob concorrência, saldo,
+  compra duplicada, nível mínimo, propriedade, troca de slot, bônus e visual no snapshot, gasto de pontos,
+  responsividade, acessibilidade e ausência de overflow. Lint, tipos, testes e build devem passar.
+
+#### Fase 4 — campanha, chefe, ranking e áudio
+
+- A campanha inicial possui quatro confrontos em ordem: Caio do Pátio, Nara Vento de Cobre, Borin
+  Muralha e Aurélia, Campeã Solar. Aurélia é uma chefe original com atributos, apresentação,
+  equipamentos e recompensa próprios.
+- O gladiador começa na primeira etapa. Vencer o alvo atual libera o próximo portão; confrontos futuros
+  permanecem bloqueados tanto na interface quanto no servidor. Rivais já vencidos podem ser enfrentados
+  novamente, mas revanche não altera a etapa atual.
+- Derrotar a chefe incrementa o total de campanhas concluídas e reinicia a sequência na primeira etapa,
+  permitindo novos ciclos. Derrota ou abandono nunca reduz nem avança o progresso.
+- A Vila apresenta o caminho completo, o alvo atual e o total de campanhas. O ranking privado da
+  comunidade considera primeiro campanhas concluídas, depois fama, vitórias, nome e identificador, com
+  no máximo 20 gladiadores e isolamento por membership.
+- O combate oferece efeitos sonoros sintetizados para movimento, golpe, erro, guarda, recuperação e
+  nocaute, sincronizados à sequência visual. O som começa somente após interação, pode ser desligado por
+  controle acessível e a preferência fica apenas no navegador. Movimento reduzido continua respeitado.
+- A migration `0031_arena_campaign_rankings` adiciona etapa e campanhas concluídas com limites no banco
+  e índice próprio para o ranking. O avanço e as recompensas permanecem na mesma transação serializável
+  que encerra o duelo.
+- Aceite: testar sequência e bloqueio no servidor, revanche, avanço, derrota, conclusão e reinício,
+  recompensa da chefe, ordenação e privacidade do ranking, concorrência, persistência, teclado,
+  responsividade, acessibilidade e ausência de overflow. Lint, tipos, testes e build devem passar.
+
+#### Fase 5 — legado, histórico e reinício
+
+- A ficha apresenta um legado derivado da fonte de verdade existente, sem persistir contadores
+  duplicados: total de duelos, percentual inteiro de vitórias e cinco conquistas por primeira vitória,
+  campanha concluída, dez duelos, quatro equipamentos e 50 pontos de fama.
+- A Vila mostra os oito duelos encerrados mais recentes, ordenados por data e identificador, contendo
+  adversário, resultado, rodadas e recompensas. Duelo ativo não aparece nas crônicas.
+- O membro pode reiniciar o próprio gladiador. A operação apaga definitivamente ficha, inventário,
+  duelos, rodadas e progresso, remove o gladiador do ranking e libera uma criação do zero. Não existe
+  restauração automática nem impacto em outros módulos ou membros.
+- A interface exige abrir uma zona de risco e digitar exatamente o nome atual. O servidor repete essa
+  validação, exige sessão, membership, mesma origem, limite específico de tentativas e executa a exclusão
+  dentro de transação serializável. Uma chamada direta não pode contornar a confirmação.
+- A exclusão usa os relacionamentos em cascata já definidos e não exige nova migration. Deve funcionar
+  inclusive quando existe um duelo ativo, eliminando-o junto do restante da jornada.
+- Aceite: testar conquistas derivadas, aproveitamento sem duelos, limite/ordem do histórico, sigilo entre
+  membros, confirmação incorreta, tentativa externa, cascata com inventário e duelo ativo, remoção do
+  ranking, nova criação, responsividade, acessibilidade e ausência de overflow. Lint, tipos, testes e
+  build devem passar.
+
+#### Expansão I — Refúgio do gladiador
+
+- Cada gladiador possui exatamente um Refúgio privado na mesma comunidade. Ele nasce no nível 1 com
+  zero pontos, é removido em cascata ao reiniciar o personagem e não pode ser acessado nem melhorado
+  por outro membro.
+- O Refúgio possui dez estágios originais e progressivos: Acampamento de lona, Cabana do combatente,
+  Pátio fortificado, Casa da arena, Fortim do campeão, Cidadela solar, Palácio dos estandartes,
+  Bastilha imperial, Fortaleza celeste e Santuário dos imortais. Os custos para avançar são,
+  respectivamente, 8, 18, 32, 50, 75, 110, 150, 200 e 270 pontos; o décimo estágio é o limite.
+- Pontos do Refúgio são um recurso separado de moedas, fama, experiência e pontos de atributo. Vitória
+  concede 3, 5, 8 ou 12 pontos conforme a dificuldade iniciante, intermediária, desafiadora ou chefe.
+  Uma derrota concluída concede 1 ponto e abandono não concede recompensa.
+- A recompensa fica gravada no próprio duelo e é creditada exatamente uma vez na mesma transação que
+  encerra o combate. O histórico e o resultado mostram os pontos obtidos.
+- Melhorar desconta o custo e incrementa exatamente um nível dentro de transação serializável. A API
+  exige sessão, membership, mesma origem, entrada vazia estrita e rate limit; chamadas concorrentes não
+  podem gastar o mesmo saldo duas vezes nem ultrapassar o nível máximo.
+- A Vila apresenta uma cena vetorial que evolui por estágio, saldo, trilha dos seis níveis, progresso,
+  custo e ação de melhoria. O Refúgio não altera os atributos nem o combate atual. Sua persistência fica
+  preparada para uma futura dinâmica PvP, que continua fora do escopo desta expansão.
+- A migration `0032_arena_shelter` cria a relação individual, preenche Refúgios para gladiadores já
+  existentes e adiciona a recompensa persistida aos duelos sem reescrever resultados anteriores. A
+  migration `0036_arena_extended_progression` amplia o limite de 6 para 10 sem alterar níveis ou
+  pontos já conquistados.
+- Aceite: testar custos e recompensas, criação e backfill, concessão única, derrota e abandono, saldo
+  insuficiente, limite máximo, concorrência, isolamento, cascata, evolução visual, responsividade,
+  acessibilidade e ausência de overflow. Lint, tipos, testes e build devem passar.
+
+#### Expansão II — campo de treinamento e missões
+
+- A Vila oferece atividades assíncronas individuais. Treinos são seguros e concedem experiência e
+  pontos do Refúgio; missões acrescentam moedas, mas possuem risco explícito de incidente.
+- O catálogo inicial de treinos possui Fundamentos da arena (1h, nível 1), Circuito de resistência
+  (2h, nível 2) e Disciplina do campeão (4h, nível 4). O catálogo de missões possui Patrulha do
+  mercado (1h, nível 1), Escolta da caravana (2h, nível 2), Expedição às ruínas (4h, nível 4) e
+  Vigília da fronteira (8h, nível 7). Duração, requisito, recompensas e risco aparecem antes da escolha.
+- Cada gladiador pode manter no máximo uma atividade ativa. Durante sua execução não pode iniciar ou
+  continuar duelo, negociar ou equipar itens, gastar atributos, editar, melhorar o Refúgio nem apagar
+  a ficha. Um duelo ativo também impede iniciar uma atividade. Todas essas regras são verificadas no
+  servidor sob transação serializável.
+- A conclusão não depende de cron ou processo residente: ao consultar a Arena depois do prazo, o
+  servidor bloqueia a ficha, resolve a atividade e credita as recompensas exatamente uma vez. O
+  histórico conserva valores efetivos, incidente, mensagem e horários, mesmo após mudanças futuras no
+  catálogo.
+- Missões podem terminar sem problema ou gerar roubo, ferimentos leves ou exaustão. Roubo reduz pela
+  metade apenas as moedas daquela missão. Os demais incidentes, e o abalo da emboscada, aplicam
+  penalidades temporárias claramente exibidas; elas alteram a ficha derivada e o snapshot de novos
+  duelos até expirar, sem modificar atributos-base.
+- A interface mostra contagem regressiva, progresso, bloqueio atual, efeitos temporários e as oito
+  atividades recentes. Ao atingir o prazo, recolhe o resultado automaticamente e atualiza ficha,
+  recursos e opções disponíveis.
+- A migration `0033_arena_training_missions` cria atividades, incidentes, índices de consulta e uma
+  restrição parcial que impede duas atividades ativas para o mesmo gladiador. Reiniciar a ficha remove
+  seu histórico em cascata.
+- Aceite: testar catálogo, validação estrita, nível mínimo, isolamento, exclusão mútua com combate,
+  concorrência, bloqueio de mutações, conclusão e recompensa únicas, incidentes determinísticos,
+  expiração dos efeitos, snapshot de combate, histórico, responsividade e acessibilidade. Lint, tipos,
+  testes e build devem passar.
+
+#### Expansão III — áreas da Vila e itens do Acampamento
+
+- A página principal da Arena funciona como hub da Vila do Sol e não concentra mais todas as ações.
+  Quatro cards direcionam para Coliseu, Expedições, Mercadores e Acampamento. Expedições contém
+  treino, missões e evolução de atributos; Mercadores contém lojas e inventário; Acampamento contém
+  o Refúgio, seus níveis, status e itens. As áreas possuem rotas próprias e navegação persistente.
+- O Acampamento possui cinco status separados da ficha de combate: Defesa, Conforto, Suprimentos,
+  Treinamento e Prestígio. O nível do Refúgio fornece a base e itens adquiridos somam bônus. Nesta
+  expansão os status não modificam duelos, recompensas nem atributos do gladiador; ficam preparados
+  para futuras regras do Refúgio e PvP.
+- O catálogo inicial, comprado uma única vez com moedas, possui Baú reforçado (120, nível 1), Braseiro
+  de ferro (150, nível 1), Boneco de treinamento (220, nível 2), Portão fortificado (320, nível 2),
+  Horta de ervas (420, nível 3) e Estandarte do campeão (650, nível 4). A tela informa requisito,
+  preço e bônus antes da compra.
+- A progressão avançada acrescenta Armaria tática e Enfermaria de campanha no nível 5, Torre da
+  sentinela no 6, Aqueduto de mármore no 7, Biblioteca de estratégias no 8, Estátua dos campeões no 9
+  e Altar da chama eterna no 10. Todas possuem preço, bônus próprios e representação visual no cenário.
+- Comprar valida membership, propriedade, catálogo, nível do Refúgio e saldo no servidor. O desconto
+  e a instalação acontecem na mesma transação serializável; índice único e bloqueio da ficha impedem
+  compra duplicada ou saldo negativo sob concorrência. Gladiador em atividade não pode comprar.
+- Cada item adquirido aparece na cena vetorial do Refúgio. A interface mostra status recalculados,
+  itens bloqueados, instalados e disponíveis, funciona em mobile e respeita movimento reduzido.
+- A migration `0034_arena_shelter_items` persiste as instalações individualmente e as remove em
+  cascata com o Refúgio. O catálogo e seus bônus permanecem versionados no código, sem confiar em
+  valores enviados pelo cliente.
+- Aceite: testar rotas privadas, navegação, catálogo, status base e somado, validação estrita, nível,
+  saldo, propriedade, concorrência, bloqueio durante atividade, cascata, representação visual,
+  acessibilidade e ausência de overflow. Lint, tipos, testes e build devem passar.
+
+#### Expansão IV — incursões PvP aos Refúgios
+
+- A rota privada `/app/[community]/games/arena/pvp` lista somente gladiadores da mesma comunidade,
+  exclui o próprio personagem e permite iniciar uma incursão ao Refúgio escolhido. A Vila e a
+  navegação persistente possuem acesso à área; ataques recebidos aparecem como alertas no perfil e no
+  histórico defensivo, sem exigir ação do defensor.
+- Cada atacante mantém no máximo um saque ativo. Enquanto viaja, não pode duelar, treinar, cumprir
+  missão, negociar, equipar, evoluir atributos, editar, melhorar o Acampamento nem reiniciar a ficha.
+  Ser alvo de uma incursão não bloqueia as atividades comuns do defensor, mas uma ficha sob ataque não
+  pode ser apagada até a resolução.
+- A duração é `60 + (nível do Refúgio defensor - nível do Refúgio atacante) × 15` minutos, sempre
+  limitada entre 30 e 120 minutos. A interface mostra horário final, contagem regressiva e atualiza o
+  resultado automaticamente. A resolução tardia usa o horário final original e não exige cron.
+- O confronto é totalmente automático e autoritativo. Ao iniciar, o servidor congela nome, aparência,
+  nível, equipamento, atributos derivados, efeitos temporários e status do Refúgio dos dois lados. O
+  poder de ambos recebe uma variação aleatória limitada entre 85% e 115%; a defesa soma bônus de
+  Defesa, Conforto, Suprimentos, Treinamento e Prestígio do Acampamento atacado. Empate favorece a
+  defesa.
+- Antes da incursão, a listagem não revela nível, equipamento, histórico, poder, atributos nem defesa
+  calculada do alvo. Além do nome e avatar sem equipamento, mostra somente duração estimada e nível do
+  Refúgio. Snapshots e placares internos também não são serializados pelas APIs de consulta.
+- Vitória transfere ao atacante 8% das moedas disponíveis do defensor no momento da resolução, com
+  mínimo de até 10 moedas quando existe saldo, nunca mais que o saldo existente e teto de 250 moedas.
+  O atacante recebe `35 + 5 × nível do defensor` de experiência na vitória e
+  `10 + 2 × nível do defensor` na derrota. Progressão de nível e pontos de atributo seguem as mesmas
+  regras da campanha.
+- Na derrota, o atacante fica ferido por 30 minutos contados a partir do fim programado da incursão.
+  Durante a recuperação nenhuma ação da Arena pode ser iniciada; a condição aparece na ficha, na área
+  PvP e como bandagem no avatar. Se o usuário retornar depois desse período, a recuperação já terminou.
+- Transferência, experiência, evolução, ferimento e resultado são aplicados exatamente uma vez em
+  transação serializável. Snapshots e placares ficam no histórico dos dois envolvidos. Membership,
+  UUID, mesma origem, rate limit, índice parcial de saque ativo, bloqueios de linha e constraints
+  protegem isolamento, saldo e concorrência.
+- A migration `0035_arena_pvp_raids` adiciona as incursões, snapshots, resultados e recuperação por
+  ferimento. Reiniciar um personagem remove seu histórico relacionado em cascata depois que não houver
+  ataque ativo.
+- Aceite: testar duração e limites, bônus do Refúgio, sorte limitada, empate defensivo, saque e teto,
+  XP de vitória/derrota, ferimento, bloqueio integral do atacante, liberdade do defensor, alertas,
+  resolução única, concorrência, isolamento entre comunidades, responsividade, teclado e leitores de
+  tela. Lint, tipos, testes e build devem passar.
+
+#### Expansão V — ligas progressivas do Coliseu
+
+- A primeira liga preserva a campanha narrativa original com Caio, Nara, Borin e Aurélia. Depois de
+  vencer Aurélia, cada novo ciclo passa a ser uma liga própria com quatro adversários inéditos e
+  estáveis: nome, título, apresentação, aparência, estilo, atributos e equipamento são gerados de
+  forma determinística pelo número da liga e etapa, sem mudar ao recarregar a página.
+- Os níveis dos rivais aumentam continuamente depois da campanha inicial: a segunda liga começa no
+  nível 6 e cada etapa seguinte acrescenta um nível. A progressão e os atributos respeitam o teto 60;
+  ligas posteriores permanecem jogáveis no nível máximo sem criar números fora dos limites do domínio.
+- Os quatro rivais da liga atual e os quatro da liga imediatamente anterior podem iniciar duelo.
+  Na liga atual, etapas futuras continuam bloqueadas; na anterior, todos ficam disponíveis para
+  revanche e concedem as recompensas normais, sem alterar o avanço da campanha atual. Chaves de
+  ligas duas ou mais posições atrás ou de ligas futuras são recusadas pelo servidor, mesmo quando
+  enviadas fora da interface.
+- O nível máximo do gladiador passa a ser 60. No teto, a ficha mostra claramente “nível máximo” e não
+  calcula porcentagem com um próximo nível inexistente. Experiência adicional pode permanecer no
+  histórico acumulado, mas não concede níveis ou pontos de atributo acima do limite.
+- O catálogo dos mercadores ganha conjuntos completos a cada cinco níveis, do 5 ao 60, cada um com
+  arma, armadura, elmo e escudo. Preço e bônus crescem por categoria; cada conjunto possui nome e
+  paleta visual próprios, mantendo sua identidade real na ficha e no snapshot do duelo.
+- Os quatro confrontos originais mantêm suas recompensas. Nas ligas progressivas, moedas, experiência
+  e fama escalam pelo nível do adversário; pontos do Refúgio continuam seguindo a dificuldade da etapa.
+  O valor efetivo permanece congelado no duelo e é aplicado exatamente uma vez.
+- Derrota concluída ou abandono contra um rival da Liga 6 em diante reduz a fama em 1, com piso global
+  de `-1`. Ao iniciar um duelo com fama `-1`, o snapshot recebe `-10` de energia máxima e `-8` de
+  precisão; a interface alerta a desvantagem antes da primeira ação. A penalidade também compõe o
+  snapshot e o poder de novas incursões PvP. Uma vitória volta a conceder fama normalmente e remove a
+  penalidade dos combates iniciados depois dela.
+- A migration `0037_arena_fame_risk` permite fama e recompensa de fama até `-1`, preservando todos os
+  valores existentes.
+- Aceite: testar estabilidade e variedade da geração, progressão por liga, teto de nível/atributo,
+  acesso exclusivo à liga atual e à imediatamente anterior, revanche sem avanço, bloqueio de etapas
+  e demais ligas, catálogo até o nível 60, visual dos equipamentos, recompensas progressivas e
+  penalidade/piso de fama, snapshot do debuff, aviso visual e compatibilidade com duelos/histórico
+  existentes. Lint, tipos, testes e build devem passar.
 
 ### 30.1.9 Evoluções futuras
 

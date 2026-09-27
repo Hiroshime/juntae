@@ -8,9 +8,28 @@ import {
   arenaDerivedStats,
   isValidStartingArenaAttributes,
 } from "@/lib/games/arena";
-import { arenaAppearanceSchema, createArenaGladiatorSchema } from "@/lib/validation/arena";
+import {
+  arenaAppearanceSchema,
+  createArenaGladiatorSchema,
+  resetArenaGladiatorSchema,
+  purchaseArenaShelterItemSchema,
+  startArenaOccupationSchema,
+  startArenaPvpRaidSchema,
+  upgradeArenaShelterSchema,
+} from "@/lib/validation/arena";
 
 describe("Arena dos Campeões", () => {
+  it("aceita somente UUID do alvo no início de um saque PvP", () => {
+    expect(
+      startArenaPvpRaidSchema.safeParse({
+        defenderId: "302a4dee-0adf-4b86-b126-6d73a08c30dc",
+      }).success,
+    ).toBe(true);
+    expect(startArenaPvpRaidSchema.safeParse({ defenderId: "alvo", extra: true }).success).toBe(
+      false,
+    );
+  });
+
   it("distribui exatamente os pontos iniciais e calcula a ficha derivada", () => {
     expect(arenaAttributeTotal(DEFAULT_ARENA_ATTRIBUTES)).toBe(ARENA_ATTRIBUTE_TOTAL);
     expect(arenaAttributePointsRemaining(DEFAULT_ARENA_ATTRIBUTES)).toBe(0);
@@ -31,7 +50,6 @@ describe("Arena dos Campeões", () => {
     expect(
       createArenaGladiatorSchema.safeParse({
         name: "Aurora",
-        pronouns: "ELA_DELA",
         origin: "ILHAS_TORMENTA",
         entryLine: "",
         victoryLine: "",
@@ -42,7 +60,6 @@ describe("Arena dos Campeões", () => {
     expect(
       createArenaGladiatorSchema.safeParse({
         name: "Aurora",
-        pronouns: "ELA_DELA",
         origin: "ILHAS_TORMENTA",
         appearance: DEFAULT_ARENA_APPEARANCE,
         attributes: {
@@ -64,7 +81,6 @@ describe("Arena dos Campeões", () => {
   it("aceita uma identidade original completa com o orçamento exato", () => {
     const parsed = createArenaGladiatorSchema.parse({
       name: "Cassius Aurora",
-      pronouns: "ELE_DELE",
       origin: "PORTOS_AMBAR",
       entryLine: "A areia lembrará meus passos.",
       victoryLine: "Que venha o próximo!",
@@ -81,5 +97,44 @@ describe("Arena dos Campeões", () => {
     });
     expect(parsed.name).toBe("Cassius Aurora");
     expect(arenaAttributeTotal(parsed.attributes)).toBe(ARENA_ATTRIBUTE_TOTAL);
+  });
+
+  it("exige uma confirmação estrita para reiniciar o gladiador", () => {
+    expect(resetArenaGladiatorSchema.safeParse({ confirmation: "Lysandra" }).success).toBe(true);
+    expect(resetArenaGladiatorSchema.safeParse({ confirmation: "" }).success).toBe(false);
+    expect(
+      resetArenaGladiatorSchema.safeParse({ confirmation: "Lysandra", extra: true }).success,
+    ).toBe(false);
+  });
+
+  it("aceita somente a ação vazia para melhorar o Refúgio", () => {
+    expect(upgradeArenaShelterSchema.safeParse({}).success).toBe(true);
+    expect(upgradeArenaShelterSchema.safeParse({ level: 6 }).success).toBe(false);
+  });
+
+  it("aceita somente atividades existentes do campo de treino", () => {
+    expect(startArenaOccupationSchema.safeParse({ taskKey: "MARKET_PATROL" }).success).toBe(true);
+    expect(startArenaOccupationSchema.safeParse({ taskKey: "UNKNOWN" }).success).toBe(false);
+    expect(
+      startArenaOccupationSchema.safeParse({ taskKey: "MARKET_PATROL", durationHours: 1 }).success,
+    ).toBe(false);
+  });
+
+  it("aceita somente itens existentes do Acampamento", () => {
+    expect(
+      purchaseArenaShelterItemSchema.safeParse({ catalogItemKey: "IRON_BRAZIER" }).success,
+    ).toBe(true);
+    expect(
+      purchaseArenaShelterItemSchema.safeParse({ catalogItemKey: "ETERNAL_FLAME" }).success,
+    ).toBe(true);
+    expect(purchaseArenaShelterItemSchema.safeParse({ catalogItemKey: "UNKNOWN" }).success).toBe(
+      false,
+    );
+    expect(
+      purchaseArenaShelterItemSchema.safeParse({
+        catalogItemKey: "IRON_BRAZIER",
+        price: 1,
+      }).success,
+    ).toBe(false);
   });
 });

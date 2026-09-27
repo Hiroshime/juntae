@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.18.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.19.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.18.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.18.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.18.0` também publica automaticamente as tags `0.18.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.19.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.19.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.19.0` também publica automaticamente as tags `0.19.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -147,7 +147,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.18.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.19.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -401,6 +401,11 @@ Rotas principais desta fase:
 - `/app/[community]/games/[roomId]`: sala de espera e partidas de jogo da velha ou forca;
 - `/app/[community]/games/bell-hop`: arcade solo Salto dos Sinos e seus rankings;
 - `/app/[community]/games/tower-stack`: arcade solo Torre em Equilíbrio e seus rankings;
+- `/app/[community]/games/arena`: criação, Vila do Sol e duelos solo da Arena dos Campeões;
+- `/app/[community]/games/arena/expeditions`: treinos, missões e atributos;
+- `/app/[community]/games/arena/merchants`: lojas, equipamentos e inventário;
+- `/app/[community]/games/arena/camp`: evolução, itens e status do Acampamento;
+- `/app/[community]/games/arena/pvp`: incursões automáticas aos Refúgios da comunidade;
 - `/settings/profile`: perfil pessoal e segurança;
 - `/forgot-password`: solicitação genérica de recuperação por e-mail;
 - `/reset-password#token=...`: criação da nova senha sem expor o token ao servidor no acesso inicial;
@@ -469,6 +474,79 @@ automaticamente e a maioria dos demais jogadores pode invalidar as outras. O ser
 automaticamente. Cada resposta válida vale um ponto, e os líderes finais alimentam rankings semanais e mensais. A migration `0025_stop_game` preserva
 sessões, rodadas, respostas, votos de invalidação e placares; a `0026_stop_review_deadline` adiciona
 o prazo automático de revisão de forma compatível com bancos que já receberam a migration anterior.
+
+**Arena dos Campeões** é uma campanha solo original. Cada membro cria um gladiador por comunidade,
+personaliza sua aparência e distribui os atributos iniciais antes de conhecer a Vila do Sol. Nos
+portões do coliseu, escolha entre quatro adversários e lute em rodadas: avançar e recuar alteram a
+distância, golpes consomem energia, guarda reduz dano e recuperar fôlego prepara a próxima ação. A IA
+usa estilos distintos, e o servidor resolve iniciativa, acerto, dano e nocaute sem confiar no cliente.
+Cada rodada reproduz caminhada, ataques, defesa, impacto, recuperação e nocaute na ordem dos eventos
+do servidor. Indicadores sobre os lutadores mostram dano, bloqueio, erro, guarda e recuperação no
+momento de cada ação, com anúncio acessível e uma alternativa estática para movimento reduzido.
+Um duelo ativo pode ser retomado depois de recarregar a página; abandonar conta como derrota.
+
+Na Fase 3, vitórias concedem moedas, experiência e fama conforme a dificuldade; derrotas concluídas
+concedem uma pequena experiência e abandono não gera recompensa. A experiência eleva o nível e libera
+pontos de atributo. A Forja e o Armeiro vendem equipamentos com nível mínimo e bônus próprios; itens
+comprados podem ser equipados por slot e seus bônus entram apenas em duelos iniciados depois da troca.
+Armas, armaduras, elmos e escudos equipados também aparecem no avatar da ficha e no campo de batalha;
+o conjunto visual fica congelado junto do duelo até ele terminar.
+
+Na Fase 4, os quatro portões formam uma campanha: Caio, Nara e Borin liberam em sequência o confronto
+com Aurélia, a Campeã Solar. Vencer a chefe registra uma campanha concluída e inicia um novo ciclo.
+Revanche contra rivais anteriores continua disponível sem perder progresso. A Vila mostra o caminho e
+o ranking privado da comunidade por campanhas, fama e vitórias. O combate também ganhou efeitos
+sonoros sintetizados e opcionais, com preferência salva no navegador.
+
+Depois da primeira campanha, cada ciclo abre uma nova liga com quatro rivais próprios. Nomes,
+aparências, estilos, atributos e equipamentos são gerados de forma estável para aquela liga, enquanto
+níveis e recompensas aumentam até o teto 60. Os mercadores acompanham essa jornada com conjuntos
+completos a cada cinco níveis, cada um com nomes e cores próprios. O servidor aceita os rivais da liga
+atual e da imediatamente anterior: os portões atuais ainda abrem em sequência, enquanto a liga
+anterior fica inteiramente disponível para conseguir experiência e recursos sem alterar a campanha.
+Ligas mais antigas e futuras permanecem bloqueadas.
+
+Da Liga 6 em diante, derrota ou abandono reduz um ponto de fama, até o piso `-1`. Nesse piso, novos
+duelos começam com menos energia e precisão e exibem o aviso da penalidade; vencer volta a conceder
+fama normalmente. Na área PvP, possíveis alvos revelam apenas duração da incursão e nível do Refúgio,
+mantendo nível do gladiador, equipamentos, histórico e atributos ocultos.
+
+Na Fase 5, a ficha também mostra conquistas derivadas, aproveitamento e os oito duelos encerrados mais
+recentes. A seção **Reiniciar personagem** permite apagar a jornada e criar outro gladiador. Essa ação
+é irreversível e remove ficha, equipamentos, duelos, campanhas e posição no ranking; por segurança, a
+interface e o servidor exigem o nome atual digitado exatamente.
+
+O **Refúgio do gladiador** adiciona uma progressão separada em dez estágios. Vitórias concedem mais
+pontos conforme a dificuldade, derrotas concluídas concedem um ponto e abandono não concede pontos.
+Esses pontos melhoram uma cena própria, que evolui de um acampamento até o Santuário dos imortais. O upgrade é
+atômico e não altera os duelos do Coliseu.
+
+As migrations `0027_arena_gladiator_foundation`, `0029_arena_battle_engine` e
+`0030_arena_economy_progression` guardam respectivamente a ficha/inventário, os duelos/rodadas e as
+recompensas da progressão. A última também remove o antigo campo de pronomes da ficha. A migration
+`0031_arena_campaign_rankings` adiciona o avanço cíclico e a base indexada do ranking.
+`0032_arena_shelter` cria o Refúgio individual, preserva gladiadores existentes e registra seus pontos
+em cada duelo. A **Etapa 2** abre o campo de treinamento e o quadro de missões: atividades duram de uma
+a oito horas, rendem experiência e pontos do Refúgio e, nas missões, também moedas. Enquanto está fora,
+o gladiador não pode lutar nem alterar a ficha. Missões podem causar incidentes com penalidades
+temporárias exibidas na Vila e aplicadas aos novos combates. A conclusão é transacional e acontece
+automaticamente na próxima consulta, sem exigir cron. A migration `0033_arena_training_missions`
+persiste o cronômetro, recompensas, incidentes e histórico e garante uma única atividade ativa por
+gladiador. A Vila agora separa **Expedições**, **Mercadores** e **Acampamento** em páginas próprias.
+No Acampamento, moedas compram treze melhorias persistentes que aparecem no cenário e aumentam Defesa,
+Conforto, Suprimentos, Treinamento ou Prestígio do Refúgio. Esses status não alteram o Coliseu, mas
+agora reforçam a defesa automática do domínio. A migration `0034_arena_shelter_items` registra as
+instalações e impede duplicações por Refúgio. A migration `0036_arena_extended_progression` libera os
+níveis 7 a 10 sem modificar o progresso já conquistado.
+
+A primeira versão de **PvP** permite saquear Refúgios de outros gladiadores da mesma comunidade. A
+duração varia de 30 minutos a duas horas conforme a diferença entre os níveis dos Refúgios. Durante a
+incursão, o atacante fica indisponível para qualquer outra tarefa; o defensor recebe um alerta e o
+combate é resolvido automaticamente com snapshots dos atributos, equipamentos, sorte limitada e bônus
+dos cinco status do Acampamento. Vitória transfere 8% do saldo rival, limitada a 250 moedas, e concede
+mais XP; derrota concede XP menor e deixa o atacante ferido por 30 minutos, com indicação visual no
+avatar. A migration `0035_arena_pvp_raids` mantém a resolução, o histórico e a transferência de moedas
+atômicos e impede dois saques simultâneos pelo mesmo gladiador.
 
 ## E-mail próprio por comunidade
 

@@ -4,7 +4,12 @@ import { assertSameOrigin, routeErrorResponse } from "@/lib/http/route";
 import { gameCommunityParamsSchema } from "@/lib/validation/games";
 import { requireAuthenticatedUser } from "@/server/authorization";
 import { AppError } from "@/server/errors";
-import { createArenaGladiator, updateArenaGladiator } from "@/server/services/arena-service";
+import {
+  createArenaGladiator,
+  getArenaGladiator,
+  resetArenaGladiator,
+  updateArenaGladiator,
+} from "@/server/services/arena-service";
 
 type Context = { params: Promise<{ communityId: string }> };
 
@@ -34,12 +39,44 @@ export async function POST(request: Request, routeContext: Context) {
   }
 }
 
+export async function GET(_request: Request, routeContext: Context) {
+  try {
+    const user = await requireAuthenticatedUser();
+    const ids = gameCommunityParamsSchema.safeParse(await routeContext.params);
+    if (!ids.success) throw new AppError("Comunidade inválida.");
+    await enforceRateLimit(
+      `arena-gladiator-read:${ids.data.communityId}:${user.id}`,
+      120,
+      60 * 60 * 1_000,
+    );
+    return NextResponse.json({ gladiator: await getArenaGladiator(user.id, ids.data.communityId) });
+  } catch (error) {
+    return routeErrorResponse(error);
+  }
+}
+
 export async function PATCH(request: Request, routeContext: Context) {
   try {
     const { user, communityId } = await context(request, routeContext, "update");
     const input = await request.json().catch(() => null);
     return NextResponse.json({
       gladiator: await updateArenaGladiator(user.id, communityId, input),
+    });
+  } catch (error) {
+    return routeErrorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request, routeContext: Context) {
+  try {
+    const { user, communityId } = await context(request, routeContext, "reset");
+    await enforceRateLimit(`arena-gladiator-reset:${communityId}:${user.id}`, 5, 24 * 60 * 60_000);
+    return NextResponse.json({
+      result: await resetArenaGladiator(
+        user.id,
+        communityId,
+        await request.json().catch(() => null),
+      ),
     });
   } catch (error) {
     return routeErrorResponse(error);
