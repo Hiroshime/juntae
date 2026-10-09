@@ -613,6 +613,10 @@ container Juntaê. Para uso pela internet, `LIVEKIT_URL` deve apontar para o end
 e não para um nome interno do Docker. Se usar Cloudflare para o site, confira separadamente os requisitos
 de WebRTC/UDP do LiveKit; um túnel HTTP comum não substitui a exposição das portas de mídia.
 
+Instalações residenciais sem acesso público às portas 80/443 podem usar a imagem Caddy própria com
+validação DNS-01 pela Cloudflare. O build multi-arquitetura, a configuração sem segredos e o passo a
+passo para ZimaOS estão em [`deploy/livekit/`](deploy/livekit/README.md).
+
 A migration `0038_voice_channels` cria os canais e adiciona **Geral** às comunidades existentes.
 Novas comunidades já recebem esse canal automaticamente. A presença é consultada no LiveKit, mas uma
 indisponibilidade temporária do serviço de voz não impede o uso do restante da comunidade.
