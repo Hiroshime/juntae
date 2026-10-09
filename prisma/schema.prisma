@@ -266,6 +266,7 @@ model User {
   bellHopRuns              BellHopRun[]
   towerStackRuns           TowerStackRun[]
   passwordResetTokens      PasswordResetToken[]
+  voiceChannelsCreated     VoiceChannel[]           @relation("VoiceChannelCreator")
 }
 
 model RateLimitBucket {
@@ -316,6 +317,7 @@ model Community {
   gameRooms       GameRoom[]
   bellHopRuns     BellHopRun[]
   towerStackRuns  TowerStackRun[]
+  voiceChannels   VoiceChannel[]
 
   @@index([createdById])
 }
@@ -427,6 +429,25 @@ model SocialReaction {
 
   @@id([postId, userId])
   @@index([userId])
+}
+
+model VoiceChannel {
+  id              String    @id @default(uuid()) @db.Uuid
+  communityId     String    @db.Uuid
+  createdById     String    @db.Uuid
+  name            String    @db.VarChar(60)
+  nameKey         String    @db.VarChar(60)
+  description     String?   @db.VarChar(160)
+  maxParticipants Int       @default(12)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  community       Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy       User      @relation("VoiceChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([communityId, nameKey])
+  @@index([communityId, sortOrder, createdAt, id])
+  @@index([createdById])
 }
 
 model CommunityMember {

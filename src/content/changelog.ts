@@ -10,6 +10,20 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    releasedAt: "2026-10-09",
+    title: "Salas de voz da comunidade",
+    summary:
+      "O Juntaê agora reúne a turma em canais privados de voz integrados à área de Comunicação.",
+    highlights: [
+      "Todos os membros podem entrar em salas de voz exclusivas da própria comunidade.",
+      "Owners e administradores organizam canais permanentes, descrições e limites de participantes.",
+      "As chamadas começam com o microfone desligado e oferecem controles de áudio, dispositivo e indicador de quem está falando.",
+      "A presença ao vivo mostra quantas pessoas estão em cada sala sem gravar ou armazenar as conversas.",
+      "A integração usa um servidor LiveKit externo com acesso temporário e restrito a cada sala.",
+    ],
+  },
+  {
     version: "0.19.0",
     releasedAt: "2026-09-27",
     title: "Arena dos Campeões completa",

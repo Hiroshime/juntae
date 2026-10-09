@@ -3185,6 +3185,41 @@ arquivo/URL usadas pelo SMTP comunitário.
 
 ---
 
+## 30.13 Salas de voz da comunidade
+
+Comunicação por voz é uma extensão pós-MVP privada por comunidade. O Juntaê mantém canais e
+autorização; um servidor LiveKit externo transporta o áudio WebRTC. A aplicação não grava, transcreve
+nem persiste áudio e não inclui o servidor de mídia no Compose principal.
+
+- Toda leitura, criação de token e administração exige sessão e membership da comunidade no servidor.
+  Todos os membros entram nas salas; somente `OWNER` e `ADMIN` criam ou removem canais.
+- Cada comunidade recebe o canal **Geral** ao ser criada. A migration também o adiciona às comunidades
+  existentes. Nomes são únicos sem diferenciar caixa, acentos ou espaços repetidos; permitir até 20
+  canais, descrição opcional e limite configurável de 2 a 50 participantes.
+- A interface fica em `/app/[community]/social/voice`, acessível pela aba **Voz** dentro de
+  **Comunicação**. Exibir canais, ocupação, estado do serviço e participantes da chamada, com layout
+  responsivo, foco visível, rótulos acessíveis e redução de movimento.
+- Entrar sempre com microfone desligado. Permitir ligar/desligar microfone, silenciar a reprodução,
+  selecionar dispositivo de entrada, sair e identificar quem está falando. Não solicitar câmera.
+- O backend cria tokens LiveKit de cinco minutos vinculados ao `user_id`, nome comunitário e uma
+  única sala. O grant aceita somente assinatura, publicação do microfone e subscrição; proibir data
+  channel e outras fontes. API key e secret jamais chegam ao cliente.
+- `LIVEKIT_URL`, `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` são opcionais, mas devem ser
+  configuradas em conjunto. Sem elas, mostrar orientação e desabilitar entrada sem quebrar o feed.
+  A URL `ws://`/`wss://` precisa ser acessível ao navegador; produção deve usar `wss://`.
+- Consultar presença em lote e tolerar indisponibilidade temporária do LiveKit. Nunca remover uma sala
+  ocupada; falha ao confirmar presença bloqueia a remoção por segurança. Salas vazias no LiveKit podem
+  expirar, pois o registro permanente é o canal no PostgreSQL.
+- Aplicar validação estrita, mesma origem e rate limit persistido nas mutações e emissão de token.
+  Não expor e-mails. Não registrar token, segredo, URL com credenciais ou conteúdo de áudio.
+- O servidor LiveKit, certificado, DNS, TURN e portas de mídia são responsabilidade da implantação e
+  devem poder evoluir separadamente. Uma falha de voz não pode indisponibilizar outros módulos.
+- Aceite: testar normalização/limites, permissões e isolamento comunitário, grants do token, ambiente
+  parcial, criação/remoção, canal padrão e estados sem configuração; validar tipos, lint, testes, build
+  e experiência mobile/acessível.
+
+---
+
 # 31. Integração futura com calendários externos
 
 Possíveis integrações:

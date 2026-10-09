@@ -9308,3 +9308,605 @@ h2 {
     gap: 4px;
   }
 }
+
+/* Comunicação por voz */
+.voice-page {
+  width: min(1180px, 100%);
+  margin-inline: auto;
+}
+
+.voice-page-heading {
+  align-items: center;
+}
+
+.communication-tabs {
+  flex: 0 0 auto;
+}
+
+.voice-hub {
+  display: grid;
+  gap: 18px;
+}
+
+.voice-setup-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 65%, var(--border));
+  border-radius: 18px;
+  padding: 16px 18px;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--accent) 13%, var(--surface));
+}
+
+.voice-setup-notice > span {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font-size: 1.25rem;
+}
+
+.voice-setup-notice p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.voice-setup-notice code {
+  overflow-wrap: anywhere;
+  color: var(--primary-dark);
+  font-size: 0.82em;
+  font-weight: 800;
+}
+
+.voice-global-error {
+  margin: 0;
+}
+
+.voice-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1.42fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.voice-channel-browser,
+.voice-room-panel,
+.voice-welcome {
+  min-width: 0;
+}
+
+.voice-channel-browser .card-header,
+.voice-room-header {
+  align-items: flex-start;
+}
+
+.voice-channel-browser h2,
+.voice-room-panel h2,
+.voice-welcome h2 {
+  margin: 4px 0 0;
+}
+
+.voice-private-badge {
+  border: 1px solid var(--primary-border);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--primary-tone-foreground);
+  background: var(--primary-tone);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.voice-channel-list,
+.voice-participant-list,
+.voice-feature-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.voice-channel-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.voice-channel {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 12px;
+  background: var(--surface-soft);
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.voice-channel:hover,
+.voice-channel.active {
+  border-color: var(--primary-border-strong);
+  background: var(--primary-surface);
+  transform: translateY(-1px);
+}
+
+.voice-channel-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  font-size: 0.85rem;
+  font-weight: 900;
+}
+
+.voice-channel-copy {
+  min-width: 0;
+}
+
+.voice-channel-copy strong,
+.voice-channel-copy p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-channel-copy p {
+  margin: 3px 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.voice-channel-copy span {
+  color: var(--primary-tone-foreground);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.voice-channel-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-channel-actions .button {
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.voice-delete-channel {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.3rem;
+}
+
+.voice-delete-channel:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.voice-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  padding: 30px 18px;
+  text-align: center;
+}
+
+.voice-empty-state > span {
+  font-size: 2rem;
+}
+
+.voice-empty-state p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.voice-create-details {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.voice-create-details > summary {
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.voice-create-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.voice-create-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.voice-create-form .button {
+  justify-self: start;
+}
+
+.voice-welcome {
+  position: relative;
+  display: grid;
+  align-content: center;
+  min-height: 450px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 88% 12%, rgb(var(--accent-rgb) / 20%), transparent 36%),
+    linear-gradient(145deg, var(--surface), var(--primary-surface));
+}
+
+.voice-welcome::after {
+  position: absolute;
+  right: -70px;
+  bottom: -100px;
+  width: 280px;
+  height: 280px;
+  border: 42px solid rgb(var(--primary-rgb) / 8%);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.voice-welcome > div:not(.voice-wave),
+.voice-feature-list {
+  position: relative;
+  z-index: 1;
+}
+
+.voice-welcome p {
+  max-width: 560px;
+  color: var(--muted);
+}
+
+.voice-wave {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 78px;
+  margin-bottom: 20px;
+}
+
+.voice-wave i {
+  width: 8px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(var(--primary-end), var(--primary));
+  animation: voice-wave 1.2s ease-in-out infinite alternate;
+}
+
+.voice-wave i:nth-child(2),
+.voice-wave i:nth-child(6) {
+  height: 48px;
+  animation-delay: -0.35s;
+}
+
+.voice-wave i:nth-child(3),
+.voice-wave i:nth-child(5) {
+  height: 66px;
+  animation-delay: -0.7s;
+}
+
+.voice-wave i:nth-child(4) {
+  height: 78px;
+  animation-delay: -1s;
+}
+
+.voice-feature-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.voice-feature-list li {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.voice-feature-list span {
+  font-size: 1.25rem;
+}
+
+.voice-room-panel {
+  display: grid;
+  gap: 20px;
+  min-height: 450px;
+}
+
+.voice-room-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.voice-room-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.voice-connection-state {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.voice-connection-state i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.voice-connection-state.state-connected {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+}
+
+.voice-connection-state.state-reconnecting,
+.voice-connection-state.state-connecting {
+  color: #a15d00;
+}
+
+.voice-start-audio {
+  justify-self: start;
+}
+
+.voice-participant-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+}
+
+.voice-participant {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 12px;
+  background: var(--surface-soft);
+}
+
+.voice-participant.speaking {
+  border-color: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent);
+}
+
+.voice-avatar-wrap {
+  position: relative;
+}
+
+.voice-speaking-ring {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.voice-participant.speaking .voice-speaking-ring {
+  border-color: var(--success);
+}
+
+.voice-participant > div:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.voice-participant strong,
+.voice-participant > div:nth-child(2) span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-participant > div:nth-child(2) span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.voice-mic-state {
+  color: var(--primary);
+  font-size: 0.78rem;
+}
+
+.voice-room-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.voice-controls {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.voice-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 12px;
+  color: var(--foreground);
+  background: var(--surface-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.voice-control:hover:not(:disabled),
+.voice-control.active {
+  border-color: var(--primary-border-strong);
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+}
+
+.voice-control.danger {
+  margin-left: auto;
+  color: var(--danger);
+}
+
+.voice-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.voice-device-menu + .lk-device-menu,
+.lk-device-menu {
+  z-index: 1000;
+  display: grid;
+  min-width: 230px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 10px;
+  background: var(--surface);
+  box-shadow: 0 18px 45px rgb(var(--shadow-rgb) / 24%);
+}
+
+.lk-device-menu select {
+  width: 100%;
+}
+
+@keyframes voice-wave {
+  from {
+    transform: scaleY(0.55);
+    opacity: 0.62;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .voice-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .voice-welcome,
+  .voice-room-panel {
+    min-height: 380px;
+  }
+}
+
+@media (max-width: 650px) {
+  .voice-page-heading {
+    align-items: stretch;
+  }
+
+  .communication-tabs {
+    width: 100%;
+  }
+
+  .communication-tabs a {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .voice-setup-notice {
+    padding: 14px;
+  }
+
+  .voice-channel {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .voice-channel-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .voice-channel-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .voice-channel-actions .button {
+    flex: 1;
+  }
+
+  .voice-participant-list,
+  .voice-feature-list {
+    grid-template-columns: 1fr;
+  }
+
+  .voice-room-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .voice-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .voice-control,
+  .voice-control.danger {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-wave i {
+    animation: none;
+  }
+
+  .voice-channel {
+    transition: none;
+  }
+}

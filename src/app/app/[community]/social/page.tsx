@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { CommunicationTabs } from "@/features/social/communication-tabs";
 import { SocialFeed } from "@/features/social/social-feed";
 import { requirePageUser } from "@/lib/auth/page-session";
 import { socialPageSchema } from "@/lib/validation/social";
@@ -36,6 +37,7 @@ export default async function SocialPage({
                 comunicados importantes.
               </p>
             </div>
+            <CommunicationTabs community={slug} current="feed" />
           </div>
           <SocialFeed
             announcementEmailAvailable={feed.announcementEmailAvailable}

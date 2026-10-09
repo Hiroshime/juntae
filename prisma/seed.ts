@@ -87,6 +87,19 @@ async function main() {
     });
   }
 
+  await prisma.voiceChannel.upsert({
+    where: { communityId_nameKey: { communityId: community.id, nameKey: "geral" } },
+    update: {},
+    create: {
+      communityId: community.id,
+      createdById: owner.id,
+      name: "Geral",
+      nameKey: "geral",
+      description: "Sala principal da comunidade.",
+      maxParticipants: 12,
+    },
+  });
+
   await prisma.scheduleRule.deleteMany({ where: { communityId: community.id } });
   await prisma.availabilityOverride.deleteMany({ where: { communityId: community.id } });
   await prisma.eventRsvp.deleteMany({ where: { event: { communityId: community.id } } });

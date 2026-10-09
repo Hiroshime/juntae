@@ -48,6 +48,16 @@ export async function createCommunity(userId: string, input: CreateCommunityInpu
     await tx.communityMember.create({
       data: { communityId: community.id, userId, role: "OWNER" },
     });
+    await tx.voiceChannel.create({
+      data: {
+        communityId: community.id,
+        createdById: userId,
+        name: "Geral",
+        nameKey: "geral",
+        description: "Sala principal da comunidade.",
+        maxParticipants: 12,
+      },
+    });
     return community;
   });
 }

@@ -72,6 +72,11 @@ describe.sequential("phase one services", () => {
       where: { communityId_userId: { communityId, userId: ownerId } },
     });
     expect(membership?.role).toBe("OWNER");
+    await expect(
+      prisma.voiceChannel.findUnique({
+        where: { communityId_nameKey: { communityId, nameKey: "geral" } },
+      }),
+    ).resolves.toMatchObject({ name: "Geral", maxParticipants: 12 });
   });
 
   it("aceita convite válido uma única vez e incrementa seu uso", async () => {

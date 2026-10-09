@@ -1,6 +1,6 @@
 # Juntaê
 
-Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis, rateios de despesas, comunicação social, e-mail segregado por comunidade e minigames com rankings.
+Juntaê é um hub privado para comunidades de amigos. A primeira versão conecta disponibilidade, escalas, eventos e votações para responder rapidamente: **quando estamos livres e o que podemos fazer juntos?** Os módulos pós-MVP adicionam sorteios reutilizáveis, rateios de despesas, comunicação social, salas de voz privadas, e-mail segregado por comunidade e minigames com rankings.
 
 O MVP descrito no `PRODUCT_SPEC.md` está implementado. Já é possível configurar escalas, comparar o calendário consolidado, organizar eventos, decidir opções ou datas em grupo e conversar em um feed privado com textos, imagens, vídeos, comentários e reações. Comunicados administrativos aceitam formatação segura e podem ser enviados aos membros pelo SMTP próprio da comunidade. Novas contas entram somente por convite de uma comunidade; qualquer usuário cadastrado pode criar novas comunidades.
 
@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.19.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.20.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.19.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.19.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.19.0` também publica automaticamente as tags `0.19.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.20.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.20.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.20.0` também publica automaticamente as tags `0.20.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -114,6 +114,12 @@ Edite `.env.zima`:
 - `EMAIL_CREDENTIALS_ENCRYPTION_KEY`: quarto valor, usado para cifrar as senhas SMTP de cada comunidade;
 - `APP_URL`: URL exata usada no navegador, como `http://192.168.1.50:3080` ou um domínio HTTPS;
 - `JUNTAE_DATA_PATH`: diretório persistente do ZimaOS, por padrão `/DATA/AppData/juntae`.
+
+Para habilitar **Comunicação → Voz**, suba um servidor LiveKit separado e informe `LIVEKIT_URL`,
+`LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET`. A URL precisa ser pública e acessível pelo navegador, como
+`wss://voz.seudominio.com`. O Compose do Juntaê não inclui o servidor de mídia: isso mantém banco e
+app isolados e permite atualizar o LiveKit sem interromper o restante do sistema. Sem essas três
+variáveis, a interface de canais permanece disponível, mas o botão de entrada fica desabilitado.
 
 Para habilitar **Esqueci minha senha**, configure também as seis variáveis
 `PASSWORD_RESET_SMTP_*`/`PASSWORD_RESET_FROM_*` do arquivo. No Gmail, use `smtp.gmail.com`, porta
@@ -147,7 +153,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.19.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.20.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -196,6 +202,9 @@ Copie `.env.example` para `.env`. Não comite `.env` nem valores reais.
 | `PASSWORD_RESET_SMTP_PASSWORD`     | senha SMTP/senha de aplicativo da instalação                           |
 | `PASSWORD_RESET_FROM_NAME`         | nome exibido no remetente, por exemplo `Juntaê`                        |
 | `PASSWORD_RESET_FROM_EMAIL`        | endereço exibido no remetente                                          |
+| `LIVEKIT_URL`                      | endpoint público `wss://` do servidor de voz LiveKit                   |
+| `LIVEKIT_API_KEY`                  | chave server-side do LiveKit; configure junto das outras duas          |
+| `LIVEKIT_API_SECRET`               | segredo server-side do LiveKit, nunca exposto ao navegador             |
 
 ## Arquitetura
 
@@ -212,7 +221,7 @@ O projeto usa um monólito modular full-stack:
 
 O núcleo modela usuários, tokens de recuperação armazenados somente como hash, comunidades,
 memberships, convites, escalas, overrides, feriados, eventos, RSVP, votações, opções, votos,
-snapshots de sorteios, rateios de despesas, salas e partidas de jogos. Timestamps são armazenados em
+snapshots de sorteios, rateios de despesas, canais de voz, salas e partidas de jogos. Timestamps são armazenados em
 UTC; datas civis de escala, feriados, compras e opções de data usam `DATE` no PostgreSQL. O timezone
 inicial é explícito e configurável.
 
@@ -590,6 +599,24 @@ tabelas do módulo e é aplicada automaticamente no fluxo Docker ou por `npm run
 O dashboard destaca uma conversa recente com maior interação. Esta seleção é apenas organizacional:
 não torna a publicação pública nem altera quem pode acessá-la.
 
+### Salas de voz
+
+A aba **Comunicação → Voz** lista canais permanentes da comunidade e a presença atual. Todos os
+membros podem entrar; owners e administradores criam e removem canais. Cada conexão recebe no servidor
+um token curto, restrito à sala solicitada e à publicação de áudio do microfone. A chamada inicia com
+o microfone desligado e oferece seleção do dispositivo, silenciamento do próprio microfone, áudio de
+saída e indicação de quem está falando. O Juntaê não grava nem persiste o áudio.
+
+O transporte de mídia é feito por uma instalação LiveKit separada. Configure nela certificado TLS,
+DNS e as portas recomendadas pelo LiveKit; em seguida, copie a mesma chave/segredo para as variáveis do
+container Juntaê. Para uso pela internet, `LIVEKIT_URL` deve apontar para o endereço público `wss://`,
+e não para um nome interno do Docker. Se usar Cloudflare para o site, confira separadamente os requisitos
+de WebRTC/UDP do LiveKit; um túnel HTTP comum não substitui a exposição das portas de mídia.
+
+A migration `0038_voice_channels` cria os canais e adiciona **Geral** às comunidades existentes.
+Novas comunidades já recebem esse canal automaticamente. A presença é consultada no LiveKit, mas uma
+indisponibilidade temporária do serviço de voz não impede o uso do restante da comunidade.
+
 ## Desafios (Beta) — fases 1, 2 e 3 de 4
 
 Acesse **Desafios (Beta)** no menu da comunidade (no celular: **Mais → Desafios (Beta)**).
@@ -676,6 +703,7 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 - Prisma para acesso fortemente tipado ao PostgreSQL e migrations versionadas;
 - Zod para validar entradas externas;
 - `jose` + `bcryptjs` para a fundação de autenticação sem duplicar dados de usuário;
+- LiveKit externo para transporte WebRTC, com tokens curtos e restritos emitidos pelo backend;
 - Vitest para regras de domínio e Playwright com axe-core para fluxos E2E e acessibilidade;
 - Playwright usa porta `3100` e `.next-e2e`, evitando reutilizar ou alterar o servidor de desenvolvimento aberto;
 - tokens CSS compartilhados para cores, superfícies, foco, responsividade e estados, sem adicionar uma dependência de design system;
@@ -683,4 +711,4 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Escopo posterior ao MVP
 
-Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, SMTP por comunidade, recuperação de senha e Games já estão implementados. Notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, salas de voz, SMTP por comunidade, recuperação de senha e Games já estão implementados. Notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

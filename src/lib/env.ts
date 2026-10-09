@@ -12,6 +12,8 @@ const passwordResetEmailKeys = [
   "PASSWORD_RESET_FROM_EMAIL",
 ] as const;
 
+const liveKitKeys = ["LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"] as const;
+
 const envSchema = z
   .object({
     DATABASE_URL: z.string().min(1),
@@ -29,6 +31,16 @@ const envSchema = z
     PASSWORD_RESET_SMTP_PASSWORD: optionalString(z.string().min(1)),
     PASSWORD_RESET_FROM_NAME: optionalString(z.string().trim().min(1).max(100)),
     PASSWORD_RESET_FROM_EMAIL: optionalString(z.string().trim().toLowerCase().email()),
+    LIVEKIT_URL: optionalString(
+      z
+        .string()
+        .url()
+        .refine((url) => ["ws:", "wss:"].includes(new URL(url).protocol), {
+          message: "LIVEKIT_URL deve usar ws:// ou wss://.",
+        }),
+    ),
+    LIVEKIT_API_KEY: optionalString(z.string().trim().min(1)),
+    LIVEKIT_API_SECRET: optionalString(z.string().min(16)),
   })
   .superRefine((value, context) => {
     const configured = passwordResetEmailKeys.filter((key) => value[key] !== undefined);
@@ -37,6 +49,13 @@ const envSchema = z
         code: "custom",
         message: "Configure todas as variáveis PASSWORD_RESET_SMTP_* e PASSWORD_RESET_FROM_*.",
         path: [configured.length ? configured[0] : "PASSWORD_RESET_SMTP_HOST"],
+      });
+    const liveKitConfigured = liveKitKeys.filter((key) => value[key] !== undefined);
+    if (liveKitConfigured.length > 0 && liveKitConfigured.length < liveKitKeys.length)
+      context.addIssue({
+        code: "custom",
+        message: "Configure LIVEKIT_URL, LIVEKIT_API_KEY e LIVEKIT_API_SECRET em conjunto.",
+        path: [liveKitConfigured.length ? liveKitConfigured[0] : "LIVEKIT_URL"],
       });
   });
 
@@ -56,6 +75,9 @@ export function getEnv(): AppEnv {
     PASSWORD_RESET_SMTP_PASSWORD: process.env.PASSWORD_RESET_SMTP_PASSWORD,
     PASSWORD_RESET_FROM_NAME: process.env.PASSWORD_RESET_FROM_NAME,
     PASSWORD_RESET_FROM_EMAIL: process.env.PASSWORD_RESET_FROM_EMAIL,
+    LIVEKIT_URL: process.env.LIVEKIT_URL,
+    LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY,
+    LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET,
   });
 }
 
@@ -80,5 +102,21 @@ export function getPasswordResetEmailConfig(): PasswordResetEmailConfig | null {
     password: env.PASSWORD_RESET_SMTP_PASSWORD!,
     fromName: env.PASSWORD_RESET_FROM_NAME!,
     fromEmail: env.PASSWORD_RESET_FROM_EMAIL!,
+  };
+}
+
+export type LiveKitConfig = {
+  url: string;
+  apiKey: string;
+  apiSecret: string;
+};
+
+export function getLiveKitConfig(): LiveKitConfig | null {
+  const env = getEnv();
+  if (!env.LIVEKIT_URL) return null;
+  return {
+    url: env.LIVEKIT_URL,
+    apiKey: env.LIVEKIT_API_KEY!,
+    apiSecret: env.LIVEKIT_API_SECRET!,
   };
 }
