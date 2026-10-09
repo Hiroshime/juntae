@@ -7,8 +7,9 @@ DNS da Cloudflare. Assim, o Caddy emite e renova certificados pelo desafio DNS-0
 
 ## Publicação
 
-A imagem é publicada manualmente pelo workflow **Publicar Caddy do LiveKit**. No GitHub, abra
-**Actions**, escolha o workflow, selecione **Run workflow** e informe uma versão, como `1.0.0`.
+A imagem é publicada pelo workflow **Publicar Caddy do LiveKit**. No GitHub, abra **Actions**, escolha
+o workflow, selecione **Run workflow** e informe uma versão, como `1.0.0`. Alternativamente, envie uma
+tag exclusiva no formato `livekit-caddy-v1.0.0`; ela não aciona a publicação da aplicação Juntaê.
 
 O workflow publica as arquiteturas `linux/amd64` e `linux/arm64` como:
 
