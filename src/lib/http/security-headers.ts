@@ -39,7 +39,7 @@ export function securityHeaders(options: SecurityHeaderOptions = {}) {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
-    "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
+    "Permissions-Policy": "camera=(), microphone=(self), display-capture=(self), geolocation=()",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   } as const;

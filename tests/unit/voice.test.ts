@@ -70,7 +70,7 @@ describe("salas de voz", () => {
     });
   });
 
-  it("emite token curto, vinculado à sala e limitado ao microfone", async () => {
+  it("emite token curto, vinculado à sala e limitado a voz e apresentação", async () => {
     const config = {
       url: "wss://voice.example.com",
       apiKey: "test-api-key",
@@ -93,7 +93,7 @@ describe("salas de voz", () => {
       canPublish: true,
       canSubscribe: true,
       canPublishData: false,
-      canPublishSources: ["microphone"],
+      canPublishSources: ["microphone", "screen_share", "screen_share_audio"],
     });
     const now = Math.floor(Date.now() / 1_000);
     expect(claims.exp).toBeGreaterThanOrEqual(now + 295);

@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.20.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.21.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.20.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.20.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.20.0` também publica automaticamente as tags `0.20.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.21.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.21.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.21.0` também publica automaticamente as tags `0.21.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -153,7 +153,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.20.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.21.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -603,9 +603,11 @@ não torna a publicação pública nem altera quem pode acessá-la.
 
 A aba **Comunicação → Voz** lista canais permanentes da comunidade e a presença atual. Todos os
 membros podem entrar; owners e administradores criam e removem canais. Cada conexão recebe no servidor
-um token curto, restrito à sala solicitada e à publicação de áudio do microfone. A chamada inicia com
-o microfone desligado e oferece seleção do dispositivo, silenciamento do próprio microfone, áudio de
-saída e indicação de quem está falando. O Juntaê não grava nem persiste o áudio.
+um token curto, restrito à sala solicitada e à publicação do microfone, tela e áudio opcional da tela.
+A chamada inicia com o microfone desligado e oferece seleção do dispositivo, silenciamento do próprio
+microfone, áudio de saída e indicação de quem está falando. Uma pessoa por vez pode apresentar uma
+tela, janela ou aba pelo seletor seguro do navegador, com visualização ampliada e tela cheia. Câmera
+continua bloqueada e o Juntaê não grava nem persiste áudio ou imagem.
 
 O transporte de mídia é feito por uma instalação LiveKit separada. Configure nela certificado TLS,
 DNS e as portas recomendadas pelo LiveKit; em seguida, copie a mesma chave/segredo para as variáveis do

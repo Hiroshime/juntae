@@ -89,6 +89,22 @@ LIVEKIT_URL=wss://voz.juntae.chamelissa.site:8032
 
 `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` continuam iguais aos definidos no servidor LiveKit.
 
+## Compartilhamento de tela
+
+O compartilhamento de tela da versão `0.21.0` utiliza as mesmas salas, sinalização WebSocket,
+portas WebRTC e TURN já usadas pelas chamadas de voz. Não é necessário adicionar serviço, volume,
+porta ou variável ao pacote LiveKit. Mantenha:
+
+- o endpoint público `wss://voz.juntae.chamelissa.site:8032` acessível pelo navegador;
+- as portas de mídia e fallback existentes encaminhadas para o ZimaOS;
+- `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` idênticos no LiveKit e no container Juntaê;
+- o site Juntaê publicado por HTTPS, requisito dos navegadores para captura de tela;
+- capacidade de upload suficiente para o apresentador, especialmente ao compartilhar vídeo.
+
+O seletor de tela, janela ou aba é fornecido pelo próprio navegador. O áudio da apresentação depende
+do navegador, sistema operacional e origem escolhida; em geral, compartilhar uma aba com áudio oferece
+maior compatibilidade. O Juntaê não solicita câmera, grava ou armazena a apresentação.
+
 ## Validação
 
 Nos logs do Caddy, procure por `certificate obtained successfully`. Dentro do container, confirme

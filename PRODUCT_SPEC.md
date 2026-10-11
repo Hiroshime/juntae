@@ -3201,9 +3201,13 @@ nem persiste áudio e não inclui o servidor de mídia no Compose principal.
   responsivo, foco visível, rótulos acessíveis e redução de movimento.
 - Entrar sempre com microfone desligado. Permitir ligar/desligar microfone, silenciar a reprodução,
   selecionar dispositivo de entrada, sair e identificar quem está falando. Não solicitar câmera.
+  Permitir que um participante por vez compartilhe uma tela, janela ou aba pelo seletor nativo do
+  navegador, com áudio da apresentação quando houver suporte. Exibir a apresentação em destaque,
+  oferecer tela cheia e encerrar a publicação quando o usuário parar pelo navegador ou sair da sala.
 - O backend cria tokens LiveKit de cinco minutos vinculados ao `user_id`, nome comunitário e uma
-  única sala. O grant aceita somente assinatura, publicação do microfone e subscrição; proibir data
-  channel e outras fontes. API key e secret jamais chegam ao cliente.
+  única sala. O grant aceita somente assinatura, publicação do microfone, tela, áudio opcional da
+  tela e subscrição; proibir câmera, data channel e outras fontes. API key e secret jamais chegam
+  ao cliente.
 - `LIVEKIT_URL`, `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` são opcionais, mas devem ser
   configuradas em conjunto. Sem elas, mostrar orientação e desabilitar entrada sem quebrar o feed.
   A URL `ws://`/`wss://` precisa ser acessível ao navegador; produção deve usar `wss://`.
@@ -3215,8 +3219,8 @@ nem persiste áudio e não inclui o servidor de mídia no Compose principal.
 - O servidor LiveKit, certificado, DNS, TURN e portas de mídia são responsabilidade da implantação e
   devem poder evoluir separadamente. Uma falha de voz não pode indisponibilizar outros módulos.
 - Aceite: testar normalização/limites, permissões e isolamento comunitário, grants do token, ambiente
-  parcial, criação/remoção, canal padrão e estados sem configuração; validar tipos, lint, testes, build
-  e experiência mobile/acessível.
+  parcial, criação/remoção, canal padrão, estados sem configuração e compartilhamento de tela limitado
+  a uma apresentação visível por vez; validar tipos, lint, testes, build e experiência mobile/acessível.
 
 ---
 

@@ -5,14 +5,16 @@ import {
   MediaDeviceMenu,
   RoomAudioRenderer,
   StartAudio,
+  VideoTrack,
   useConnectionState,
   useIsSpeaking,
   useLocalParticipant,
   useParticipantInfo,
   useParticipants,
   useRoomContext,
+  useTracks,
 } from "@livekit/components-react";
-import { ConnectionState, LocalAudioTrack, type Participant } from "livekit-client";
+import { ConnectionState, LocalAudioTrack, Track, type Participant } from "livekit-client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import {
@@ -39,6 +41,7 @@ function ParticipantCard({ participant }: { participant: Participant }) {
   const { identity, name, metadata } = useParticipantInfo({ participant });
   const profile = parseVoiceParticipantMetadata(metadata);
   const displayName = name || identity || "Participante";
+  const sharingScreen = participant.isScreenShareEnabled;
   return (
     <li className={`voice-participant${speaking ? " speaking" : ""}`}>
       <div className="voice-avatar-wrap">
@@ -50,6 +53,7 @@ function ParticipantCard({ participant }: { participant: Participant }) {
         <span>
           {participant.isLocal ? "Você" : speaking ? "Falando agora" : "Na sala"}
           {!participant.isMicrophoneEnabled ? " · microfone desligado" : ""}
+          {sharingScreen ? " · compartilhando tela" : ""}
         </span>
       </div>
       <span
@@ -72,10 +76,28 @@ function VoiceRoom({
   const room = useRoomContext();
   const participants = useParticipants();
   const connection = useConnectionState();
-  const { isMicrophoneEnabled, localParticipant, microphoneTrack } = useLocalParticipant();
+  const { isMicrophoneEnabled, isScreenShareEnabled, localParticipant, microphoneTrack } =
+    useLocalParticipant();
+  const screenShareTracks = useTracks([Track.Source.ScreenShare]).filter(
+    ({ publication }) => !publication.isMuted,
+  );
+  const activeScreenShare =
+    screenShareTracks.find(
+      ({ participant }) => participant.identity === localParticipant.identity,
+    ) ?? screenShareTracks[0];
+  const remotePresenter =
+    activeScreenShare !== undefined &&
+    activeScreenShare.participant.identity !== localParticipant.identity;
+  const presenterName = activeScreenShare
+    ? activeScreenShare.participant.name || activeScreenShare.participant.identity || "Participante"
+    : null;
   const [deafened, setDeafened] = useState(false);
   const [changingMicrophone, setChangingMicrophone] = useState(false);
+  const [changingScreenShare, setChangingScreenShare] = useState(false);
   const [controlError, setControlError] = useState("");
+  const screenStageRef = useRef<HTMLDivElement>(null);
+  const screenShareSupported =
+    typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getDisplayMedia);
   const localMicrophoneTrack =
     microphoneTrack?.track instanceof LocalAudioTrack ? microphoneTrack.track : undefined;
 
@@ -102,6 +124,55 @@ function VoiceRoom({
     }
   }
 
+  async function toggleScreenShare() {
+    if (!screenShareSupported) {
+      setControlError("Este navegador não oferece compartilhamento de tela.");
+      return;
+    }
+    if (!isScreenShareEnabled && remotePresenter) {
+      setControlError(`${presenterName ?? "Outra pessoa"} já está compartilhando a tela.`);
+      return;
+    }
+
+    setChangingScreenShare(true);
+    setControlError("");
+    try {
+      await localParticipant.setScreenShareEnabled(
+        !isScreenShareEnabled,
+        isScreenShareEnabled
+          ? undefined
+          : {
+              audio: true,
+              video: true,
+              selfBrowserSurface: "exclude",
+              surfaceSwitching: "include",
+              systemAudio: "include",
+              contentHint: "detail",
+            },
+      );
+    } catch (error) {
+      const cancelled =
+        error instanceof DOMException &&
+        (error.name === "NotAllowedError" || error.name === "AbortError");
+      setControlError(
+        cancelled
+          ? "O compartilhamento foi cancelado ou não recebeu permissão."
+          : "Não foi possível compartilhar a tela. Confira as permissões do navegador.",
+      );
+    } finally {
+      setChangingScreenShare(false);
+    }
+  }
+
+  async function openScreenShareFullscreen() {
+    setControlError("");
+    try {
+      await screenStageRef.current?.requestFullscreen();
+    } catch {
+      setControlError("Não foi possível abrir a apresentação em tela cheia.");
+    }
+  }
+
   return (
     <section className="card voice-room-panel" aria-labelledby="active-voice-room">
       <RoomAudioRenderer muted={deafened} />
@@ -120,6 +191,31 @@ function VoiceRoom({
         className="button secondary voice-start-audio"
         label="Permitir reprodução de áudio"
       />
+
+      {activeScreenShare && (
+        <section className="voice-screen-share" aria-labelledby="voice-screen-share-title">
+          <div className="voice-screen-share-header">
+            <div>
+              <span>Apresentação ao vivo</span>
+              <strong id="voice-screen-share-title">
+                {activeScreenShare.participant.identity === localParticipant.identity
+                  ? "Sua tela"
+                  : `Tela de ${presenterName}`}
+              </strong>
+            </div>
+            <button
+              className="button secondary small"
+              onClick={() => void openScreenShareFullscreen()}
+              type="button"
+            >
+              <span aria-hidden="true">⛶</span> Tela cheia
+            </button>
+          </div>
+          <div className="voice-screen-share-stage" ref={screenStageRef}>
+            <VideoTrack playsInline trackRef={activeScreenShare} />
+          </div>
+        </section>
+      )}
 
       <ul className="voice-participant-list" aria-label="Pessoas conectadas">
         {participants.map((participant) => (
@@ -168,6 +264,33 @@ function VoiceRoom({
         >
           <span aria-hidden="true">⚙</span> Microfone
         </MediaDeviceMenu>
+        <button
+          aria-pressed={isScreenShareEnabled}
+          className={`voice-control${isScreenShareEnabled ? " active" : ""}`}
+          disabled={
+            changingScreenShare ||
+            connection !== ConnectionState.Connected ||
+            (!isScreenShareEnabled && (remotePresenter || !screenShareSupported))
+          }
+          onClick={() => void toggleScreenShare()}
+          title={
+            !screenShareSupported
+              ? "Seu navegador não oferece compartilhamento de tela"
+              : remotePresenter
+                ? `${presenterName ?? "Outra pessoa"} já está compartilhando`
+                : undefined
+          }
+          type="button"
+        >
+          <span aria-hidden="true">{isScreenShareEnabled ? "⏹" : "🖥"}</span>
+          {changingScreenShare
+            ? "Aguarde…"
+            : isScreenShareEnabled
+              ? "Parar compartilhamento"
+              : remotePresenter
+                ? "Tela em uso"
+                : "Compartilhar tela"}
+        </button>
         <button
           className="voice-control danger"
           onClick={() => void room.disconnect().finally(onLeave)}
@@ -450,7 +573,8 @@ export function VoiceHub({
               <div className="eyebrow">Conversa ao vivo</div>
               <h2 id="voice-welcome-title">Entre, fale e fique à vontade</h2>
               <p>
-                Escolha uma sala. Você entra com o microfone desligado e decide quando quer falar.
+                Escolha uma sala. Você entra com o microfone desligado e decide quando quer falar ou
+                apresentar uma tela.
               </p>
             </div>
             <ul className="voice-feature-list">
@@ -462,6 +586,9 @@ export function VoiceHub({
               </li>
               <li>
                 <span aria-hidden="true">〽</span> Indicador de quem está falando
+              </li>
+              <li>
+                <span aria-hidden="true">🖥</span> Compartilhamento de tela, janela ou aba
               </li>
             </ul>
           </section>

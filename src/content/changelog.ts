@@ -10,6 +10,20 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.21.0",
+    releasedAt: "2026-10-11",
+    title: "Apresentações nas salas de voz",
+    summary:
+      "As conversas ao vivo agora também permitem apresentar uma tela, janela ou aba para a comunidade.",
+    highlights: [
+      "Compartilhe uma tela, janela ou aba usando o seletor seguro do navegador.",
+      "Inclua o áudio da apresentação quando o navegador e o conteúdo escolhido oferecerem suporte.",
+      "Acompanhe a apresentação em destaque ou abra o conteúdo em tela cheia.",
+      "Uma pessoa apresenta por vez, e a sala identifica claramente quem está compartilhando.",
+      "Câmera e gravação continuam desativadas para preservar a privacidade da comunidade.",
+    ],
+  },
+  {
     version: "0.20.0",
     releasedAt: "2026-10-09",
     title: "Salas de voz da comunidade",

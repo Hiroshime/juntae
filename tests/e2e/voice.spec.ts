@@ -62,6 +62,7 @@ test("organiza canais e orienta a configuração antes do LiveKit", async ({ pag
   await expect(page.getByRole("heading", { name: "Salas de voz" })).toBeVisible();
   await expect(page.getByText("Servidor de voz aguardando configuração")).toBeVisible();
   await expect(page.getByText("Geral", { exact: true })).toBeVisible();
+  await expect(page.getByText("Compartilhamento de tela, janela ou aba")).toBeVisible();
   await expect(page.getByRole("button", { name: "Entrar" }).first()).toBeDisabled();
 
   await page.getByText("Adicionar sala de voz").click();

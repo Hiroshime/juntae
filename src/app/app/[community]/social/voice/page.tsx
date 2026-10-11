@@ -25,7 +25,7 @@ export default async function VoicePage({ params }: { params: Promise<{ communit
               <div className="eyebrow">Comunicação da comunidade</div>
               <h1>Salas de voz</h1>
               <p className="lead">
-                Encontre a turma em conversas privadas e ao vivo, sem sair do Juntaê.
+                Converse e compartilhe sua tela ao vivo com a turma, sem sair do Juntaê.
               </p>
             </div>
             <CommunicationTabs community={slug} current="voice" />

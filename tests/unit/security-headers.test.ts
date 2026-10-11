@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { securityHeaders } from "@/lib/http/security-headers";
 
 describe("headers de segurança", () => {
-  it("libera somente a origem LiveKit configurada e o microfone da própria página", () => {
+  it("libera somente a origem LiveKit, microfone e captura da própria página", () => {
     const headers = securityHeaders({
       nodeEnv: "production",
       liveKitUrl: "wss://voz.example.com:7443/rtc?ignored=true",
@@ -14,7 +14,9 @@ describe("headers de segurança", () => {
       .split("; ")
       .find((directive) => directive.startsWith("connect-src"));
     expect(connectDirective).toBe("connect-src 'self' wss://voz.example.com:7443");
-    expect(headers["Permissions-Policy"]).toBe("camera=(), microphone=(self), geolocation=()");
+    expect(headers["Permissions-Policy"]).toBe(
+      "camera=(), microphone=(self), display-capture=(self), geolocation=()",
+    );
   });
 
   it("não amplia a política quando a URL está ausente ou inválida", () => {

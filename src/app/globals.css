@@ -9621,7 +9621,7 @@ h2 {
 
 .voice-feature-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 28px;
 }
@@ -9691,6 +9691,68 @@ h2 {
 
 .voice-start-audio {
   justify-self: start;
+}
+
+.voice-screen-share {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--primary-border);
+  border-radius: 16px;
+  padding: 12px;
+  background: var(--primary-surface);
+}
+
+.voice-screen-share-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.voice-screen-share-header > div {
+  display: grid;
+  min-width: 0;
+}
+
+.voice-screen-share-header span {
+  color: var(--primary-tone-foreground);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.voice-screen-share-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-screen-share-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 12px;
+  aspect-ratio: 16 / 9;
+  background: #080b12;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+}
+
+.voice-screen-share-stage:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  background: #000;
+}
+
+.voice-screen-share-stage video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #080b12;
 }
 
 .voice-participant-list {
@@ -9887,6 +9949,19 @@ h2 {
   .voice-room-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .voice-screen-share-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .voice-screen-share-header .button {
+    width: 100%;
+  }
+
+  .voice-screen-share-stage {
+    min-height: 180px;
   }
 
   .voice-controls {
