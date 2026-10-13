@@ -111,6 +111,8 @@ async function main() {
   await prisma.bellHopRun.deleteMany({ where: { communityId: community.id } });
   await prisma.towerStackRun.deleteMany({ where: { communityId: community.id } });
   await prisma.gameRoom.deleteMany({ where: { communityId: community.id } });
+  await prisma.communityFundEntry.deleteMany({ where: { communityId: community.id } });
+  await prisma.communityFundSettings.deleteMany({ where: { communityId: community.id } });
 
   const startDate = parseCivilDate(date(-30));
   const mondayToFriday = {
@@ -242,6 +244,70 @@ async function main() {
         });
     }
   }
+
+  await prisma.communityFundSettings.create({
+    data: {
+      communityId: community.id,
+      monthlyContributionCents: 5_000,
+      pixKey: "demo@juntae.local",
+      pixRecipientName: "Juntaê Demonstração",
+      updatedById: owner.id,
+    },
+  });
+  await prisma.communityFundEntry.createMany({
+    data: [
+      {
+        communityId: community.id,
+        userId: owner.id,
+        submittedById: owner.id,
+        reviewedById: owner.id,
+        type: "DEPOSIT",
+        status: "APPROVED",
+        amountCents: 10_000,
+        referenceMonth: parseCivilDate(`${today.slice(0, 7)}-01`),
+        effectiveDate: parseCivilDate(date(-2)),
+        note: "Contribuição mensal",
+        reviewedAt: new Date(),
+      },
+      {
+        communityId: community.id,
+        userId: users[1].id,
+        submittedById: users[1].id,
+        reviewedById: owner.id,
+        type: "DEPOSIT",
+        status: "APPROVED",
+        amountCents: 5_000,
+        referenceMonth: parseCivilDate(`${today.slice(0, 7)}-01`),
+        effectiveDate: parseCivilDate(date(-1)),
+        note: "PIX",
+        reviewedAt: new Date(),
+      },
+      {
+        communityId: community.id,
+        userId: users[2].id,
+        submittedById: users[2].id,
+        type: "DEPOSIT",
+        status: "PENDING",
+        amountCents: 5_000,
+        referenceMonth: parseCivilDate(`${today.slice(0, 7)}-01`),
+        effectiveDate: parseCivilDate(today),
+        note: "Aguardando conferência",
+      },
+      {
+        communityId: community.id,
+        userId: owner.id,
+        submittedById: owner.id,
+        reviewedById: owner.id,
+        eventId: events[0].id,
+        type: "USAGE",
+        status: "APPROVED",
+        amountCents: 2_500,
+        effectiveDate: parseCivilDate(today),
+        note: "Inscrição da corrida",
+        reviewedAt: new Date(),
+      },
+    ],
+  });
 
   const pollData = [
     {

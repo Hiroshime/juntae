@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.21.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.22.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.21.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.21.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.21.0` também publica automaticamente as tags `0.21.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.22.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.22.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.22.0` também publica automaticamente as tags `0.22.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -153,7 +153,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.21.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.22.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -384,6 +384,24 @@ controle desabilitado. No Docker, as migrations são aplicadas pelo entrypoint a
 - fechamento e reabertura autorizados, com bloqueio de alterações enquanto fechado;
 - cálculo informativo, sem processar pagamentos ou armazenar dados bancários.
 
+## Fundão da comunidade
+
+A página **Fundão** organiza contribuições mensais para passeios e atividades futuras. Cada membro
+faz o PIX fora do Juntaê e registra o valor, mês e data. O lançamento fica pendente até um owner ou
+administrador confirmar; somente depósitos confirmados aumentam o saldo.
+
+Administradores configuram uma contribuição sugerida, nome do recebedor, chave PIX, código Copia e
+Cola e uma imagem de QR Code. Esses dados são privados para membros da comunidade. O QR Code é
+convertido para WebP, tem metadados removidos e pode ter até 2 MB.
+
+O saldo pertence ao membro que depositou. Administradores podem aplicar parte dele a um evento ou
+outra atividade, sempre com finalidade e data, sem permitir saldo negativo. Aprovações, recusas, usos,
+cancelamentos e anulações permanecem no histórico. O sistema não movimenta dinheiro nem consulta o
+banco automaticamente. Em eventos com a conta aberta, o crédito aparece separadamente e reduz o
+valor pendente do membro sem ser duplicado como pagamento. Custos e abatimentos usam sinais visuais
+consistentes, e uma tentativa em conta já quitada informa o motivo no próprio formulário. A migration
+`0039_community_fund` cria o caixa e seus lançamentos.
+
 Rotas principais desta fase:
 
 - `/app`: seleção e criação de comunidades;
@@ -406,6 +424,7 @@ Rotas principais desta fase:
 - `/app/[community]/randomizers/[runId]`: snapshot permanente de um resultado salvo;
 - `/app/[community]/cost-shares`: criação e histórico de rateios;
 - `/app/[community]/cost-shares/[costShareId]`: compras, saldos e acerto final do rateio;
+- `/app/[community]/fund`: depósitos, PIX, saldos e histórico do Fundão;
 - `/app/[community]/games`: catálogo inicial, salas abertas e rankings;
 - `/app/[community]/games/[roomId]`: sala de espera e partidas de jogo da velha ou forca;
 - `/app/[community]/games/bell-hop`: arcade solo Salto dos Sinos e seus rankings;
@@ -717,4 +736,4 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Escopo posterior ao MVP
 
-Os módulos prioritários de Geradores Aleatórios, Rateios, Comunicação, salas de voz, SMTP por comunidade, recuperação de senha e Games já estão implementados. Notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.
+Os módulos prioritários de Geradores Aleatórios, Rateios, Fundão, Comunicação, salas de voz, SMTP por comunidade, recuperação de senha e Games já estão implementados. Notificações automáticas, PWA, novos jogos, Caronas, Interesses e integrações externas continuam no backlog. Consulte `PRODUCT_SPEC.md` para a fonte de verdade funcional e técnica completa.

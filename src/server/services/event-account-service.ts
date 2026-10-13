@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
+import { formatCivilDate } from "@/lib/dates/civil-date";
 import { prisma } from "@/lib/db/prisma";
 import { eventAccountActionSchema, type EventAccountAction } from "@/lib/validation/event-account";
 import { calculateEventAccount, eventAccountSummarySchema } from "@/server/domain/event-account";
 import { AppError, assertFound } from "@/server/errors";
 
-async function loadAccount(
+export async function loadEventAccount(
   tx: Prisma.TransactionClient,
   userId: string,
   communityId: string,
@@ -43,6 +44,14 @@ async function loadAccount(
             voidedBy: { select: { name: true } },
           },
         },
+        fundEntries: {
+          where: { type: "USAGE", status: "APPROVED" },
+          orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }, { id: "asc" }],
+          include: {
+            user: { select: personSelection },
+            submittedBy: { select: { name: true } },
+          },
+        },
       },
     }),
     "Evento não encontrado.",
@@ -65,6 +74,15 @@ async function loadAccount(
     voidedAt: payment.voidedAt?.toISOString() ?? null,
     voidedBy: payment.voidedBy?.name ?? null,
   }));
+  const fundCredits = event.fundEntries.map((entry) => ({
+    id: entry.id,
+    userId: entry.userId,
+    name: person(entry.user).name,
+    amountCents: Number(entry.amountCents),
+    note: entry.note,
+    effectiveDate: formatCivilDate(entry.effectiveDate),
+    recordedBy: entry.submittedBy.name,
+  }));
   const calculation = !event.paymentTrackingEnabled
     ? null
     : event.accountClosedAt
@@ -84,6 +102,7 @@ async function loadAccount(
             })),
           })),
           payments: payments.filter((payment) => !payment.voidedAt),
+          fundCredits,
         });
   return {
     enabled: event.paymentTrackingEnabled,
@@ -92,14 +111,17 @@ async function loadAccount(
     summary: calculation?.summary ?? null,
     issues: calculation?.issues ?? [],
     payments,
-    revision: createHash("sha256").update(JSON.stringify({ calculation, payments })).digest("hex"),
+    fundCredits,
+    revision: createHash("sha256")
+      .update(JSON.stringify({ calculation, payments, fundCredits }))
+      .digest("hex"),
   };
 }
 
-export type EventAccountView = Awaited<ReturnType<typeof loadAccount>>;
+export type EventAccountView = Awaited<ReturnType<typeof loadEventAccount>>;
 
 export async function getEventAccount(userId: string, communityId: string, eventId: string) {
-  return prisma.$transaction((tx) => loadAccount(tx, userId, communityId, eventId), {
+  return prisma.$transaction((tx) => loadEventAccount(tx, userId, communityId, eventId), {
     isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
   });
 }
@@ -118,7 +140,7 @@ export async function changeEventAccount(
       async (tx) => {
         // Serialize payments and closing; concurrent changes return a retryable conflict.
         await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${eventId}::uuid AND "communityId" = ${communityId}::uuid FOR UPDATE`;
-        const account = await loadAccount(tx, userId, communityId, eventId);
+        const account = await loadEventAccount(tx, userId, communityId, eventId);
         if (!account.canManage)
           throw new AppError(
             "Apenas o criador do evento ou administradores podem gerenciar pagamentos.",
@@ -145,9 +167,9 @@ export async function changeEventAccount(
         if (account.closedAt)
           throw new AppError("Reabra a conta antes de alterá-la.", 409, "ACCOUNT_CLOSED");
         if (input.action === "DISABLE") {
-          if (account.payments.length)
+          if (account.payments.length || account.fundCredits.length)
             throw new AppError(
-              "Contas com histórico de pagamentos não podem ser desabilitadas. Feche a conta para preservar o histórico.",
+              "Contas com pagamentos ou créditos do Fundão não podem ser desabilitadas. Feche a conta para preservar o histórico.",
               409,
               "ACCOUNT_HAS_PAYMENTS",
             );

@@ -3222,6 +3222,60 @@ nem persiste áudio e não inclui o servidor de mídia no Compose principal.
   parcial, criação/remoção, canal padrão, estados sem configuração e compartilhamento de tela limitado
   a uma apresentação visível por vez; validar tipos, lint, testes, build e experiência mobile/acessível.
 
+### 30.14 Fundão da comunidade
+
+O Fundão é um caixa privado da comunidade para acumular contribuições voluntárias dos membros e
+utilizá-las posteriormente em eventos, passeios ou outras atividades do grupo. Não existe integração
+bancária nem confirmação automática de PIX nesta versão.
+
+#### 30.14.1 Configuração e PIX
+
+- O módulo pertence à comunidade e usa BRL. Todos os membros podem consultar o saldo total, seu saldo,
+  seus lançamentos e os dados de pagamento; apenas `OWNER` e `ADMIN` consultam saldos individuais de
+  terceiros e administram o caixa.
+- Administradores podem definir uma contribuição mensal sugerida, nome do recebedor, chave PIX, código
+  PIX Copia e Cola e uma imagem de QR Code. A contribuição é informativa e não cria dívida nem cobrança.
+- A imagem é privada, acessível somente com sessão e membership válidas. Aceitar JPEG, PNG, WebP ou
+  AVIF com até 2 MB, decodificar, remover metadados, limitar dimensões e armazenar como WebP.
+- A chave e o QR Code apenas facilitam o pagamento externo. O sistema deve deixar explícito que o
+  depósito ainda precisa ser registrado e confirmado manualmente.
+
+#### 30.14.2 Depósitos e saldo
+
+- Qualquer membro registra apenas o próprio depósito, informando valor positivo, mês de referência,
+  data do pagamento e observação opcional. Permitir vários aportes no mesmo mês.
+- O depósito nasce `PENDING` e não altera o saldo. Administradores podem aprovar ou rejeitar; rejeição
+  exige motivo. O membro pode cancelar seu próprio depósito enquanto estiver pendente.
+- Apenas depósitos `APPROVED` geram crédito. O saldo individual é a soma dos depósitos aprovados menos
+  os usos aprovados, e o saldo total é a soma dos saldos individuais. Registros rejeitados ou anulados
+  permanecem no histórico, mas não participam dos cálculos.
+- Membros comuns veem apenas seu histórico individual e os totais comunitários. Administradores veem
+  até os 100 lançamentos mais recentes e o quadro de saldos/contribuições do mês por membro.
+
+#### 30.14.3 Uso e auditoria
+
+- Administradores podem aplicar parte do saldo de um membro a uma atividade, com descrição, data e
+  evento opcional da mesma comunidade. O uso é aprovado no ato e nunca pode deixar saldo negativo.
+- Quando vinculado a um evento, o controle de pagamentos desse evento precisa estar habilitado e
+  aberto e usar BRL. O crédito deve aparecer separadamente na conta do evento, reduzir o saldo
+  pendente do respectivo membro e nunca ser duplicado como pagamento recebido. Não permitir crédito
+  maior que o valor ainda devido pelo membro.
+- No detalhamento individual da conta, apresentar custos com `+`, compras/pagamentos/créditos do
+  Fundão com `−` e reembolsos com `+`, deixando explícito o efeito de cada lançamento. Ao tentar usar
+  o Fundão em uma conta quitada ou com crédito a favor, manter o formulário aberto e explicar o
+  motivo no próprio formulário.
+- Contas de evento fechadas congelam também os créditos do Fundão: é necessário reabrir a conta antes
+  de aplicar ou anular um crédito vinculado. Uma anulação válida remove o abatimento do evento e
+  devolve o valor ao saldo do membro no Fundão.
+- Administradores podem anular lançamentos aprovados mediante motivo. Um depósito não pode ser anulado
+  se o crédito já sustenta usos posteriores; um uso anulado devolve o crédito ao membro.
+- Serializar aprovações, usos e anulações por comunidade, rejeitando alterações concorrentes para
+  impedir gasto duplo ou saldo negativo. Validar membership, evento, propriedade e papel no servidor.
+- Preservar quem submeteu, quem revisou, datas, estado e motivos. Não excluir movimentações financeiras.
+- Aceite: testar cálculo, pendência sem crédito, aprovação/rejeição/cancelamento, limite do uso,
+  integração sem dupla contabilização com a conta do evento, limite pela dívida, fechamento,
+  concorrência, anulação, isolamento entre comunidades, privacidade do QR Code e autorização.
+
 ---
 
 # 31. Integração futura com calendários externos

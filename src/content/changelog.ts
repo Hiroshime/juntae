@@ -10,6 +10,20 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    releasedAt: "2026-10-13",
+    title: "Fundão da comunidade",
+    summary:
+      "A comunidade agora pode guardar contribuições mensais e usar o crédito nos próximos passeios.",
+    highlights: [
+      "Cada membro registra seus depósitos e acompanha o próprio saldo positivo.",
+      "Administradores confirmam ou recusam depósitos antes que eles entrem no caixa.",
+      "A página exibe chave, código Copia e Cola e QR Code PIX privados para os membros.",
+      "O crédito pode ser aplicado a eventos, aparece como abatimento na conta e explica quando não há dívida pendente.",
+      "O histórico preserva aprovações, recusas, usos e anulações para facilitar a conferência.",
+    ],
+  },
+  {
     version: "0.21.0",
     releasedAt: "2026-10-11",
     title: "Apresentações nas salas de voz",

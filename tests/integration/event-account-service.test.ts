@@ -9,6 +9,12 @@ import {
 } from "@/server/services/cost-share-service";
 import { createEvent, setEventRsvp, updateEvent } from "@/server/services/event-service";
 import { eventSchema } from "@/lib/validation/event";
+import {
+  changeCommunityFundEntry,
+  createCommunityFundUsage,
+  getCommunityFund,
+  submitCommunityFundDeposit,
+} from "@/server/services/community-fund-service";
 
 describe("controle financeiro de eventos", () => {
   const suffix = randomUUID();
@@ -221,5 +227,94 @@ describe("controle financeiro de eventos", () => {
     await expect(act({ action: "VOID", paymentId: randomUUID() })).rejects.toMatchObject({
       status: 404,
     });
+  });
+  it("mostra e abate o crédito do Fundão sem duplicá-lo como pagamento", async () => {
+    const deposit = await submitCommunityFundDeposit(member, communityId, {
+      amountCents: 50_000,
+      referenceMonth: "2026-11",
+      effectiveDate: "2026-11-10",
+      note: "Reserva acumulada",
+    });
+    await changeCommunityFundEntry(owner, communityId, deposit.id, { action: "APPROVE" });
+    await expect(
+      createCommunityFundUsage(owner, communityId, {
+        userId: member,
+        eventId,
+        amountCents: 10_000,
+        effectiveDate: "2026-11-20",
+        note: "Crédito para a chácara",
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_ACCOUNT_DISABLED" });
+
+    await enable();
+    const usage = await createCommunityFundUsage(owner, communityId, {
+      userId: member,
+      eventId,
+      amountCents: 10_000,
+      effectiveDate: "2026-11-20",
+      note: "Crédito para a chácara",
+    });
+    const account = await view();
+    expect(account.payments).toHaveLength(0);
+    expect(account.fundCredits).toEqual([
+      expect.objectContaining({ id: usage.id, userId: member, amountCents: 10_000 }),
+    ]);
+    expect(account.summary).toMatchObject({ fundCreditsTotalCents: 10_000 });
+    expect(account.summary?.people.find((person) => person.id === member)).toMatchObject({
+      receivedCents: 0,
+      fundCreditCents: 10_000,
+      dueCents: 20_000,
+    });
+    await expect(
+      createCommunityFundUsage(owner, communityId, {
+        userId: member,
+        eventId,
+        amountCents: 20_001,
+        effectiveDate: "2026-11-20",
+        note: "Acima da dívida",
+      }),
+    ).rejects.toMatchObject({ code: "FUND_CREDIT_EXCEEDS_EVENT_DUE" });
+    await expect(act({ action: "DISABLE" })).rejects.toMatchObject({
+      code: "ACCOUNT_HAS_PAYMENTS",
+    });
+
+    await pay(creator, 30_000);
+    await pay(owner, 30_000);
+    await pay(member, 20_000);
+    await expect(
+      createCommunityFundUsage(owner, communityId, {
+        userId: member,
+        eventId,
+        amountCents: 100,
+        effectiveDate: "2026-11-20",
+        note: "Conta já quitada",
+      }),
+    ).rejects.toMatchObject({
+      code: "NO_EVENT_BALANCE_DUE",
+      message:
+        "A conta deste membro já está quitada ou possui crédito a favor. O Fundão só pode abater valores ainda pendentes.",
+    });
+    await act({ action: "CLOSE", revision: (await view()).revision });
+    expect((await view()).summary).toMatchObject({
+      fundCreditsTotalCents: 10_000,
+      pendingCents: 0,
+      refundableCents: 0,
+    });
+    await expect(
+      changeCommunityFundEntry(owner, communityId, usage.id, {
+        action: "VOID",
+        note: "Tentativa com conta fechada",
+      }),
+    ).rejects.toMatchObject({ code: "ACCOUNT_CLOSED" });
+    await act({ action: "REOPEN" });
+    await changeCommunityFundEntry(owner, communityId, usage.id, {
+      action: "VOID",
+      note: "Crédito devolvido ao Fundão",
+    });
+    expect((await view()).summary?.people.find((person) => person.id === member)).toMatchObject({
+      fundCreditCents: 0,
+      dueCents: 10_000,
+    });
+    expect((await getCommunityFund(member, communityId)).myBalanceCents).toBe(50_000);
   });
 });

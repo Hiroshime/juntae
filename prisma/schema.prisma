@@ -78,6 +78,18 @@ enum CostShareStatus {
   CLOSED
 }
 
+enum CommunityFundEntryType {
+  DEPOSIT
+  USAGE
+}
+
+enum CommunityFundEntryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  VOIDED
+}
+
 enum SocialPostKind {
   POST
   ANNOUNCEMENT
@@ -267,6 +279,10 @@ model User {
   towerStackRuns           TowerStackRun[]
   passwordResetTokens      PasswordResetToken[]
   voiceChannelsCreated     VoiceChannel[]           @relation("VoiceChannelCreator")
+  communityFundEntries     CommunityFundEntry[]     @relation("CommunityFundEntryPerson")
+  fundEntriesSubmitted     CommunityFundEntry[]     @relation("CommunityFundEntrySubmitter")
+  fundEntriesReviewed      CommunityFundEntry[]     @relation("CommunityFundEntryReviewer")
+  fundSettingsUpdated      CommunityFundSettings[]  @relation("CommunityFundSettingsUpdater")
 }
 
 model RateLimitBucket {
@@ -318,6 +334,8 @@ model Community {
   bellHopRuns     BellHopRun[]
   towerStackRuns  TowerStackRun[]
   voiceChannels   VoiceChannel[]
+  fundSettings    CommunityFundSettings?
+  fundEntries     CommunityFundEntry[]
 
   @@index([createdById])
 }
@@ -1115,34 +1133,35 @@ model AvailabilityOverride {
 }
 
 model Event {
-  id                     String         @id @default(uuid()) @db.Uuid
-  communityId            String         @db.Uuid
-  createdById            String         @db.Uuid
-  title                  String         @db.VarChar(160)
-  description            String?        @db.Text
-  startsAt               DateTime       @db.Timestamptz(6)
-  endsAt                 DateTime?      @db.Timestamptz(6)
-  allDay                 Boolean        @default(false)
-  timezone               String         @default("America/Sao_Paulo") @db.VarChar(64)
-  locationName           String?        @db.VarChar(160)
-  locationAddress        String?        @db.Text
-  locationUrl            String?        @db.Text
-  estimatedCost          Decimal?       @db.Decimal(10, 2)
-  currency               String         @default("BRL") @db.Char(3)
+  id                     String               @id @default(uuid()) @db.Uuid
+  communityId            String               @db.Uuid
+  createdById            String               @db.Uuid
+  title                  String               @db.VarChar(160)
+  description            String?              @db.Text
+  startsAt               DateTime             @db.Timestamptz(6)
+  endsAt                 DateTime?            @db.Timestamptz(6)
+  allDay                 Boolean              @default(false)
+  timezone               String               @default("America/Sao_Paulo") @db.VarChar(64)
+  locationName           String?              @db.VarChar(160)
+  locationAddress        String?              @db.Text
+  locationUrl            String?              @db.Text
+  estimatedCost          Decimal?             @db.Decimal(10, 2)
+  currency               String               @default("BRL") @db.Char(3)
   participantLimit       Int?
-  allowMaybe             Boolean        @default(true)
-  allowPartialAttendance Boolean        @default(false)
-  status                 EventStatus    @default(PUBLISHED)
-  createdAt              DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt              DateTime       @updatedAt @db.Timestamptz(6)
-  community              Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  createdBy              User           @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  allowMaybe             Boolean              @default(true)
+  allowPartialAttendance Boolean              @default(false)
+  status                 EventStatus          @default(PUBLISHED)
+  createdAt              DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime             @updatedAt @db.Timestamptz(6)
+  community              Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy              User                 @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
   rsvps                  EventRsvp[]
   costShares             CostShare[]
-  paymentTrackingEnabled Boolean        @default(false)
-  accountClosedAt        DateTime?      @db.Timestamptz(6)
+  paymentTrackingEnabled Boolean              @default(false)
+  accountClosedAt        DateTime?            @db.Timestamptz(6)
   accountSnapshot        Json?
   payments               EventPayment[]
+  fundEntries            CommunityFundEntry[]
 
   @@index([communityId, startsAt])
   @@index([communityId, status, startsAt])
@@ -1259,6 +1278,53 @@ model CostShareExpense {
   @@index([costShareId, purchasedAt])
   @@index([payerId])
   @@index([createdById])
+}
+
+model CommunityFundSettings {
+  communityId              String    @id @db.Uuid
+  monthlyContributionCents BigInt?
+  pixKey                   String?   @db.VarChar(320)
+  pixRecipientName         String?   @db.VarChar(120)
+  pixCopyPaste             String?   @db.Text
+  qrCodeContentType        String?   @db.VarChar(80)
+  qrCodeData               Bytes?    @db.ByteA
+  updatedById              String?   @db.Uuid
+  createdAt                DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime  @updatedAt @db.Timestamptz(6)
+  community                Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  updatedBy                User?     @relation("CommunityFundSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
+}
+
+model CommunityFundEntry {
+  id             String                   @id @default(uuid()) @db.Uuid
+  communityId    String                   @db.Uuid
+  userId         String                   @db.Uuid
+  submittedById  String                   @db.Uuid
+  reviewedById   String?                  @db.Uuid
+  eventId        String?                  @db.Uuid
+  type           CommunityFundEntryType
+  status         CommunityFundEntryStatus @default(PENDING)
+  amountCents    BigInt
+  referenceMonth DateTime?                @db.Date
+  effectiveDate  DateTime                 @db.Date
+  note           String?                  @db.VarChar(500)
+  reviewNote     String?                  @db.VarChar(500)
+  reviewedAt     DateTime?                @db.Timestamptz(6)
+  createdAt      DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                 @updatedAt @db.Timestamptz(6)
+  community      Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user           User                     @relation("CommunityFundEntryPerson", fields: [userId], references: [id], onDelete: Restrict)
+  submittedBy    User                     @relation("CommunityFundEntrySubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy     User?                    @relation("CommunityFundEntryReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  event          Event?                   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([communityId, status, createdAt, id])
+  @@index([communityId, userId, createdAt, id])
+  @@index([eventId])
+  @@index([submittedById])
+  @@index([reviewedById])
 }
 
 model Poll {

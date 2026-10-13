@@ -6,6 +6,7 @@ export const eventAccountSummarySchema = z.object({
   currency: z.string(),
   eventCostCents: cents,
   sharesTotalCents: cents,
+  fundCreditsTotalCents: cents.default(0),
   totalCents: cents,
   confirmedCount: z.number().int(),
   pendingCents: cents,
@@ -19,6 +20,7 @@ export const eventAccountSummarySchema = z.object({
       costSharesCents: cents,
       purchasesCents: cents,
       receivedCents: cents,
+      fundCreditCents: cents.default(0),
       refundedCents: cents,
       dueCents: cents,
     }),
@@ -30,6 +32,10 @@ export type AccountPayment = {
   userId: string;
   amountCents: number;
   direction: "RECEIVED" | "REFUNDED";
+};
+export type AccountFundCredit = {
+  userId: string;
+  amountCents: number;
 };
 
 // Positive due = participant owes the event; negative due = the event owes them.
@@ -47,6 +53,7 @@ export function calculateEventAccount(input: {
     expenses: Array<{ payerId: string; amountCents: number }>;
   }>;
   payments: Array<AccountPayment & { name: string }>;
+  fundCredits?: Array<AccountFundCredit & { name: string }>;
 }) {
   const people = new Map<string, EventAccountSummary["people"][number]>();
   const ensure = (person: Person) => {
@@ -57,6 +64,7 @@ export function calculateEventAccount(input: {
         costSharesCents: 0,
         purchasesCents: 0,
         receivedCents: 0,
+        fundCreditCents: 0,
         refundedCents: 0,
         dueCents: 0,
       });
@@ -93,6 +101,10 @@ export function calculateEventAccount(input: {
     if (payment.direction === "RECEIVED") person.receivedCents += payment.amountCents;
     else person.refundedCents += payment.amountCents;
   }
+  for (const credit of input.fundCredits ?? []) {
+    const person = ensure({ id: credit.userId, name: credit.name });
+    person.fundCreditCents += credit.amountCents;
+  }
   const rows = [...people.values()].sort(
     (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
   );
@@ -101,14 +113,17 @@ export function calculateEventAccount(input: {
       person.eventShareCents +
       person.costSharesCents -
       person.purchasesCents -
-      person.receivedCents +
+      person.receivedCents -
+      person.fundCreditCents +
       person.refundedCents;
   }
   const sharesTotalCents = shares.reduce((sum, share) => sum + share.totalCents, 0);
+  const fundCreditsTotalCents = rows.reduce((sum, person) => sum + person.fundCreditCents, 0);
   const summary = eventAccountSummarySchema.parse({
     currency: input.currency,
     eventCostCents: input.eventCostCents,
     sharesTotalCents,
+    fundCreditsTotalCents,
     totalCents: input.eventCostCents + sharesTotalCents,
     confirmedCount: confirmed.length,
     pendingCents: rows.reduce((sum, person) => sum + Math.max(0, person.dueCents), 0),

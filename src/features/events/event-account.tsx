@@ -124,8 +124,9 @@ export function EventAccount({
             Informe no custo do evento apenas o valor base (como a locação), sem repetir despesas
             dos rateios. Registre aqui somente pagamentos já realizados e aportes da organização;
             você pode registrar várias parcelas, inclusive antes de existir uma dívida. Esta
-            ferramenta não movimenta dinheiro. Não quite novamente as transferências sugeridas em
-            cada rateio.
+            ferramenta não movimenta dinheiro. Créditos aplicados pelo Fundão também reduzem o valor
+            pendente e não devem ser registrados novamente como pagamento. Não quite novamente as
+            transferências sugeridas em cada rateio.
           </p>
           {account.closedAt ? (
             <p className="success">
@@ -158,6 +159,10 @@ export function EventAccount({
                   <strong>{money(summary.sharesTotalCents)}</strong>
                 </div>
                 <div>
+                  <span>Crédito do Fundão</span>
+                  <strong>{money(summary.fundCreditsTotalCents)}</strong>
+                </div>
+                <div>
                   <span>Total do passeio</span>
                   <strong>{money(summary.totalCents)}</strong>
                 </div>
@@ -177,6 +182,31 @@ export function EventAccount({
                           {share.title}
                         </Link>{" "}
                         · {money(share.totalCents)}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {account.fundCredits.length > 0 && (
+                <details className="account-history">
+                  <summary>Ver créditos aplicados pelo Fundão</summary>
+                  <ul>
+                    {account.fundCredits.map((credit) => (
+                      <li key={credit.id}>
+                        <span>
+                          <strong>{credit.name}</strong> · {money(credit.amountCents)}
+                          <br />
+                          <small>
+                            Aplicado por {credit.recordedBy} em{" "}
+                            {new Date(`${credit.effectiveDate}T12:00:00`).toLocaleDateString(
+                              "pt-BR",
+                            )}
+                            {credit.note ? ` · ${credit.note}` : ""}
+                          </small>
+                        </span>
+                        <Link className="button ghost" href={`/app/${communitySlug}/fund`}>
+                          Abrir Fundão
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -204,28 +234,34 @@ export function EventAccount({
                     <dl className="account-breakdown">
                       <div>
                         <dt>Evento</dt>
-                        <dd>{money(person.eventShareCents)}</dd>
+                        <dd>+ {money(person.eventShareCents)}</dd>
                       </div>
                       <div>
                         <dt>Rateios</dt>
-                        <dd>{money(person.costSharesCents)}</dd>
+                        <dd>+ {money(person.costSharesCents)}</dd>
                       </div>
                       <div>
-                        <dt>Cota total</dt>
+                        <dt>Subtotal da cota</dt>
                         <dd>{money(person.eventShareCents + person.costSharesCents)}</dd>
                       </div>
                       <div>
                         <dt>Compras já pagas</dt>
-                        <dd>{money(person.purchasesCents)}</dd>
+                        <dd>− {money(person.purchasesCents)}</dd>
                       </div>
                       <div>
-                        <dt>Pagamentos recebidos</dt>
-                        <dd>{money(person.receivedCents)}</dd>
+                        <dt>Pagamentos já recebidos</dt>
+                        <dd>− {money(person.receivedCents)}</dd>
                       </div>
+                      {person.fundCreditCents > 0 && (
+                        <div>
+                          <dt>Crédito do Fundão</dt>
+                          <dd>− {money(person.fundCreditCents)}</dd>
+                        </div>
+                      )}
                       {person.refundedCents > 0 && (
                         <div>
                           <dt>Reembolsos feitos</dt>
-                          <dd>{money(person.refundedCents)}</dd>
+                          <dd>+ {money(person.refundedCents)}</dd>
                         </div>
                       )}
                       <div className="account-due">
@@ -417,7 +453,7 @@ export function EventAccount({
                   >
                     Fechar conta do evento
                   </button>
-                  {!account.payments.length && (
+                  {!account.payments.length && !account.fundCredits.length && (
                     <button
                       className="button ghost"
                       disabled={pending}

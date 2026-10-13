@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateEventAccount } from "@/server/domain/event-account";
+import { calculateEventAccount, eventAccountSummarySchema } from "@/server/domain/event-account";
 import { eventAccountActionSchema } from "@/lib/validation/event-account";
 
 const participants = Array.from({ length: 10 }, (_, i) => ({ id: String(i), name: `Pessoa ${i}` }));
@@ -46,6 +46,33 @@ describe("conta do evento", () => {
     });
     expect(summary.people.find((p) => p.id === "2")?.dueCents).toBe(28_000);
     expect(summary.people.find((p) => p.id === "0")?.dueCents).toBe(0);
+  });
+  it("abate créditos do Fundão separadamente sem alterar o custo do passeio", () => {
+    const { summary } = calculateEventAccount({
+      ...example,
+      fundCredits: [{ userId: "2", name: "Pessoa 2", amountCents: 10_000 }],
+    });
+    expect(summary).toMatchObject({
+      totalCents: 380_000,
+      fundCreditsTotalCents: 10_000,
+    });
+    expect(summary.people.find((person) => person.id === "2")).toMatchObject({
+      eventShareCents: 30_000,
+      costSharesCents: 8_000,
+      fundCreditCents: 10_000,
+      dueCents: 28_000,
+    });
+  });
+  it("mantém compatibilidade com snapshots fechados antes da integração do Fundão", () => {
+    const current = calculateEventAccount(example).summary;
+    const legacySummary = structuredClone(current) as Record<string, unknown>;
+    delete legacySummary.fundCreditsTotalCents;
+    for (const person of legacySummary.people as Array<Record<string, unknown>>)
+      delete person.fundCreditCents;
+    expect(eventAccountSummarySchema.parse(legacySummary)).toMatchObject({
+      fundCreditsTotalCents: 0,
+      people: expect.arrayContaining([expect.objectContaining({ fundCreditCents: 0 })]),
+    });
   });
   it("aceita várias parcelas antecipadas e transforma excesso pago em crédito", () => {
     const { summary } = calculateEventAccount({

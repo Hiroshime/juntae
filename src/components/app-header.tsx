@@ -74,6 +74,12 @@ export function AppHeader({
           children: true,
         },
         {
+          href: `/app/${community.slug}/fund`,
+          label: "Fundão",
+          icon: "◇",
+          children: false,
+        },
+        {
           href: `/app/${community.slug}/members`,
           label: "Membros",
           icon: "●",
@@ -181,6 +187,7 @@ export function AppHeader({
                 <Link href={`/app/${community.slug}/agenda/schedules`}>Escalas</Link>
                 <Link href={`/app/${community.slug}/randomizers`}>Sorteios e geradores</Link>
                 <Link href={`/app/${community.slug}/cost-shares`}>Rateios e despesas</Link>
+                <Link href={`/app/${community.slug}/fund`}>Fundão da comunidade</Link>
                 <Link href={`/app/${community.slug}/challenges`}>Desafios (Beta)</Link>
                 <Link href={`/app/${community.slug}/games`}>Jogos</Link>
                 <Link href={`/app/${community.slug}/social`}>Comunicação</Link>
