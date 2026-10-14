@@ -95,12 +95,14 @@ export function CommunityAiSettingsForm({
       const data = (await response.json()) as {
         models: Model[];
         selectedModelAvailable: boolean;
+        inferenceSucceeded: boolean;
       };
       setModels(data.models);
+      const workingModel = data.selectedModelAvailable && data.inferenceSucceeded;
       setMessage({
-        kind: data.selectedModelAvailable ? "success" : "error",
-        text: data.selectedModelAvailable
-          ? `Ollama conectado. O modelo configurado está disponível entre ${data.models.length} modelo(s).`
+        kind: workingModel ? "success" : "error",
+        text: workingModel
+          ? `Ollama conectado. O modelo configurado respondeu a uma inferência real e está disponível entre ${data.models.length} modelo(s).`
           : `Ollama conectado, mas o modelo configurado não foi encontrado. Escolha um dos ${data.models.length} modelo(s) listados.`,
       });
     } catch (error) {

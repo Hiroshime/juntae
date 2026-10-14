@@ -10,6 +10,19 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.23.2",
+    releasedAt: "2026-10-14",
+    title: "IA mais rápida e precisa",
+    summary:
+      "O assistente agora seleciona somente as informações relacionadas à pergunta e interpreta melhor as confirmações de eventos.",
+    highlights: [
+      "Perguntas sobre eventos não carregam mais calendários, votações, comunicados e desafios sem necessidade.",
+      "As confirmações ficam separadas entre quem vai, talvez vá, não vai e ainda não respondeu.",
+      "O modelo permanece aquecido por mais tempo para reduzir a demora nas próximas perguntas.",
+      "O teste administrativo agora executa uma resposta real e informa erros mais úteis do Ollama.",
+    ],
+  },
+  {
     version: "0.23.1",
     releasedAt: "2026-10-14",
     title: "Atualização de segurança da imagem",

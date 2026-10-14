@@ -19,10 +19,16 @@ type Message = {
 };
 
 async function responseError(response: Response, fallback: string) {
-  return response
+  const message = await response
     .json()
     .then((body) => (typeof body?.error === "string" ? body.error : fallback))
     .catch(() => fallback);
+  if (message !== fallback) return message;
+  if (response.status === 504)
+    return "A IA demorou além do limite da conexão. O modelo pode estar aquecendo; tente novamente em instantes.";
+  if (response.status === 502 || response.status === 503)
+    return "O servidor de IA está temporariamente indisponível. Tente novamente em instantes.";
+  return fallback;
 }
 
 export function CommunityAiChat({

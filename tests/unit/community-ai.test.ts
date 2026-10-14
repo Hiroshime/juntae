@@ -116,6 +116,31 @@ describe("IA contextual", () => {
       model: "qwen3:1.7b",
       stream: false,
       think: false,
+      keep_alive: "30m",
+      options: { temperature: 0.25, num_predict: 500 },
+    });
+  });
+
+  it("traduz erros do Ollama sem expor a resposta bruta ao usuário", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "model requires more system memory" }), {
+        status: 500,
+      }),
+    );
+
+    await expect(
+      ollamaClient.chat(
+        { baseUrl: "http://ollama:11434", timeoutMs: 5_000 },
+        {
+          model: "qwen3:4b-instruct",
+          messages: [{ role: "user", content: "Oi" }],
+          maxTokens: 16,
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "OLLAMA_INSUFFICIENT_MEMORY",
+      message: expect.stringContaining("não cabe na memória"),
     });
   });
 });

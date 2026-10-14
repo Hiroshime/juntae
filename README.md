@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.23.1 \
+  --tag docker.io/SEU_USUARIO/juntae:0.23.2 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.23.1` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.23.1` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.23.1` também publica automaticamente as tags `0.23.1` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.23.2` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.23.2` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.23.2` também publica automaticamente as tags `0.23.2` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -153,7 +153,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.23.1`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.23.2`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -416,6 +416,11 @@ O endereço do Ollama é global e fica somente em `OLLAMA_BASE_URL`; ele nunca �
 nem enviado ao navegador. O contexto não inclui e-mails, credenciais, fotos ou dados financeiros. A IA
 é apenas consultiva: não cria eventos, não vota e não altera registros. Respostas podem conter erros e
 devem ser confirmadas nas páginas originais.
+
+Para reduzir a latência em modelos locais pequenos, cada pergunta recebe somente as fontes relacionadas
+ao assunto identificado; perguntas genéricas continuam podendo consultar todas as fontes autorizadas.
+Confirmações de eventos são enviadas em grupos explícitos de quem vai, talvez vá, não vai ou ainda não
+respondeu. O botão de teste executa uma inferência curta real, e não apenas consulta a lista de modelos.
 
 Para desenvolvimento local, configure um endereço alcançável pelo processo Next.js:
 

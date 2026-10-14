@@ -171,7 +171,12 @@ describe("assistente contextual privado", () => {
       testCommunityAiConnection(adminId, communityId, fakeClient),
     ).resolves.toMatchObject({
       selectedModelAvailable: true,
+      inferenceSucceeded: true,
       models: [{ name: "qwen3:1.7b" }],
+    });
+    expect(captured.at(-1)?.at(-1)).toEqual({
+      role: "user",
+      content: "Responda somente com OK.",
     });
   });
 
@@ -179,7 +184,7 @@ describe("assistente contextual privado", () => {
     const result = await sendCommunityAiMessage(
       memberId,
       communityId,
-      { message: "Quando podemos marcar algo?" },
+      { message: "Faça um panorama completo da comunidade." },
       fakeClient,
       new Date("2026-10-14T15:00:00Z"),
     );
@@ -213,6 +218,26 @@ describe("assistente contextual privado", () => {
     expect(
       await prisma.aiConversation.findUnique({ where: { id: result.conversation.id } }),
     ).toBeNull();
+  });
+
+  it("envia só eventos e agrupa corretamente quem vai ou não respondeu", async () => {
+    const result = await sendCommunityAiMessage(
+      secondMemberId,
+      communityId,
+      { message: "Quais são os próximos eventos e quem vai?" },
+      fakeClient,
+      new Date("2026-10-14T15:00:00Z"),
+    );
+    const system = captured.at(-1)?.[0].content ?? "";
+    expect(system).toContain('"includedSources":["EVENTS"]');
+    expect(system).toContain("Churrasco da turma");
+    expect(system).toContain('"going":[{"member":"Amiga livre"');
+    expect(system).toContain('"noResponse"');
+    expect(system).toContain("Pessoa principal");
+    expect(system).not.toContain("Qual passeio?");
+    expect(system).not.toContain("Levem protetor solar.");
+    expect(system).not.toContain("availabilityNext14Days");
+    await deleteAiConversation(secondMemberId, communityId, result.conversation.id);
   });
 
   it("respeita fontes desabilitadas e não persiste quando o Ollama falha", async () => {

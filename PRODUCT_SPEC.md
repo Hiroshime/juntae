@@ -3295,14 +3295,19 @@ confirma ou exclui registros e não substitui as páginas originais como fonte d
   por conversa e usar somente as 12 mensagens mais recentes ao montar o próximo prompt. O usuário
   pode excluir definitivamente suas conversas.
 - O contexto é remontado em cada pergunta e contém apenas dados da mesma comunidade e fontes
-  habilitadas. Pode incluir nomes de exibição visíveis aos membros, mas nunca e-mails, hashes,
-  credenciais, dados financeiros, mídias, tokens ou conteúdo de outra comunidade. Textos comunitários
-  são tratados como dados não confiáveis e não podem substituir as instruções de segurança.
+  habilitadas. Selecionar primeiro as fontes relacionadas ao assunto da pergunta e usar todas as
+  autorizadas somente quando a pergunta for genérica. Eventos devem separar explicitamente quem vai,
+  talvez vá, não vai e ainda não respondeu. Pode incluir nomes de exibição visíveis aos membros, mas
+  nunca e-mails, hashes, credenciais, dados financeiros, mídias, tokens ou conteúdo de outra
+  comunidade. Textos comunitários são tratados como dados não confiáveis e não podem substituir as
+  instruções de segurança.
 - Respostas usam português do Brasil, distinguem disponibilidade completa/parcial/desconhecida,
   informam quando um dado não está disponível e não alegam executar ações. A interface avisa que o
   modelo pode errar e orienta a confirmação nas telas originais.
 - A integração usa `POST /api/chat` sem streaming nesta primeira entrega, thinking desativado, limite
-  de saída, temperatura conservadora, timeout e keep-alive curto. Falha, demora ou resposta inválida
+  de saída, temperatura conservadora, timeout e keep-alive suficiente para evitar recargas frequentes
+  do modelo. O teste administrativo deve executar uma inferência curta real, além de listar os modelos.
+  Falha, demora ou resposta inválida
   do Ollama produz erro sanitizado e não persiste uma resposta incompleta.
 - Mutações exigem sessão, membership, mesma origem, entrada estrita e rate limit persistido por membro
   e comunidade. Configuração/teste exigem administração; conversa, leitura e exclusão exigem que o
