@@ -32,6 +32,12 @@ export function AppHeader({
           children: true,
         },
         {
+          href: `/app/${community.slug}/ai`,
+          label: "Assistente IA",
+          icon: "✦",
+          children: false,
+        },
+        {
           href: `/app/${community.slug}/agenda/me`,
           label: "Minha agenda",
           icon: "✓",
@@ -190,6 +196,7 @@ export function AppHeader({
                 <Link href={`/app/${community.slug}/fund`}>Fundão da comunidade</Link>
                 <Link href={`/app/${community.slug}/challenges`}>Desafios (Beta)</Link>
                 <Link href={`/app/${community.slug}/games`}>Jogos</Link>
+                <Link href={`/app/${community.slug}/ai`}>Assistente IA</Link>
                 <Link href={`/app/${community.slug}/social`}>Comunicação</Link>
                 <Link href={`/app/${community.slug}/members`}>Membros</Link>
                 {role !== "MEMBER" && (

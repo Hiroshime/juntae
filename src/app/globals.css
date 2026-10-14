@@ -356,6 +356,462 @@
   }
 }
 
+/* Contextual community AI */
+.community-ai-settings {
+  min-width: 0;
+  margin-bottom: 20px;
+}
+
+.community-ai-settings .card-header p {
+  margin-bottom: 0;
+}
+
+.ai-settings-form {
+  margin-top: 20px;
+}
+
+.ai-enable-row {
+  border-color: var(--primary-border-strong) !important;
+  background: var(--primary-surface);
+}
+
+.ai-enable-row span {
+  display: grid;
+  gap: 3px;
+}
+
+.ai-enable-row small {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ai-settings-form .check-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  min-height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.ai-settings-form .check-row input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.ai-context-options {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.ai-context-options legend {
+  padding: 0 6px;
+  font-weight: 800;
+}
+
+.ai-context-options p {
+  margin: 0;
+}
+
+.ai-models-found {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.ai-models-found > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-ai-card {
+  grid-column: 1 / -1;
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 92% 0%, rgb(var(--accent-rgb) / 20%), transparent 36%),
+    linear-gradient(135deg, var(--primary-surface), var(--surface));
+}
+
+.dashboard-ai-copy {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+}
+
+.dashboard-ai-copy h2,
+.dashboard-ai-copy p {
+  margin-bottom: 0;
+}
+
+.ai-orb {
+  align-items: center;
+  background: linear-gradient(145deg, var(--primary), var(--primary-end));
+  border: 1px solid rgb(255 255 255 / 26%);
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgb(var(--primary-rgb) / 28%);
+  color: white;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 1.45rem;
+  height: 54px;
+  justify-content: center;
+  width: 54px;
+}
+
+.community-ai-page {
+  min-width: 0;
+}
+
+.ai-workspace {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.32fr) minmax(0, 1fr);
+  gap: 18px;
+  min-height: 650px;
+}
+
+.ai-conversation-sidebar,
+.ai-chat-panel {
+  min-width: 0;
+}
+
+.ai-conversation-sidebar {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-conversation-sidebar .card-header {
+  align-items: flex-start;
+}
+
+.ai-conversation-sidebar h2 {
+  margin-bottom: 0;
+}
+
+.ai-conversation-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ai-conversation-list > div {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  overflow: hidden;
+}
+
+.ai-conversation-list > div:hover,
+.ai-conversation-list > div.active {
+  border-color: var(--primary-border);
+  background: var(--primary-surface);
+}
+
+.ai-conversation-list > div > button:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 0;
+  padding: 11px 6px 11px 12px;
+  color: var(--foreground);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.ai-conversation-list strong,
+.ai-conversation-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-conversation-list small {
+  color: var(--muted);
+}
+
+.ai-delete-conversation {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.ai-delete-conversation:hover {
+  color: var(--danger);
+  background: var(--surface-muted);
+}
+
+.ai-chat-panel {
+  display: grid;
+  grid-template-rows: auto minmax(390px, 1fr) auto auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ai-chat-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+}
+
+.ai-chat-header > div {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ai-chat-header .ai-orb {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  font-size: 1.15rem;
+}
+
+.ai-chat-header h2 {
+  margin: 0;
+}
+
+.ai-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 610px;
+  overflow-y: auto;
+  padding: 22px;
+  scroll-behavior: smooth;
+}
+
+.ai-message {
+  display: grid;
+  gap: 7px;
+  max-width: min(82%, 760px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 13px 15px;
+}
+
+.ai-message p,
+.ai-message .rich-text,
+.ai-message .rich-text p:last-child,
+.ai-message .rich-text ul:last-child,
+.ai-message .rich-text ol:last-child {
+  margin: 0;
+}
+
+.ai-message-user {
+  align-self: flex-end;
+  border-color: var(--primary-border-strong);
+  border-bottom-right-radius: 5px;
+  background: var(--primary-soft);
+}
+
+.ai-message-assistant {
+  align-self: flex-start;
+  border-bottom-left-radius: 5px;
+  background: var(--surface-soft);
+}
+
+.ai-message > strong {
+  color: var(--primary);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-message-pending {
+  opacity: 0.72;
+}
+
+.ai-thinking span {
+  display: inline-block;
+  color: var(--primary);
+  animation: ai-pulse 1.25s ease-in-out infinite alternate;
+  letter-spacing: 0.18em;
+}
+
+.ai-welcome {
+  align-self: center;
+  display: grid;
+  max-width: 680px;
+  gap: 8px;
+  margin: auto;
+  text-align: center;
+}
+
+.ai-welcome > span {
+  color: var(--primary);
+  font-size: 2.2rem;
+}
+
+.ai-welcome h3,
+.ai-welcome p {
+  margin: 0;
+}
+
+.ai-suggestions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.ai-suggestions button {
+  border: 1px solid var(--primary-border);
+  border-radius: 12px;
+  padding: 11px 13px;
+  color: var(--foreground);
+  background: var(--primary-surface);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.ai-suggestions button:hover {
+  border-color: var(--primary-border-strong);
+  transform: translateY(-1px);
+}
+
+.ai-chat-error {
+  margin: 0 20px 12px;
+}
+
+.ai-composer {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding: 14px 18px 18px;
+  background: var(--surface);
+}
+
+.ai-composer textarea {
+  min-height: 74px;
+  max-height: 180px;
+  resize: vertical;
+}
+
+.ai-composer > div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-disclaimer {
+  max-width: 900px;
+  margin: 16px auto 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+@keyframes ai-pulse {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 850px) {
+  .ai-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-conversation-sidebar {
+    max-height: 260px;
+  }
+
+  .ai-conversation-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-y: auto;
+  }
+
+  .ai-chat-panel {
+    min-height: 620px;
+  }
+}
+
+@media (max-width: 650px) {
+  .dashboard-ai-card,
+  .dashboard-ai-copy,
+  .ai-chat-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-ai-card .button {
+    width: 100%;
+  }
+
+  .ai-conversation-list,
+  .ai-suggestions {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-chat-header > div {
+    align-items: center;
+  }
+
+  .ai-message-list {
+    padding: 14px;
+  }
+
+  .ai-message {
+    max-width: 94%;
+  }
+
+  .ai-composer > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-composer .button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking span {
+    animation: none;
+  }
+
+  .ai-message-list {
+    scroll-behavior: auto;
+  }
+
+  .ai-suggestions button:hover {
+    transform: none;
+  }
+}
+
 /* Community fund */
 .community-fund {
   display: grid;

@@ -41,6 +41,25 @@ const envSchema = z
     ),
     LIVEKIT_API_KEY: optionalString(z.string().trim().min(1)),
     LIVEKIT_API_SECRET: optionalString(z.string().min(16)),
+    OLLAMA_BASE_URL: optionalString(
+      z
+        .string()
+        .url()
+        .refine((url) => ["http:", "https:"].includes(new URL(url).protocol), {
+          message: "OLLAMA_BASE_URL deve usar http:// ou https://.",
+        })
+        .refine(
+          (url) => {
+            const parsed = new URL(url);
+            return !parsed.username && !parsed.password && !parsed.search && !parsed.hash;
+          },
+          { message: "OLLAMA_BASE_URL não pode conter credenciais, query ou fragmento." },
+        ),
+    ),
+    OLLAMA_REQUEST_TIMEOUT_MS: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : Number(value)),
+      z.number().int().min(5_000).max(180_000).default(90_000),
+    ),
   })
   .superRefine((value, context) => {
     const configured = passwordResetEmailKeys.filter((key) => value[key] !== undefined);
@@ -78,6 +97,8 @@ export function getEnv(): AppEnv {
     LIVEKIT_URL: process.env.LIVEKIT_URL,
     LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET,
+    OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
+    OLLAMA_REQUEST_TIMEOUT_MS: process.env.OLLAMA_REQUEST_TIMEOUT_MS,
   });
 }
 
@@ -118,5 +139,19 @@ export function getLiveKitConfig(): LiveKitConfig | null {
     url: env.LIVEKIT_URL,
     apiKey: env.LIVEKIT_API_KEY!,
     apiSecret: env.LIVEKIT_API_SECRET!,
+  };
+}
+
+export type OllamaConfig = {
+  baseUrl: string;
+  timeoutMs: number;
+};
+
+export function getOllamaConfig(): OllamaConfig | null {
+  const env = getEnv();
+  if (!env.OLLAMA_BASE_URL) return null;
+  return {
+    baseUrl: env.OLLAMA_BASE_URL.replace(/\/$/, ""),
+    timeoutMs: env.OLLAMA_REQUEST_TIMEOUT_MS,
   };
 }

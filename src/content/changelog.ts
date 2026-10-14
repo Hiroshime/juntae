@@ -10,6 +10,20 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.23.0",
+    releasedAt: "2026-10-14",
+    title: "Assistente contextual da comunidade",
+    summary:
+      "Cada comunidade agora pode usar uma IA local para consultar sua própria agenda e informações importantes.",
+    highlights: [
+      "Owners e administradores escolhem o modelo do Ollama, o nome do assistente e as fontes permitidas.",
+      "O assistente consulta eventos, disponibilidade, votações, comunicados e desafios da própria comunidade.",
+      "Cada membro mantém conversas privadas, com histórico que pode abrir novamente ou excluir quando quiser.",
+      "Dados financeiros, e-mails, credenciais, fotos e conteúdos de outras comunidades ficam fora do contexto.",
+      "A nova área Assistente IA também pode ser acessada pelo menu e pelo painel inicial da comunidade.",
+    ],
+  },
+  {
     version: "0.22.0",
     releasedAt: "2026-10-13",
     title: "Fundão da comunidade",

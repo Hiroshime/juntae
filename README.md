@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.22.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.23.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.22.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.22.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.22.0` também publica automaticamente as tags `0.22.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.23.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.23.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.23.0` também publica automaticamente as tags `0.23.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -153,7 +153,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.22.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.23.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -187,24 +187,26 @@ npm run db:reset         # apaga e recria o banco local
 
 Copie `.env.example` para `.env`. Não comite `.env` nem valores reais.
 
-| Variável                           | Uso                                                                    |
-| ---------------------------------- | ---------------------------------------------------------------------- |
-| `DATABASE_URL`                     | URL PostgreSQL usada pelo Prisma                                       |
-| `POSTGRES_PORT`                    | porta local publicada pelo Docker Compose, padrão `5433`               |
-| `AUTH_SECRET`                      | segredo de assinatura das sessões; use pelo menos 32 caracteres        |
-| `REGISTRATION_BOOTSTRAP_TOKEN`     | código secreto aceito somente para a primeira conta de um banco vazio  |
-| `APP_URL`                          | URL pública/local da aplicação                                         |
-| `DEFAULT_TIMEZONE`                 | timezone IANA padrão, inicialmente `America/Sao_Paulo`                 |
-| `EMAIL_CREDENTIALS_ENCRYPTION_KEY` | chave Base64 de 32 bytes para cifrar credenciais SMTP por comunidade   |
-| `PASSWORD_RESET_SMTP_HOST`         | hostname SMTP transacional; configure junto das outras cinco variáveis |
-| `PASSWORD_RESET_SMTP_PORT`         | `465` para TLS direto ou `587` para STARTTLS                           |
-| `PASSWORD_RESET_SMTP_USER`         | usuário da conta SMTP da instalação                                    |
-| `PASSWORD_RESET_SMTP_PASSWORD`     | senha SMTP/senha de aplicativo da instalação                           |
-| `PASSWORD_RESET_FROM_NAME`         | nome exibido no remetente, por exemplo `Juntaê`                        |
-| `PASSWORD_RESET_FROM_EMAIL`        | endereço exibido no remetente                                          |
-| `LIVEKIT_URL`                      | endpoint público `wss://` do servidor de voz LiveKit                   |
-| `LIVEKIT_API_KEY`                  | chave server-side do LiveKit; configure junto das outras duas          |
-| `LIVEKIT_API_SECRET`               | segredo server-side do LiveKit, nunca exposto ao navegador             |
+| Variável                           | Uso                                                                            |
+| ---------------------------------- | ------------------------------------------------------------------------------ |
+| `DATABASE_URL`                     | URL PostgreSQL usada pelo Prisma                                               |
+| `POSTGRES_PORT`                    | porta local publicada pelo Docker Compose, padrão `5433`                       |
+| `AUTH_SECRET`                      | segredo de assinatura das sessões; use pelo menos 32 caracteres                |
+| `REGISTRATION_BOOTSTRAP_TOKEN`     | código secreto aceito somente para a primeira conta de um banco vazio          |
+| `APP_URL`                          | URL pública/local da aplicação                                                 |
+| `DEFAULT_TIMEZONE`                 | timezone IANA padrão, inicialmente `America/Sao_Paulo`                         |
+| `EMAIL_CREDENTIALS_ENCRYPTION_KEY` | chave Base64 de 32 bytes para cifrar credenciais SMTP por comunidade           |
+| `PASSWORD_RESET_SMTP_HOST`         | hostname SMTP transacional; configure junto das outras cinco variáveis         |
+| `PASSWORD_RESET_SMTP_PORT`         | `465` para TLS direto ou `587` para STARTTLS                                   |
+| `PASSWORD_RESET_SMTP_USER`         | usuário da conta SMTP da instalação                                            |
+| `PASSWORD_RESET_SMTP_PASSWORD`     | senha SMTP/senha de aplicativo da instalação                                   |
+| `PASSWORD_RESET_FROM_NAME`         | nome exibido no remetente, por exemplo `Juntaê`                                |
+| `PASSWORD_RESET_FROM_EMAIL`        | endereço exibido no remetente                                                  |
+| `LIVEKIT_URL`                      | endpoint público `wss://` do servidor de voz LiveKit                           |
+| `LIVEKIT_API_KEY`                  | chave server-side do LiveKit; configure junto das outras duas                  |
+| `LIVEKIT_API_SECRET`               | segredo server-side do LiveKit, nunca exposto ao navegador                     |
+| `OLLAMA_BASE_URL`                  | URL do Ollama acessível pelo container, por exemplo `http://10.198.1.56:11434` |
+| `OLLAMA_REQUEST_TIMEOUT_MS`        | timeout de geração entre `5000` e `180000`, padrão `90000`                     |
 
 ## Arquitetura
 
@@ -402,6 +404,32 @@ valor pendente do membro sem ser duplicado como pagamento. Custos e abatimentos 
 consistentes, e uma tentativa em conta já quitada informa o motivo no próprio formulário. A migration
 `0039_community_fund` cria o caixa e seus lançamentos.
 
+## IA contextual por comunidade
+
+O **Assistente IA** usa um Ollama privado para responder perguntas sobre os próprios dados da
+comunidade. Owners e administradores habilitam o recurso em **Configurações**, escolhem um modelo já
+instalado e liberam individualmente eventos, disponibilidade dos próximos 14 dias, votações,
+comunicados e desafios. Cada membro possui histórico próprio: outros membros e administradores não
+conseguem ler suas conversas.
+
+O endereço do Ollama é global e fica somente em `OLLAMA_BASE_URL`; ele nunca é salvo pela comunidade
+nem enviado ao navegador. O contexto não inclui e-mails, credenciais, fotos ou dados financeiros. A IA
+é apenas consultiva: não cria eventos, não vota e não altera registros. Respostas podem conter erros e
+devem ser confirmadas nas páginas originais.
+
+Para desenvolvimento local, configure um endereço alcançável pelo processo Next.js:
+
+```env
+OLLAMA_BASE_URL="http://127.0.0.1:11434"
+OLLAMA_REQUEST_TIMEOUT_MS="90000"
+```
+
+No Docker/ZimaOS, `localhost` apontaria para o próprio container Juntaê. Use o IP LAN do ZimaOS, um
+hostname compartilhado entre containers ou `host.docker.internal` quando esse nome estiver
+configurado. O Ollama precisa aceitar conexões vindas da rede Docker. Depois de reiniciar o Juntaê,
+abra **Configurações → Inteligência artificial**, salve o nome exato retornado por `ollama ls` e use
+**Testar e listar modelos**. A migration `0040_contextual_ai` cria configurações e conversas privadas.
+
 Rotas principais desta fase:
 
 - `/app`: seleção e criação de comunidades;
@@ -425,6 +453,7 @@ Rotas principais desta fase:
 - `/app/[community]/cost-shares`: criação e histórico de rateios;
 - `/app/[community]/cost-shares/[costShareId]`: compras, saldos e acerto final do rateio;
 - `/app/[community]/fund`: depósitos, PIX, saldos e histórico do Fundão;
+- `/app/[community]/ai`: assistente contextual e histórico privado do membro;
 - `/app/[community]/games`: catálogo inicial, salas abertas e rankings;
 - `/app/[community]/games/[roomId]`: sala de espera e partidas de jogo da velha ou forca;
 - `/app/[community]/games/bell-hop`: arcade solo Salto dos Sinos e seus rankings;

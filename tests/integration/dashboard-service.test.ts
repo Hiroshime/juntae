@@ -150,6 +150,7 @@ describe("dashboard service", () => {
       authorName: "Dashboard member",
       reactionCount: 1,
     });
+    expect(dashboard.aiAssistant).toEqual({ enabled: false, name: "Juntaê IA" });
     expect(dashboard.bestOpportunities[0]).toMatchObject({
       date: "2030-09-05",
       fullAvailableCount: 1,

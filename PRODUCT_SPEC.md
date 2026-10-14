@@ -3276,6 +3276,45 @@ bancária nem confirmação automática de PIX nesta versão.
   integração sem dupla contabilização com a conta do evento, limite pela dívida, fechamento,
   concorrência, anulação, isolamento entre comunidades, privacidade do QR Code e autorização.
 
+### 30.15 IA contextual por comunidade
+
+O assistente contextual é uma extensão privada e opcional que usa um servidor Ollama controlado pela
+instalação. Ele ajuda os membros a encontrar informações já existentes no Juntaê; não cria, altera,
+confirma ou exclui registros e não substitui as páginas originais como fonte de verdade.
+
+- `OWNER` e `ADMIN` habilitam a IA separadamente por comunidade, escolhem um modelo já instalado,
+  nomeiam o assistente, definem preferências textuais de estilo e selecionam as fontes permitidas:
+  eventos/RSVPs, disponibilidade dos próximos 14 dias, votações abertas, comunicados recentes e
+  desafios ativos ou futuros. Ao menos uma fonte é obrigatória quando o recurso está ativo.
+- `OLLAMA_BASE_URL` e o timeout pertencem ao ambiente da instalação, nunca à comunidade. A URL não é
+  controlada pelo navegador nem persistida no banco, reduzindo risco de SSRF. Toda comunicação com o
+  Ollama acontece no servidor do Juntaê; o browser nunca recebe o endereço interno nem acessa a API
+  do modelo diretamente.
+- Cada membro possui conversas persistentes e privadas dentro da própria comunidade. Outros membros e
+  administradores não leem esse histórico. Limitar a 20 conversas por membro/comunidade, 60 mensagens
+  por conversa e usar somente as 12 mensagens mais recentes ao montar o próximo prompt. O usuário
+  pode excluir definitivamente suas conversas.
+- O contexto é remontado em cada pergunta e contém apenas dados da mesma comunidade e fontes
+  habilitadas. Pode incluir nomes de exibição visíveis aos membros, mas nunca e-mails, hashes,
+  credenciais, dados financeiros, mídias, tokens ou conteúdo de outra comunidade. Textos comunitários
+  são tratados como dados não confiáveis e não podem substituir as instruções de segurança.
+- Respostas usam português do Brasil, distinguem disponibilidade completa/parcial/desconhecida,
+  informam quando um dado não está disponível e não alegam executar ações. A interface avisa que o
+  modelo pode errar e orienta a confirmação nas telas originais.
+- A integração usa `POST /api/chat` sem streaming nesta primeira entrega, thinking desativado, limite
+  de saída, temperatura conservadora, timeout e keep-alive curto. Falha, demora ou resposta inválida
+  do Ollama produz erro sanitizado e não persiste uma resposta incompleta.
+- Mutações exigem sessão, membership, mesma origem, entrada estrita e rate limit persistido por membro
+  e comunidade. Configuração/teste exigem administração; conversa, leitura e exclusão exigem que o
+  próprio usuário seja dono do histórico.
+- Rotas privadas: `/app/[community]/ai`; APIs sob
+  `/api/communities/[communityId]/ai`. A navegação e o dashboard oferecem acesso ao assistente, mas
+  comunidades desativadas ou instalações sem Ollama continuam funcionando normalmente.
+- Aceite: testar configuração/permissões, ambiente ausente, descoberta de modelos, isolamento entre
+  comunidades e usuários, fontes ligadas/desligadas, limites, contexto sem dados sensíveis, falhas do
+  Ollama, persistência atômica, exclusão, responsividade e acessibilidade; executar migration, lint,
+  tipos, testes e build.
+
 ---
 
 # 31. Integração futura com calendários externos

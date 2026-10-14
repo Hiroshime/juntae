@@ -54,7 +54,7 @@ export async function getCommunityDashboard(
   await requireMembership(userId, communityId);
   const today = civilDateInTimeZone(now, timezone);
   const calendarEnd = addCivilDays(today, 29);
-  const [storedEvents, storedPolls, calendar, socialHighlight] = await Promise.all([
+  const [storedEvents, storedPolls, calendar, socialHighlight, aiSettings] = await Promise.all([
     prisma.event.findMany({
       where: {
         communityId,
@@ -83,6 +83,10 @@ export async function getCommunityDashboard(
       periodOfDay: "ALL",
     }),
     findSocialHighlight(communityId),
+    prisma.communityAiSettings.findUnique({
+      where: { communityId },
+      select: { enabled: true, assistantName: true },
+    }),
   ]);
 
   const events = storedEvents.map((event) => {
@@ -129,6 +133,10 @@ export async function getCommunityDashboard(
     events,
     polls,
     socialHighlight,
+    aiAssistant: {
+      enabled: aiSettings?.enabled ?? false,
+      name: aiSettings?.assistantName ?? "Juntaê IA",
+    },
     bestOpportunities: selectBestOpportunities(summaries, 3),
     nextSevenDays: summaries.filter((summary) => summary.date <= addCivilDays(today, 6)),
     nextWeekend: {

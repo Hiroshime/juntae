@@ -128,6 +128,24 @@ export default async function CommunityPage({
           </section>
 
           <div className="dashboard-content-grid">
+            <section className="card dashboard-ai-card" aria-labelledby="dashboard-ai-title">
+              <div className="dashboard-ai-copy">
+                <span className="ai-orb" aria-hidden="true">
+                  ✦
+                </span>
+                <div>
+                  <div className="eyebrow">Inteligência da comunidade · Beta</div>
+                  <h2 id="dashboard-ai-title">Pergunte ao {dashboard.aiAssistant.name}</h2>
+                  <p className="muted">
+                    Encontre eventos, datas em comum, votações e comunicados sem procurar em cada
+                    tela.
+                  </p>
+                </div>
+              </div>
+              <Link className="button" href={`/app/${slug}/ai`}>
+                {dashboard.aiAssistant.enabled ? "Conversar com a IA" : "Conhecer o assistente"}
+              </Link>
+            </section>
             <section
               className="card dashboard-social-card"
               aria-labelledby="social-highlight-title"

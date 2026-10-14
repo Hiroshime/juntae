@@ -124,6 +124,11 @@ enum EmailDeliveryStatus {
   FAILED
 }
 
+enum AiMessageRole {
+  USER
+  ASSISTANT
+}
+
 enum GameType {
   TIC_TAC_TOE
   HANGMAN
@@ -283,6 +288,8 @@ model User {
   fundEntriesSubmitted     CommunityFundEntry[]     @relation("CommunityFundEntrySubmitter")
   fundEntriesReviewed      CommunityFundEntry[]     @relation("CommunityFundEntryReviewer")
   fundSettingsUpdated      CommunityFundSettings[]  @relation("CommunityFundSettingsUpdater")
+  aiSettingsUpdated        CommunityAiSettings[]    @relation("CommunityAiSettingsUpdater")
+  aiConversations          AiConversation[]
 }
 
 model RateLimitBucket {
@@ -336,8 +343,61 @@ model Community {
   voiceChannels   VoiceChannel[]
   fundSettings    CommunityFundSettings?
   fundEntries     CommunityFundEntry[]
+  aiSettings      CommunityAiSettings?
+  aiConversations AiConversation[]
 
   @@index([createdById])
+}
+
+model CommunityAiSettings {
+  communityId          String    @id @db.Uuid
+  enabled              Boolean   @default(false)
+  model                String    @default("qwen3:1.7b") @db.VarChar(120)
+  assistantName        String    @default("Juntaê IA") @db.VarChar(60)
+  customInstructions   String?   @db.VarChar(1000)
+  includeEvents        Boolean   @default(true)
+  includeAvailability  Boolean   @default(true)
+  includePolls         Boolean   @default(true)
+  includeAnnouncements Boolean   @default(true)
+  includeChallenges    Boolean   @default(true)
+  updatedById          String?   @db.Uuid
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
+  community            Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  updatedBy            User?     @relation("CommunityAiSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
+}
+
+model AiConversation {
+  id          String      @id @default(uuid()) @db.Uuid
+  communityId String      @db.Uuid
+  userId      String      @db.Uuid
+  title       String      @db.VarChar(120)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+  community   Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    AiMessage[]
+
+  @@index([communityId, userId, updatedAt])
+}
+
+model AiMessage {
+  id               String         @id @default(uuid()) @db.Uuid
+  conversationId   String         @db.Uuid
+  sequence         Int
+  role             AiMessageRole
+  content          String         @db.Text
+  model            String?        @db.VarChar(120)
+  promptTokens     Int?
+  completionTokens Int?
+  durationMs       Int?
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  conversation     AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, sequence])
+  @@index([conversationId, createdAt, id])
 }
 
 model CommunityEmailSettings {
