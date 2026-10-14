@@ -1,14 +1,16 @@
-FROM node:22-alpine AS dependencies
+ARG NODE_IMAGE=node:22.23.3-alpine3.23
 
-RUN apk add --no-cache libc6-compat openssl
+FROM ${NODE_IMAGE} AS dependencies
+
+RUN apk add --no-cache libc6-compat openssl 'zlib>=1.3.2-r1'
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22-alpine AS builder
+FROM ${NODE_IMAGE} AS builder
 
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl 'zlib>=1.3.2-r1'
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -24,9 +26,9 @@ RUN DATABASE_URL=postgresql://juntae:build-only@localhost:5432/juntae?schema=pub
   APP_URL=http://localhost:3000 \
   npm run build
 
-FROM node:22-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 
-RUN apk add --no-cache libc6-compat openssl \
+RUN apk add --no-cache libc6-compat openssl 'zlib>=1.3.2-r1' \
   && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 

@@ -10,6 +10,18 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.23.1",
+    releasedAt: "2026-10-14",
+    title: "Atualização de segurança da imagem",
+    summary:
+      "A imagem Docker recebeu a correção disponível para a biblioteca de compactação do sistema.",
+    highlights: [
+      "A base Node/Alpine agora usa uma versão explícita para tornar novas construções mais previsíveis.",
+      "Todos os estágios da imagem exigem zlib 1.3.2-r1 ou mais recente, corrigindo a CVE-2026-85091.",
+      "O build é interrompido automaticamente se o pacote seguro não estiver disponível.",
+    ],
+  },
+  {
     version: "0.23.0",
     releasedAt: "2026-10-14",
     title: "Assistente contextual da comunidade",
