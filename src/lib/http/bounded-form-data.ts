@@ -34,6 +34,10 @@ export async function readBoundedFormData(request: Request, maxBytes: number) {
       headers: { "Content-Type": contentType },
     }).formData();
   } catch {
-    throw new AppError("Formulário inválido.");
+    throw new AppError(
+      "Não foi possível ler o formulário enviado. Selecione os arquivos novamente e tente de novo.",
+      400,
+      "INVALID_MULTIPART_FORM",
+    );
   }
 }

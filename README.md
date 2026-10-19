@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.23.2 \
+  --tag docker.io/SEU_USUARIO/juntae:0.24.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.23.2` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.23.2` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.23.2` também publica automaticamente as tags `0.23.2` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.24.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.24.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.24.0` também publica automaticamente as tags `0.24.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -153,7 +153,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.23.2`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.24.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -293,6 +293,8 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
 - cards opcionais com descrição, página web e local para comparar passeios e hospedagens;
 - álbum privado com até 6 fotos por opção, envio múltiplo, navegação horizontal no celular e
   visualização ampliada em tela cheia;
+- criador e administradores podem adicionar ou remover fotos pelo editor enquanto a votação estiver
+  aberta, sem alterar as opções ou os votos existentes;
 - fotos armazenadas no PostgreSQL e servidas somente para membros autenticados da comunidade;
 - prazo opcional e encerramento manual pelo criador, administradores ou owners;
 - configuração para permitir ou impedir alteração e remoção do voto;

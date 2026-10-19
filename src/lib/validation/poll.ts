@@ -175,6 +175,18 @@ export const pollListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 });
 
+export const pollOptionParamsSchema = z
+  .object({
+    communityId: z.string().uuid(),
+    pollId: z.string().uuid(),
+    optionId: z.string().uuid(),
+  })
+  .strict();
+
+export const pollOptionImageParamsSchema = pollOptionParamsSchema
+  .extend({ imageId: z.string().uuid() })
+  .strict();
+
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type UpdatePollInput = z.infer<typeof updatePollSchema>;
 export type PollOptionDetails = z.infer<typeof pollOptionDetails>;

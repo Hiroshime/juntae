@@ -1,7 +1,11 @@
 import { Prisma, type CommunityRole, type PollStatus } from "@prisma/client";
 import { formatCivilDate, parseCivilDate } from "@/lib/dates/civil-date";
 import { prisma } from "@/lib/db/prisma";
-import type { PollImageUpload } from "@/lib/polls/images";
+import {
+  MAX_POLL_ALBUM_BYTES,
+  MAX_POLL_OPTION_IMAGES,
+  type PollImageUpload,
+} from "@/lib/polls/images";
 import {
   parsePollOptionMetadata,
   type CreatePollInput,
@@ -205,7 +209,7 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
           include: {
             images: {
               orderBy: { sortOrder: "asc" },
-              select: { id: true },
+              select: { id: true, originalName: true, sizeBytes: true },
             },
             votes: {
               orderBy: { createdAt: "asc" },
@@ -276,6 +280,8 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
         ...parsePollOptionMetadata(option.metadata),
         images: option.images.map((image) => ({
           id: image.id,
+          originalName: image.originalName,
+          sizeBytes: image.sizeBytes,
           url: `/api/communities/${communityId}/polls/${poll.id}/options/${option.id}/images/${image.id}`,
         })),
         sortOrder: option.sortOrder,
@@ -291,6 +297,155 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
       };
     }),
   };
+}
+
+async function requireManageableOpenChoicePollForUpdate(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  communityId: string,
+  pollId: string,
+) {
+  const membership = assertFound(
+    await tx.communityMember.findUnique({
+      where: { communityId_userId: { communityId, userId } },
+      select: { role: true },
+    }),
+    "Você não participa desta comunidade.",
+  );
+  const existing = assertFound(
+    await tx.poll.findFirst({
+      where: { id: pollId, communityId },
+      select: { id: true },
+    }),
+    "Votação não encontrada.",
+  );
+  await tx.$queryRaw`SELECT "id" FROM "Poll" WHERE "id" = ${existing.id}::uuid FOR UPDATE`;
+  const poll = assertFound(
+    await tx.poll.findUnique({ where: { id: existing.id } }),
+    "Votação não encontrada.",
+  );
+  assertCanManagePoll(userId, membership.role, poll);
+  if (effectivePollStatus(poll.status, poll.closesAt) === "CLOSED") {
+    throw new AppError("Votações encerradas não podem ter o álbum alterado.", 409, "POLL_CLOSED");
+  }
+  if (poll.type === "DATE_OPTIONS") {
+    throw new AppError(
+      "Votações de data não aceitam álbuns nas opções.",
+      400,
+      "POLL_IMAGES_NOT_ALLOWED",
+    );
+  }
+  return poll;
+}
+
+async function runPollAlbumTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2034" ||
+        attempt === 2
+      ) {
+        throw error;
+      }
+    }
+  }
+  throw new AppError("Não foi possível atualizar o álbum. Tente novamente.", 409);
+}
+
+export async function addPollOptionImages(
+  userId: string,
+  communityId: string,
+  pollId: string,
+  optionId: string,
+  images: PollImageUpload[],
+) {
+  if (!images.length) throw new AppError("Selecione ao menos uma foto.");
+  return runPollAlbumTransaction(async (tx) => {
+    await requireManageableOpenChoicePollForUpdate(tx, userId, communityId, pollId);
+    assertFound(
+      await tx.pollOption.findFirst({
+        where: { id: optionId, pollId },
+        select: { id: true },
+      }),
+      "Opção da votação não encontrada.",
+    );
+
+    const optionImageCount = await tx.pollOptionImage.count({ where: { optionId } });
+    if (optionImageCount + images.length > MAX_POLL_OPTION_IMAGES) {
+      throw new AppError(
+        `Cada opção pode ter no máximo ${MAX_POLL_OPTION_IMAGES} fotos.`,
+        400,
+        "TOO_MANY_POLL_IMAGES",
+      );
+    }
+    const albumSize = await tx.pollOptionImage.aggregate({
+      where: { option: { pollId } },
+      _sum: { sizeBytes: true },
+    });
+    const uploadedBytes = images.reduce((total, image) => total + image.data.byteLength, 0);
+    if ((albumSize._sum.sizeBytes ?? 0) + uploadedBytes > MAX_POLL_ALBUM_BYTES) {
+      throw new AppError(
+        "Os álbuns da votação podem ter no máximo 30 MB.",
+        413,
+        "POLL_IMAGES_TOO_LARGE",
+      );
+    }
+    const lastImage = await tx.pollOptionImage.findFirst({
+      where: { optionId },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    const firstSortOrder = (lastImage?.sortOrder ?? -1) + 1;
+    const created: Array<{ id: string; originalName: string; sizeBytes: number }> = [];
+    for (const [index, image] of images.entries()) {
+      if (image.sizeBytes !== image.data.byteLength) {
+        throw new AppError("Uma foto possui tamanho inválido.", 400, "INVALID_POLL_IMAGE_SIZE");
+      }
+      created.push(
+        await tx.pollOptionImage.create({
+          data: {
+            optionId,
+            data: image.data,
+            contentType: image.contentType,
+            originalName: image.originalName,
+            sizeBytes: image.sizeBytes,
+            sortOrder: firstSortOrder + index,
+          },
+          select: { id: true, originalName: true, sizeBytes: true },
+        }),
+      );
+    }
+    return created.map((image) => ({
+      ...image,
+      url: `/api/communities/${communityId}/polls/${pollId}/options/${optionId}/images/${image.id}`,
+    }));
+  });
+}
+
+export async function deletePollOptionImage(
+  userId: string,
+  communityId: string,
+  pollId: string,
+  optionId: string,
+  imageId: string,
+) {
+  return runPollAlbumTransaction(async (tx) => {
+    await requireManageableOpenChoicePollForUpdate(tx, userId, communityId, pollId);
+    const image = assertFound(
+      await tx.pollOptionImage.findFirst({
+        where: { id: imageId, optionId, option: { pollId } },
+        select: { id: true },
+      }),
+      "Imagem não encontrada.",
+    );
+    await tx.pollOptionImage.delete({ where: { id: image.id } });
+    return image;
+  });
 }
 
 export async function getPollOptionImage(

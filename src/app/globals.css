@@ -3889,6 +3889,89 @@ h2 {
   gap: 20px;
   margin-top: 0;
 }
+.poll-album-editor {
+  display: grid;
+  gap: 18px;
+}
+.poll-album-editor-options {
+  display: grid;
+  gap: 14px;
+}
+.poll-album-editor-option {
+  display: grid;
+  gap: 13px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--surface);
+}
+.poll-album-editor-heading,
+.poll-album-upload-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.poll-album-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.poll-album-management-image {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 7px;
+  background: var(--surface-muted);
+}
+.poll-album-management-image img {
+  width: 72px;
+  height: 58px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--primary-surface);
+}
+.poll-album-management-image > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.poll-album-management-image > div span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.poll-album-management-image small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.poll-album-management-image .button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 6px 9px;
+  font-size: 0.72rem;
+}
+.poll-album-upload-selection {
+  align-items: flex-end;
+}
+.poll-album-upload-selection .poll-image-file-list {
+  flex: 1;
+}
+@media (max-width: 620px) {
+  .poll-album-management-grid {
+    grid-template-columns: 1fr;
+  }
+  .poll-album-upload-selection {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 .poll-options-fieldset,
 .poll-vote-form fieldset {
   display: grid;

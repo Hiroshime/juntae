@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { PollAlbumEditor } from "@/features/polls/poll-album-editor";
 import { PollSettingsForm } from "@/features/polls/poll-actions";
 import { requirePageUser } from "@/lib/auth/page-session";
 import { dateTimeLocalInTimeZone } from "@/lib/dates/civil-date";
@@ -43,6 +44,17 @@ export default async function EditPollPage({
               closesAt: poll.closesAt ? dateTimeLocalInTimeZone(poll.closesAt, user.timezone) : "",
             }}
           />
+          {poll.type !== "DATE_OPTIONS" && (
+            <PollAlbumEditor
+              communityId={membership.communityId}
+              pollId={poll.id}
+              options={poll.options.map((option) => ({
+                id: option.id,
+                label: option.label,
+                images: option.images,
+              }))}
+            />
+          )}
         </section>
       </div>
     </main>

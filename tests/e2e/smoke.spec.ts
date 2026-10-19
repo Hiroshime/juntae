@@ -690,6 +690,17 @@ test("votação de datas, voto e alteração funcionam ponta a ponta", async ({ 
     "https://example.com/recanto",
   );
 
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: richPollName })).toBeVisible();
+  await page.getByLabel("Adicionar fotos").first().setInputFiles({
+    name: "jardim.png",
+    mimeType: "image/png",
+    buffer: imageBuffer,
+  });
+  await page.getByRole("button", { name: "Adicionar 1 foto" }).click();
+  await expect(page.getByText("Fotos adicionadas ao álbum.")).toBeVisible();
+  await expect(page.getByText("3/6 fotos")).toBeVisible();
+
   await page.getByRole("link", { name: communityName }).click();
   await expect(page.getByRole("heading", { name: "Votações", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: new RegExp(pollName) })).toBeVisible();

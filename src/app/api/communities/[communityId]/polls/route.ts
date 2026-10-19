@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readBoundedFormData } from "@/lib/http/bounded-form-data";
 import { assertSameOrigin, routeErrorResponse } from "@/lib/http/route";
 import {
   MAX_POLL_MULTIPART_BYTES,
@@ -8,28 +9,10 @@ import {
 import { createPollSchema, pollListQuerySchema } from "@/lib/validation/poll";
 import { requireAuthenticatedUser } from "@/server/authorization";
 import { AppError } from "@/server/errors";
+import { throwPollImageUploadError } from "@/server/http/poll-image-upload";
 import { createPoll, listPolls } from "@/server/services/poll-service";
 
 type Context = { params: Promise<{ communityId: string }> };
-
-const uploadErrors: Record<string, { message: string; status?: number }> = {
-  INVALID_POLL_IMAGE_OPTION: { message: "Uma foto está vinculada a uma opção inválida." },
-  INVALID_POLL_IMAGE_SIZE: { message: "Cada foto deve ter entre 1 byte e 6 MB.", status: 413 },
-  POLL_IMAGES_TOO_LARGE: {
-    message: "Os álbuns da votação podem ter no máximo 30 MB.",
-    status: 413,
-  },
-  TOO_MANY_POLL_IMAGES: { message: "Cada opção pode ter no máximo 6 fotos." },
-  INVALID_POLL_IMAGE_TYPE: {
-    message: "Use somente imagens JPEG, PNG, WebP, GIF ou AVIF.",
-  },
-};
-
-function imageUploadError(error: unknown): never {
-  const code = error instanceof Error ? error.message : "INVALID_POLL_IMAGE";
-  const mapped = uploadErrors[code] ?? { message: "Não foi possível validar as fotos." };
-  throw new AppError(mapped.message, mapped.status ?? 400, code);
-}
 
 async function readCreatePollRequest(request: Request) {
   if (!request.headers.get("content-type")?.includes("multipart/form-data")) {
@@ -39,14 +22,9 @@ async function readCreatePollRequest(request: Request) {
     };
   }
 
-  const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > MAX_POLL_MULTIPART_BYTES) {
-    throw new AppError("O envio completo pode ter no máximo 32 MB.", 413, "PAYLOAD_TOO_LARGE");
-  }
-
-  const form = await request.formData().catch(() => null);
-  const serialized = form?.get("payload");
-  if (!form || typeof serialized !== "string" || serialized.length > 100_000) {
+  const form = await readBoundedFormData(request, MAX_POLL_MULTIPART_BYTES);
+  const serialized = form.get("payload");
+  if (typeof serialized !== "string" || serialized.length > 100_000) {
     throw new AppError("Dados da votação inválidos.", 400, "INVALID_POLL_PAYLOAD");
   }
 
@@ -118,7 +96,7 @@ export async function POST(request: Request, { params }: Context) {
         parsed.data.type === "DATE_OPTIONS" ? 0 : parsed.data.options.length,
       );
     } catch (error) {
-      imageUploadError(error);
+      throwPollImageUploadError(error);
     }
     return NextResponse.json(
       { poll: await createPoll(user.id, communityId, parsed.data, images) },

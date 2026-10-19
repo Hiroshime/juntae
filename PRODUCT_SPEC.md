@@ -692,11 +692,16 @@ Esses dados devem ser validados, apresentados como um card acessível e permanec
 preservar a rapidez das votações simples. Opções de data continuam usando apenas `date_value`.
 
 Cada opção de escolha também pode possuir um álbum privado com até 6 imagens enviadas no cadastro
-da votação. Aceitar JPEG, PNG, WebP, GIF e AVIF, com no máximo 6 MB por arquivo e 30 MB por votação.
+da votação ou adicionadas posteriormente. Enquanto a votação estiver aberta, o criador, `OWNER` ou
+`ADMIN` pode adicionar e remover fotos sem alterar opções ou votos; votações encerradas mantêm o álbum
+congelado. Aceitar JPEG, PNG, WebP, GIF e AVIF, com no máximo 6 MB por arquivo e 30 MB por votação.
+O corpo multipart completo pode ter até 32 MB; middleware, proxy interno e rota devem preservar esse
+limite de ponta a ponta, sem truncar o formulário em um limite inferior.
 As imagens devem ser entregues somente a membros autenticados da comunidade e removidas em cascata
 com a opção. Criação da votação e persistência do álbum devem ser atômicas. Cada miniatura pode ser
 aberta em uma visualização ampliada, com navegação por botões e teclado, inclusive após o encerramento
-da votação.
+da votação. Adições e remoções posteriores devem serializar a votação para que requisições concorrentes
+não ultrapassem a quantidade por opção nem o tamanho total permitido.
 
 ## 11.4 Votos
 
@@ -1313,6 +1318,8 @@ setRsvp
 ```text
 createPoll
 updatePoll
+addPollOptionImages
+deletePollOptionImage
 closePoll
 getPoll
 listOpenPolls
@@ -1839,6 +1846,7 @@ criar votação de datas
 - [ ] Votação de datas funciona.
 - [ ] Resultado mostra votos corretamente.
 - [ ] Votação encerrada não aceita novos votos.
+- [ ] Criador e administradores gerenciam fotos depois da publicação enquanto a votação está aberta.
 
 ## 29.7 Responsividade
 

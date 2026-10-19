@@ -2,9 +2,11 @@ import { hash } from "bcryptjs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 import {
+  addPollOptionImages,
   castVote,
   closePoll,
   createPoll,
+  deletePollOptionImage,
   getPoll,
   getPollOptionImage,
   listPolls,
@@ -267,5 +269,69 @@ describe("poll services", () => {
     await expect(
       getPollOptionImage(outsiderId, communityId, poll.id, poll.options[0].id, imageId),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("permite gerenciar fotos depois da criação sem alterar as opções", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
+    const upload = (originalName: string) => ({
+      optionIndex: 0,
+      data: bytes,
+      contentType: "image/png" as const,
+      originalName,
+      sizeBytes: bytes.byteLength,
+      sortOrder: 0,
+    });
+    const poll = await createPoll(ownerId, communityId, simpleInput);
+    const [first] = await addPollOptionImages(ownerId, communityId, poll.id, poll.options[0].id, [
+      upload("fachada.png"),
+      upload("piscina.png"),
+    ]);
+    await addPollOptionImages(adminId, communityId, poll.id, poll.options[0].id, [
+      upload("quartos.png"),
+    ]);
+
+    const detail = await getPoll(memberId, communityId, poll.id);
+    expect(detail.options[0].images).toMatchObject([
+      { originalName: "fachada.png", sizeBytes: bytes.byteLength },
+      { originalName: "piscina.png", sizeBytes: bytes.byteLength },
+      { originalName: "quartos.png", sizeBytes: bytes.byteLength },
+    ]);
+    expect(detail.options[0].label).toBe(simpleInput.options[0].label);
+
+    await deletePollOptionImage(ownerId, communityId, poll.id, poll.options[0].id, first.id);
+    expect((await getPoll(ownerId, communityId, poll.id)).options[0].images).toHaveLength(2);
+  });
+
+  it("protege a edição de álbuns por autoria, estado e limite", async () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0x01]);
+    const upload = (index: number) => ({
+      optionIndex: 0,
+      data: bytes,
+      contentType: "image/jpeg" as const,
+      originalName: `foto-${index}.jpg`,
+      sizeBytes: bytes.byteLength,
+      sortOrder: index,
+    });
+    const poll = await createPoll(ownerId, communityId, simpleInput);
+    await expect(
+      addPollOptionImages(memberId, communityId, poll.id, poll.options[0].id, [upload(0)]),
+    ).rejects.toMatchObject({ status: 403 });
+
+    await addPollOptionImages(
+      ownerId,
+      communityId,
+      poll.id,
+      poll.options[0].id,
+      Array.from({ length: 6 }, (_, index) => upload(index)),
+    );
+    await expect(
+      addPollOptionImages(ownerId, communityId, poll.id, poll.options[0].id, [upload(6)]),
+    ).rejects.toMatchObject({ code: "TOO_MANY_POLL_IMAGES" });
+
+    await closePoll(ownerId, communityId, poll.id);
+    const imageId = (await getPoll(ownerId, communityId, poll.id)).options[0].images[0].id;
+    await expect(
+      deletePollOptionImage(ownerId, communityId, poll.id, poll.options[0].id, imageId),
+    ).rejects.toMatchObject({ code: "POLL_CLOSED" });
   });
 });

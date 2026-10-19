@@ -10,6 +10,21 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.24.0",
+    releasedAt: "2026-10-19",
+    title: "Álbuns editáveis nas votações",
+    summary:
+      "As fotos das opções agora podem ser administradas mesmo depois que a votação foi publicada.",
+    highlights: [
+      "Criadores e administradores podem adicionar novas fotos a cada opção enquanto a votação estiver aberta.",
+      "Fotos adicionadas por engano podem ser removidas sem apagar a opção nem afetar os votos já recebidos.",
+      "Os limites de seis fotos por opção e 30 MB por votação continuam protegidos, inclusive em envios simultâneos.",
+      "O servidor não interrompe mais o formulário depois dos primeiros 10 MB de fotos.",
+      "O limite global agora acompanha os 32 MB aceitos pelas votações e demais uploads do sistema.",
+      "Formulários realmente corrompidos recebem uma orientação clara para selecionar os arquivos novamente.",
+    ],
+  },
+  {
     version: "0.23.2",
     releasedAt: "2026-10-14",
     title: "IA mais rápida e precisa",
