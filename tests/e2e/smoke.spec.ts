@@ -701,6 +701,16 @@ test("votação de datas, voto e alteração funcionam ponta a ponta", async ({ 
   await expect(page.getByText("Fotos adicionadas ao álbum.")).toBeVisible();
   await expect(page.getByText("3/6 fotos")).toBeVisible();
 
+  await page.getByRole("button", { name: "Cancelar" }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Encerrar votação" }).click();
+  await expect(page.locator(".poll-status")).toHaveText("Encerrada");
+  await page.getByRole("button", { name: "Reabrir votação" }).click();
+  await page.getByLabel("Manter aberta por quantos dias?").fill("3");
+  await page.getByRole("button", { name: "Confirmar reabertura" }).click();
+  await expect(page.locator(".poll-status")).toHaveText("Aberta");
+  await expect(page.getByText("3 fotos").first()).toBeVisible();
+
   await page.getByRole("link", { name: communityName }).click();
   await expect(page.getByRole("heading", { name: "Votações", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: new RegExp(pollName) })).toBeVisible();

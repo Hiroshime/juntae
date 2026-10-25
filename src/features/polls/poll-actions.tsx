@@ -169,14 +169,21 @@ export function PollManagement({
   communityId,
   communitySlug,
   pollId,
+  isOpen,
+  canReopen,
+  reopenUntilLabel,
 }: {
   communityId: string;
   communitySlug: string;
   pollId: string;
+  isOpen: boolean;
+  canReopen: boolean;
+  reopenUntilLabel: string | null;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReopen, setShowReopen] = useState(false);
 
   async function close() {
     if (!window.confirm("Encerrar esta votação? Novos votos deixarão de ser aceitos.")) return;
@@ -194,18 +201,99 @@ export function PollManagement({
     router.refresh();
   }
 
+  async function reopen(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setPending(true);
+    setError(null);
+    const response = await fetch(`/api/communities/${communityId}/polls/${pollId}/reopen`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ durationDays: Number(form.get("durationDays")) }),
+    });
+    const result = (await response.json().catch(() => ({}))) as { error?: string };
+    setPending(false);
+    if (!response.ok) {
+      setError(result.error ?? "Não foi possível reabrir a votação.");
+      return;
+    }
+    setShowReopen(false);
+    router.refresh();
+  }
+
   return (
-    <div className="poll-management">
-      <button
-        className="button secondary"
-        onClick={() => router.push(`/app/${communitySlug}/polls/${pollId}/edit`)}
-        type="button"
-      >
-        Editar
-      </button>
-      <button className="button danger-outline" disabled={pending} onClick={close} type="button">
-        Encerrar votação
-      </button>
+    <div className={`poll-management ${isOpen ? "" : "poll-management-closed"}`}>
+      {isOpen ? (
+        <>
+          <button
+            className="button secondary"
+            onClick={() => router.push(`/app/${communitySlug}/polls/${pollId}/edit`)}
+            type="button"
+          >
+            Editar
+          </button>
+          <button
+            className="button danger-outline"
+            disabled={pending}
+            onClick={close}
+            type="button"
+          >
+            Encerrar votação
+          </button>
+        </>
+      ) : canReopen ? (
+        <>
+          <button
+            aria-expanded={showReopen}
+            className="button secondary"
+            disabled={pending}
+            onClick={() => {
+              setError(null);
+              setShowReopen((current) => !current);
+            }}
+            type="button"
+          >
+            Reabrir votação
+          </button>
+          {showReopen && (
+            <form className="poll-reopen-form" onSubmit={reopen}>
+              <div className="field">
+                <label htmlFor="poll-reopen-days">Manter aberta por quantos dias?</label>
+                <input
+                  defaultValue={7}
+                  id="poll-reopen-days"
+                  max={15}
+                  min={1}
+                  name="durationDays"
+                  required
+                  type="number"
+                />
+                <span className="field-help">
+                  De 1 a 15 dias. Os votos já registrados serão preservados.
+                </span>
+              </div>
+              <div className="actions compact-actions">
+                <button className="button" disabled={pending} type="submit">
+                  {pending ? "Reabrindo…" : "Confirmar reabertura"}
+                </button>
+                <button
+                  className="button ghost"
+                  disabled={pending}
+                  onClick={() => setShowReopen(false)}
+                  type="button"
+                >
+                  Cancelar
+                </button>
+              </div>
+              {reopenUntilLabel && (
+                <small className="muted">Disponível para reabertura até {reopenUntilLabel}.</small>
+              )}
+            </form>
+          )}
+        </>
+      ) : (
+        <span className="poll-reopen-expired">O prazo de 15 dias para reabrir expirou.</span>
+      )}
       {error && (
         <div className="error" role="alert">
           {error}

@@ -663,10 +663,17 @@ description
 type
 allow_vote_change
 closes_at
+closed_at nullable
 status
 created_at
 updated_at
 ```
+
+O criador da votação, `OWNER` ou `ADMIN` pode reabrir uma votação encerrada há no máximo 15 dias,
+seja por ação manual ou pelo término do prazo. A reabertura preserva opções, álbuns e votos, exige um
+novo período inteiro entre 1 e 15 dias e agenda automaticamente o próximo encerramento. Depois da
+janela de 15 dias, a votação permanece somente para consulta. O instante de encerramento manual deve
+ser persistido explicitamente; para encerramento automático, `closes_at` é a referência.
 
 ## 11.3 Opções
 
@@ -1321,6 +1328,7 @@ updatePoll
 addPollOptionImages
 deletePollOptionImage
 closePoll
+reopenPoll
 getPoll
 listOpenPolls
 castVote
@@ -1846,6 +1854,8 @@ criar votação de datas
 - [ ] Votação de datas funciona.
 - [ ] Resultado mostra votos corretamente.
 - [ ] Votação encerrada não aceita novos votos.
+- [ ] Criador e administradores reabrem por 1 a 15 dias uma votação encerrada há até 15 dias.
+- [ ] Reabertura preserva opções, fotos e votos existentes.
 - [ ] Criador e administradores gerenciam fotos depois da publicação enquanto a votação está aberta.
 
 ## 29.7 Responsividade

@@ -169,18 +169,31 @@ export const castVoteSchema = z.object({
   optionIds: z.array(z.string().uuid()).min(1).max(20),
 });
 
+export const reopenPollSchema = z
+  .object({
+    durationDays: z.coerce
+      .number()
+      .int("Informe uma quantidade inteira de dias.")
+      .min(1, "A votação deve permanecer aberta por pelo menos 1 dia.")
+      .max(15, "A votação pode ser reaberta por no máximo 15 dias."),
+  })
+  .strict();
+
 export const pollListQuerySchema = z.object({
   scope: z.enum(["OPEN", "CLOSED", "ALL"]).default("OPEN"),
   take: z.coerce.number().int().min(1).max(100).default(50),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 });
 
-export const pollOptionParamsSchema = z
+export const pollParamsSchema = z
   .object({
     communityId: z.string().uuid(),
     pollId: z.string().uuid(),
-    optionId: z.string().uuid(),
   })
+  .strict();
+
+export const pollOptionParamsSchema = pollParamsSchema
+  .extend({ optionId: z.string().uuid() })
   .strict();
 
 export const pollOptionImageParamsSchema = pollOptionParamsSchema
@@ -189,6 +202,7 @@ export const pollOptionImageParamsSchema = pollOptionParamsSchema
 
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type UpdatePollInput = z.infer<typeof updatePollSchema>;
+export type ReopenPollInput = z.infer<typeof reopenPollSchema>;
 export type PollOptionDetails = z.infer<typeof pollOptionDetails>;
 
 export function parsePollOptionMetadata(value: unknown): Omit<PollOptionDetails, "label"> {

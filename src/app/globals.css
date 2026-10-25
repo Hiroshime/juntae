@@ -4170,6 +4170,31 @@ h2 {
 .poll-management {
   min-width: max-content;
 }
+.poll-management-closed {
+  display: grid;
+  width: min(360px, 100%);
+  min-width: min(360px, 100%);
+}
+.poll-reopen-form {
+  display: grid;
+  min-width: min(360px, 100%);
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 30px rgb(var(--shadow-rgb) / 10%);
+}
+.poll-reopen-expired {
+  max-width: 280px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
 .poll-detail-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.25fr);

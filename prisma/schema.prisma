@@ -1396,6 +1396,7 @@ model Poll {
   type            PollType
   allowVoteChange Boolean      @default(true)
   closesAt        DateTime?    @db.Timestamptz(6)
+  closedAt        DateTime?    @db.Timestamptz(6)
   status          PollStatus   @default(OPEN)
   createdAt       DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime     @updatedAt @db.Timestamptz(6)

@@ -76,7 +76,7 @@ Substitua `SEU_USUARIO` e publique uma versão imutável junto com a tag conveni
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag docker.io/SEU_USUARIO/juntae:0.24.0 \
+  --tag docker.io/SEU_USUARIO/juntae:0.25.0 \
   --tag docker.io/SEU_USUARIO/juntae:latest \
   --push .
 ```
@@ -91,9 +91,9 @@ repositório GitHub, configure em **Settings → Secrets and variables → Actio
 - variável `DOCKERHUB_USERNAME` com seu usuário;
 - secret `DOCKERHUB_TOKEN` com um access token do Docker Hub — nunca use ou salve a senha da conta.
 
-Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.24.0` e execute. O workflow
-publicará `SEU_USUARIO/juntae:0.24.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
-`v0.24.0` também publica automaticamente as tags `0.24.0` e `latest`.
+Depois abra **Actions → Publicar imagem Docker → Run workflow**, informe `0.25.0` e execute. O workflow
+publicará `SEU_USUARIO/juntae:0.25.0` e `SEU_USUARIO/juntae:latest`. Fazer push de uma tag Git como
+`v0.25.0` também publica automaticamente as tags `0.25.0` e `latest`.
 
 ### 2. Preparar as variáveis do ZimaOS
 
@@ -153,7 +153,7 @@ materializados nele. Preserve `.env.zima` em um gerenciador de senhas ou backup 
 
 ### Atualizações e backup
 
-Para atualizar, publique uma nova versão imutável, como `0.24.0`, altere `JUNTAE_IMAGE`, gere novamente
+Para atualizar, publique uma nova versão imutável, como `0.25.0`, altere `JUNTAE_IMAGE`, gere novamente
 o Compose e atualize/reimporte o aplicativo no ZimaOS. O container aplicará apenas as migrations ainda
 pendentes. Evite depender somente de `latest`, pois uma tag versionada permite rollback previsível.
 
@@ -297,6 +297,8 @@ Autenticação usa sessão JWT assinada em cookie `httpOnly`, `sameSite=lax` e `
   aberta, sem alterar as opções ou os votos existentes;
 - fotos armazenadas no PostgreSQL e servidas somente para membros autenticados da comunidade;
 - prazo opcional e encerramento manual pelo criador, administradores ou owners;
+- reabertura por criador ou administradores durante os 15 dias seguintes ao encerramento, com novo
+  prazo de 1 a 15 dias e preservação integral dos votos;
 - configuração para permitir ou impedir alteração e remoção do voto;
 - substituição transacional do voto, inclusive seleções múltiplas;
 - resultados imediatos com votantes únicos, votos, percentuais e nomes dos participantes;

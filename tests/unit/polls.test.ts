@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   assertPollAcceptsVotes,
+  calculatePollReopenDeadline,
   effectivePollStatus,
+  pollReopenState,
   summarizePollResults,
   validateVoteSelection,
 } from "@/server/domain/polls";
@@ -18,6 +20,41 @@ describe("poll domain", () => {
         now,
       ),
     ).toThrow("POLL_CLOSED");
+  });
+
+  it("limita a reabertura aos 15 dias seguintes ao encerramento", () => {
+    const closedAt = new Date("2030-09-01T12:00:00.000Z");
+    const poll = {
+      status: "CLOSED" as const,
+      closesAt: null,
+      closedAt,
+      updatedAt: closedAt,
+    };
+    expect(pollReopenState(poll, new Date("2030-09-16T12:00:00.000Z"))).toMatchObject({
+      canReopen: true,
+      closedAt,
+      reopenUntil: new Date("2030-09-16T12:00:00.000Z"),
+    });
+    expect(pollReopenState(poll, new Date("2030-09-16T12:00:00.001Z")).canReopen).toBe(false);
+
+    const expiredByDeadline = {
+      status: "OPEN" as const,
+      closesAt: new Date("2030-09-10T12:00:00.000Z"),
+      closedAt: null,
+      updatedAt: new Date("2030-09-01T12:00:00.000Z"),
+    };
+    expect(pollReopenState(expiredByDeadline, new Date("2030-09-11T12:00:00.000Z"))).toMatchObject({
+      canReopen: true,
+      closedAt: expiredByDeadline.closesAt,
+    });
+  });
+
+  it("calcula um novo prazo de 1 a 15 dias", () => {
+    const now = new Date("2030-09-10T12:00:00.000Z");
+    expect(calculatePollReopenDeadline(7, now)).toEqual(new Date("2030-09-17T12:00:00.000Z"));
+    expect(() => calculatePollReopenDeadline(0, now)).toThrow("INVALID_POLL_REOPEN_DURATION");
+    expect(() => calculatePollReopenDeadline(16, now)).toThrow("INVALID_POLL_REOPEN_DURATION");
+    expect(() => calculatePollReopenDeadline(1.5, now)).toThrow("INVALID_POLL_REOPEN_DURATION");
   });
 
   it("exige exatamente uma opção em escolha única", () => {

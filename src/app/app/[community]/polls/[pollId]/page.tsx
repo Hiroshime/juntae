@@ -47,11 +47,16 @@ export default async function PollPage({
                 {poll.closesAt && ` · prazo ${formatPollDeadline(poll.closesAt, user.timezone)}`}
               </p>
             </div>
-            {poll.canManage && poll.status === "OPEN" && (
+            {poll.canManage && (
               <PollManagement
+                canReopen={poll.canReopen}
                 communityId={membership.communityId}
                 communitySlug={slug}
+                isOpen={poll.status === "OPEN"}
                 pollId={poll.id}
+                reopenUntilLabel={
+                  poll.reopenUntil ? formatPollDeadline(poll.reopenUntil, user.timezone) : null
+                }
               />
             )}
             <ShareActions

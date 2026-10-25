@@ -11,6 +11,7 @@ import {
   getPollOptionImage,
   listPolls,
   removeVote,
+  reopenPoll,
   updatePoll,
 } from "@/server/services/poll-service";
 
@@ -163,6 +164,56 @@ describe("poll services", () => {
     await expect(
       castVote(memberId, communityId, expired.id, [expired.options[0].id]),
     ).rejects.toMatchObject({ code: "POLL_CLOSED" });
+  });
+
+  it("reabre votação recente por até 15 dias e preserva os votos", async () => {
+    const poll = await createPoll(ownerId, communityId, simpleInput);
+    await castVote(memberId, communityId, poll.id, [poll.options[0].id]);
+    await closePoll(ownerId, communityId, poll.id);
+    const closed = await getPoll(ownerId, communityId, poll.id);
+    expect(closed).toMatchObject({ status: "CLOSED", canReopen: true, totalVoters: 1 });
+
+    const reopenedAt = new Date();
+    const reopened = await reopenPoll(
+      adminId,
+      communityId,
+      poll.id,
+      { durationDays: 5 },
+      reopenedAt,
+    );
+    expect(reopened.status).toBe("OPEN");
+    expect(reopened.closedAt).toBeNull();
+    expect(reopened.closesAt).toEqual(new Date(reopenedAt.getTime() + 5 * 24 * 60 * 60 * 1_000));
+
+    const detail = await getPoll(memberId, communityId, poll.id);
+    expect(detail).toMatchObject({ status: "OPEN", totalVoters: 1, canVote: true });
+    await expect(castVote(memberId, communityId, poll.id, [poll.options[1].id])).resolves.toEqual({
+      optionIds: [poll.options[1].id],
+    });
+  });
+
+  it("restringe reabertura por autoria, duração e janela após o encerramento", async () => {
+    const poll = await createPoll(ownerId, communityId, simpleInput);
+    await closePoll(ownerId, communityId, poll.id);
+    await expect(
+      reopenPoll(memberId, communityId, poll.id, { durationDays: 3 }),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      reopenPoll(ownerId, communityId, poll.id, { durationDays: 16 } as { durationDays: number }),
+    ).rejects.toMatchObject({ code: "INVALID_POLL_REOPEN_DURATION" });
+
+    const now = new Date();
+    await prisma.poll.update({
+      where: { id: poll.id },
+      data: {
+        createdAt: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1_000),
+        closedAt: new Date(now.getTime() - 16 * 24 * 60 * 60 * 1_000),
+      },
+    });
+    await expect(
+      reopenPoll(ownerId, communityId, poll.id, { durationDays: 3 }, now),
+    ).rejects.toMatchObject({ code: "POLL_REOPEN_WINDOW_EXPIRED" });
+    expect((await getPoll(ownerId, communityId, poll.id)).canReopen).toBe(false);
   });
 
   it("protege acesso e moderação por membership e papel", async () => {

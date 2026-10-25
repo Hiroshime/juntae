@@ -10,6 +10,19 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.25.0",
+    releasedAt: "2026-10-25",
+    title: "Votações podem ser reabertas",
+    summary:
+      "Votações encerradas recentemente agora podem receber uma nova rodada de respostas sem perder o histórico.",
+    highlights: [
+      "Criadores e administradores podem reabrir uma votação durante os 15 dias seguintes ao encerramento.",
+      "A nova rodada pode durar de 1 a 15 dias e recebe um prazo de encerramento automático.",
+      "Opções, álbuns, participantes e votos já registrados são preservados na reabertura.",
+      "Votações antigas permanecem protegidas para consulta depois que a janela de reabertura expira.",
+    ],
+  },
+  {
     version: "0.24.0",
     releasedAt: "2026-10-19",
     title: "Álbuns editáveis nas votações",

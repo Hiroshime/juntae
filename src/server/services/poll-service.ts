@@ -9,11 +9,14 @@ import {
 import {
   parsePollOptionMetadata,
   type CreatePollInput,
+  type ReopenPollInput,
   type UpdatePollInput,
 } from "@/lib/validation/poll";
 import {
   assertPollAcceptsVotes,
+  calculatePollReopenDeadline,
   effectivePollStatus,
+  pollReopenState,
   summarizePollResults,
   validateVoteSelection,
 } from "@/server/domain/polls";
@@ -253,7 +256,9 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
   const myOptionIds = poll.options
     .filter((option) => option.votes.some((vote) => vote.userId === userId))
     .map((option) => option.id);
-  const status = effectivePollStatus(poll.status, poll.closesAt);
+  const now = new Date();
+  const status = effectivePollStatus(poll.status, poll.closesAt, now);
+  const reopening = pollReopenState(poll, now);
   return {
     id: poll.id,
     communityId: poll.communityId,
@@ -268,6 +273,9 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
     updatedAt: poll.updatedAt,
     createdBy: poll.createdBy,
     canManage: canManagePoll(userId, membership.role, poll),
+    canReopen:
+      status === "CLOSED" && reopening.canReopen && canManagePoll(userId, membership.role, poll),
+    reopenUntil: status === "CLOSED" ? reopening.reopenUntil : null,
     canVote: status === "OPEN" && (poll.allowVoteChange || myOptionIds.length === 0),
     myOptionIds,
     totalVoters: summary.totalVoters,
@@ -338,7 +346,9 @@ async function requireManageableOpenChoicePollForUpdate(
   return poll;
 }
 
-async function runPollAlbumTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+async function runPollMutationTransaction<T>(
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       return await prisma.$transaction(operation, {
@@ -354,7 +364,7 @@ async function runPollAlbumTransaction<T>(operation: (tx: Prisma.TransactionClie
       }
     }
   }
-  throw new AppError("Não foi possível atualizar o álbum. Tente novamente.", 409);
+  throw new AppError("Não foi possível atualizar a votação. Tente novamente.", 409);
 }
 
 export async function addPollOptionImages(
@@ -365,7 +375,7 @@ export async function addPollOptionImages(
   images: PollImageUpload[],
 ) {
   if (!images.length) throw new AppError("Selecione ao menos uma foto.");
-  return runPollAlbumTransaction(async (tx) => {
+  return runPollMutationTransaction(async (tx) => {
     await requireManageableOpenChoicePollForUpdate(tx, userId, communityId, pollId);
     assertFound(
       await tx.pollOption.findFirst({
@@ -434,7 +444,7 @@ export async function deletePollOptionImage(
   optionId: string,
   imageId: string,
 ) {
-  return runPollAlbumTransaction(async (tx) => {
+  return runPollMutationTransaction(async (tx) => {
     await requireManageableOpenChoicePollForUpdate(tx, userId, communityId, pollId);
     const image = assertFound(
       await tx.pollOptionImage.findFirst({
@@ -507,8 +517,66 @@ export async function updatePoll(
 
 export async function closePoll(userId: string, communityId: string, pollId: string) {
   const poll = await requireManageablePoll(userId, communityId, pollId);
-  if (poll.status === "CLOSED") return poll;
-  return prisma.poll.update({ where: { id: pollId }, data: { status: "CLOSED" } });
+  if (effectivePollStatus(poll.status, poll.closesAt) === "CLOSED") return poll;
+  return prisma.poll.update({
+    where: { id: pollId },
+    data: { status: "CLOSED", closedAt: new Date() },
+  });
+}
+
+export async function reopenPoll(
+  userId: string,
+  communityId: string,
+  pollId: string,
+  input: ReopenPollInput,
+  now = new Date(),
+) {
+  return runPollMutationTransaction(async (tx) => {
+    const membership = assertFound(
+      await tx.communityMember.findUnique({
+        where: { communityId_userId: { communityId, userId } },
+        select: { role: true },
+      }),
+      "Você não participa desta comunidade.",
+    );
+    const existing = assertFound(
+      await tx.poll.findFirst({
+        where: { id: pollId, communityId },
+        select: { id: true },
+      }),
+      "Votação não encontrada.",
+    );
+    await tx.$queryRaw`SELECT "id" FROM "Poll" WHERE "id" = ${existing.id}::uuid FOR UPDATE`;
+    const poll = assertFound(
+      await tx.poll.findUnique({ where: { id: existing.id } }),
+      "Votação não encontrada.",
+    );
+    assertCanManagePoll(userId, membership.role, poll);
+    if (effectivePollStatus(poll.status, poll.closesAt, now) === "OPEN") {
+      throw new AppError("Esta votação já está aberta.", 409, "POLL_ALREADY_OPEN");
+    }
+    if (!pollReopenState(poll, now).canReopen) {
+      throw new AppError(
+        "O prazo de 15 dias para reabrir esta votação expirou.",
+        409,
+        "POLL_REOPEN_WINDOW_EXPIRED",
+      );
+    }
+    let closesAt: Date;
+    try {
+      closesAt = calculatePollReopenDeadline(input.durationDays, now);
+    } catch {
+      throw new AppError(
+        "A votação pode ser reaberta por um período de 1 a 15 dias.",
+        400,
+        "INVALID_POLL_REOPEN_DURATION",
+      );
+    }
+    return tx.poll.update({
+      where: { id: poll.id },
+      data: { status: "OPEN", closesAt, closedAt: null },
+    });
+  });
 }
 
 function pollClosedError() {
