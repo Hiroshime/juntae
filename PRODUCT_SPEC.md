@@ -607,6 +607,13 @@ Cada membro possui no máximo uma resposta por evento.
 
 Nova resposta substitui a anterior.
 
+Owners e administradores podem registrar ou corrigir o RSVP de qualquer membro da própria
+comunidade, inclusive de quem ainda não respondeu. Essa mutação deve usar uma ação administrativa
+separada, validar a permissão no servidor e continuar respeitando o estado e as configurações do
+evento. Ao alternar entre `GOING` e `MAYBE`, dias específicos já selecionados são preservados; ao
+alterar para `NOT_GOING`, os dias são removidos. Criadores sem papel administrativo não recebem essa
+permissão apenas por terem criado o evento.
+
 O criador pode desabilitar `MAYBE`. Essa restrição deve ser aplicada no servidor, inclusive para
 clientes antigos. Em eventos com mais de um dia, o criador pode habilitar presença parcial. Nesse
 caso, respostas `GOING` e `MAYBE` podem se referir ao evento inteiro ou a um subconjunto não vazio
@@ -1318,6 +1325,7 @@ cancelEvent
 getEvent
 listUpcomingEvents
 setRsvp
+setMemberRsvpByAdmin
 ```
 
 ### Votações
@@ -1844,6 +1852,8 @@ criar votação de datas
 - [ ] Evento pode ser criado.
 - [ ] Evento aparece no dashboard.
 - [ ] Usuário consegue responder GOING/MAYBE/NOT_GOING.
+- [ ] Owner e administrador conseguem registrar ou corrigir o RSVP dos membros da comunidade.
+- [ ] Membro comum não consegue alterar o RSVP de outra pessoa.
 - [ ] Contagens atualizam corretamente.
 - [ ] Custo estimado por confirmado é exibido e atualizado conforme os RSVPs.
 

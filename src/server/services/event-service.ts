@@ -2,7 +2,7 @@ import { Prisma, type CommunityRole } from "@prisma/client";
 import { addCivilDays, formatCivilDate, parseCivilDate } from "@/lib/dates/civil-date";
 import type { CommunityCalendarEvent } from "@/lib/calendar-events";
 import { prisma } from "@/lib/db/prisma";
-import type { EventInput, RsvpInput } from "@/lib/validation/event";
+import type { AdminRsvpInput, EventInput, RsvpInput } from "@/lib/validation/event";
 import {
   assertEventAcceptsRsvp,
   estimatedCostPerConfirmed,
@@ -46,6 +46,10 @@ async function requireMembership(userId: string, communityId: string) {
 
 function canManageEvent(actorId: string, role: CommunityRole, event: { createdById: string }) {
   return event.createdById === actorId || role === "OWNER" || role === "ADMIN";
+}
+
+function canManageMemberRsvps(role: CommunityRole) {
+  return role === "OWNER" || role === "ADMIN";
 }
 
 function assertCanManageEvent(
@@ -234,6 +238,19 @@ export async function getEvent(userId: string, communityId: string, eventId: str
     }),
     "Evento não encontrado.",
   );
+  const canManageRsvps = canManageMemberRsvps(membership.role);
+  const communityMembers = canManageRsvps
+    ? await prisma.communityMember.findMany({
+        where: { communityId },
+        orderBy: { joinedAt: "asc" },
+        select: {
+          userId: true,
+          displayName: true,
+          user: { select: { name: true, avatarUrl: true } },
+        },
+      })
+    : [];
+  const rsvpByUserId = new Map(event.rsvps.map((rsvp) => [rsvp.userId, rsvp] as const));
   const rsvpSummary = summarizeRsvps(event.rsvps.map((rsvp) => rsvp.status));
   const estimatedCost = event.estimatedCost?.toString() ?? null;
   const myRsvp = event.rsvps.find((rsvp) => rsvp.userId === userId);
@@ -264,6 +281,7 @@ export async function getEvent(userId: string, communityId: string, eventId: str
     updatedAt: event.updatedAt,
     createdBy: event.createdBy,
     canManage: canManageEvent(userId, membership.role, event),
+    canManageRsvps,
     myRsvp: myRsvp?.status ?? null,
     myAttendanceIsPartial: myRsvp?.attendingSpecificDays ?? false,
     myAttendanceDates: myRsvp?.attendanceDays.map((day) => formatCivilDate(day.date)) ?? [],
@@ -280,6 +298,17 @@ export async function getEvent(userId: string, communityId: string, eventId: str
       attendanceDates: rsvp.attendanceDays.map((day) => formatCivilDate(day.date)),
       updatedAt: rsvp.updatedAt,
     })),
+    rsvpMembers: communityMembers.map((member) => {
+      const rsvp = rsvpByUserId.get(member.userId);
+      return {
+        userId: member.userId,
+        name: member.displayName || member.user.name,
+        avatarUrl: member.user.avatarUrl,
+        status: rsvp?.status ?? null,
+        attendingSpecificDays: rsvp?.attendingSpecificDays ?? false,
+        attendanceDates: rsvp?.attendanceDays.map((day) => formatCivilDate(day.date)) ?? [],
+      };
+    }),
     costShares: event.costShares,
   };
 }
@@ -428,6 +457,83 @@ export async function setEventRsvp(
         goingCount,
         remainingSpots: remainingParticipantSpots(event.participantLimit, goingCount),
         limitReached: event.participantLimit != null && goingCount >= event.participantLimit,
+      };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+}
+
+export async function setEventRsvpByAdmin(
+  actorId: string,
+  communityId: string,
+  eventId: string,
+  targetUserId: string,
+  input: AdminRsvpInput,
+) {
+  return prisma.$transaction(
+    async (tx) => {
+      const [actor, target, event] = await Promise.all([
+        tx.communityMember.findUnique({
+          where: { communityId_userId: { communityId, userId: actorId } },
+          select: { role: true },
+        }),
+        tx.communityMember.findUnique({
+          where: { communityId_userId: { communityId, userId: targetUserId } },
+          select: { userId: true },
+        }),
+        tx.event.findFirst({ where: { id: eventId, communityId } }),
+      ]);
+      if (!actor || !canManageMemberRsvps(actor.role)) {
+        throw new AppError(
+          "Apenas administradores podem alterar respostas de outros membros.",
+          403,
+          "FORBIDDEN",
+        );
+      }
+      if (!target) throw new AppError("Membro não encontrado.", 404, "NOT_FOUND");
+      const currentEvent = assertFound(event, "Evento não encontrado.");
+      try {
+        assertEventAcceptsRsvp(currentEvent.status);
+      } catch (error) {
+        if (error instanceof Error && error.message === "EVENT_CANCELLED") {
+          throw new AppError("Este evento foi cancelado.", 409, "EVENT_CANCELLED");
+        }
+        throw new AppError("Este evento não aceita respostas.", 409, "RSVP_CLOSED");
+      }
+      if (input.status === "MAYBE" && !currentEvent.allowMaybe) {
+        throw new AppError(
+          "A resposta “Talvez” não está habilitada neste evento.",
+          409,
+          "MAYBE_NOT_ALLOWED",
+        );
+      }
+
+      const existing = await tx.eventRsvp.findUnique({
+        where: { eventId_userId: { eventId, userId: targetUserId } },
+        select: { attendingSpecificDays: true },
+      });
+      const attendingSpecificDays =
+        input.status !== "NOT_GOING" && (existing?.attendingSpecificDays ?? false);
+      const rsvp = await tx.eventRsvp.upsert({
+        where: { eventId_userId: { eventId, userId: targetUserId } },
+        update: { status: input.status, attendingSpecificDays },
+        create: {
+          eventId,
+          userId: targetUserId,
+          status: input.status,
+          attendingSpecificDays: false,
+        },
+      });
+      if (input.status === "NOT_GOING") {
+        await tx.eventRsvpDay.deleteMany({ where: { eventId, userId: targetUserId } });
+      }
+      const goingCount = await tx.eventRsvp.count({ where: { eventId, status: "GOING" } });
+      return {
+        rsvp,
+        goingCount,
+        remainingSpots: remainingParticipantSpots(currentEvent.participantLimit, goingCount),
+        limitReached:
+          currentEvent.participantLimit != null && goingCount >= currentEvent.participantLimit,
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

@@ -5,6 +5,7 @@ import { Avatar } from "@/components/avatar";
 import { ShareActions } from "@/components/share-actions";
 import { EventActions } from "@/features/events/event-actions";
 import { EventAccount } from "@/features/events/event-account";
+import { AdminRsvpManager } from "@/features/events/admin-rsvp-manager";
 import { getEventAccount } from "@/server/services/event-account-service";
 import {
   eventStatusClass,
@@ -180,6 +181,22 @@ export default async function EventPage({
             communitySlug={slug}
             eventId={eventId}
           />
+          {event.canManageRsvps && acceptsRsvp && (
+            <section className="participants-section">
+              <div className="card-header">
+                <div>
+                  <div className="eyebrow">Administração</div>
+                  <h2>Respostas dos membros</h2>
+                </div>
+              </div>
+              <AdminRsvpManager
+                allowMaybe={event.allowMaybe}
+                communityId={membership.communityId}
+                eventId={event.id}
+                members={event.rsvpMembers}
+              />
+            </section>
+          )}
           <section className="participants-section">
             <div className="card-header">
               <div>

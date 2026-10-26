@@ -594,6 +594,21 @@ test("criação de evento e RSVP funcionam ponta a ponta", async ({ page }) => {
   await expect(page.getByText("0 vagas restantes")).toBeVisible();
   await expect(perConfirmedCost).toContainText("R$ 90,00");
 
+  await page.getByText("Gerenciar respostas", { exact: true }).click();
+  const managedRsvp = page.getByLabel("Resposta de Eventos E2E");
+  await managedRsvp.selectOption("NOT_GOING");
+  await managedRsvp.locator("..").getByRole("button", { name: "Salvar" }).click();
+  await expect(page.locator(".admin-rsvp-content").getByRole("status")).toContainText(
+    "Eventos E2E: resposta alterada para “Não vou”.",
+  );
+  await expect(perConfirmedCost).toContainText("Aguardando confirmações");
+  await managedRsvp.selectOption("GOING");
+  await managedRsvp.locator("..").getByRole("button", { name: "Salvar" }).click();
+  await expect(page.locator(".admin-rsvp-content").getByRole("status")).toContainText(
+    "Eventos E2E: resposta alterada para “Vou”.",
+  );
+  await expect(perConfirmedCost).toContainText("R$ 90,00");
+
   await page.getByRole("link", { name: communityName }).click();
   await expect(page.getByRole("heading", { name: "Próximos eventos" })).toBeVisible();
   await expect(page.getByRole("link", { name: new RegExp(eventName) })).toBeVisible();

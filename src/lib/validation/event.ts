@@ -129,6 +129,23 @@ export const rsvpSchema = z
     }
   });
 
+export const adminRsvpSchema = z
+  .object({
+    status: z.enum(["GOING", "MAYBE", "NOT_GOING"]),
+  })
+  .strict();
+
+export const eventParamsSchema = z
+  .object({
+    communityId: z.string().uuid(),
+    eventId: z.string().uuid(),
+  })
+  .strict();
+
+export const adminRsvpParamsSchema = eventParamsSchema.extend({
+  userId: z.string().uuid(),
+});
+
 export const eventListQuerySchema = z.object({
   scope: z.enum(["UPCOMING", "PAST", "ALL"]).default("UPCOMING"),
   take: z.coerce.number().int().min(1).max(100).default(50),
@@ -137,3 +154,4 @@ export const eventListQuerySchema = z.object({
 
 export type EventInput = z.infer<typeof eventSchema>;
 export type RsvpInput = z.infer<typeof rsvpSchema>;
+export type AdminRsvpInput = z.infer<typeof adminRsvpSchema>;

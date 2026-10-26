@@ -8,6 +8,7 @@ import {
   listCalendarEvents,
   listEvents,
   setEventRsvp,
+  setEventRsvpByAdmin,
   updateEvent,
 } from "@/server/services/event-service";
 
@@ -175,6 +176,66 @@ describe("event services", () => {
     );
   });
 
+  it("permite que admins respondam por membros e preserva dias ao alternar status", async () => {
+    const event = await createEvent(ownerId, communityId, {
+      ...baseInput,
+      startsAt: "2030-11-20T03:00:00.000Z",
+      endsAt: "2030-11-24T03:00:00.000Z",
+      allDay: true,
+      allowPartialAttendance: true,
+    });
+    const initial = await getEvent(adminId, communityId, event.id);
+    expect(initial.canManageRsvps).toBe(true);
+    expect(initial.rsvpMembers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ userId: memberId, name: "Nome na comunidade", status: null }),
+      ]),
+    );
+
+    await setEventRsvp(memberId, communityId, event.id, {
+      status: "GOING",
+      attendanceDates: ["2030-11-22", "2030-11-23"],
+    });
+    await setEventRsvpByAdmin(adminId, communityId, event.id, memberId, { status: "MAYBE" });
+    const changed = await getEvent(ownerId, communityId, event.id);
+    expect(changed.rsvpSummary).toMatchObject({ GOING: 0, MAYBE: 1 });
+    expect(changed.rsvpMembers.find((member) => member.userId === memberId)).toMatchObject({
+      status: "MAYBE",
+      attendingSpecificDays: true,
+      attendanceDates: ["2030-11-22", "2030-11-23"],
+    });
+
+    await setEventRsvpByAdmin(ownerId, communityId, event.id, memberId, { status: "NOT_GOING" });
+    expect(
+      await prisma.eventRsvpDay.count({ where: { eventId: event.id, userId: memberId } }),
+    ).toBe(0);
+    expect(
+      await prisma.eventRsvp.findUnique({
+        where: { eventId_userId: { eventId: event.id, userId: memberId } },
+      }),
+    ).toMatchObject({
+      status: "NOT_GOING",
+      attendingSpecificDays: false,
+    });
+  });
+
+  it("protege a gestão de RSVP por papel, comunidade e configuração do evento", async () => {
+    const event = await createEvent(ownerId, communityId, { ...baseInput, allowMaybe: false });
+    await expect(
+      setEventRsvpByAdmin(memberId, communityId, event.id, ownerId, { status: "GOING" }),
+    ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+    await expect(
+      setEventRsvpByAdmin(adminId, communityId, event.id, outsiderId, { status: "GOING" }),
+    ).rejects.toMatchObject({ status: 404, code: "NOT_FOUND" });
+    await expect(
+      setEventRsvpByAdmin(adminId, communityId, event.id, memberId, { status: "MAYBE" }),
+    ).rejects.toMatchObject({ code: "MAYBE_NOT_ALLOWED" });
+
+    const memberView = await getEvent(memberId, communityId, event.id);
+    expect(memberView.canManageRsvps).toBe(false);
+    expect(memberView.rsvpMembers).toEqual([]);
+  });
+
   it("não bloqueia confirmações acima do limite informado", async () => {
     const event = await createEvent(ownerId, communityId, {
       ...baseInput,
@@ -205,6 +266,9 @@ describe("event services", () => {
         status: "MAYBE",
         attendanceDates: null,
       }),
+    ).rejects.toMatchObject({ code: "EVENT_CANCELLED" });
+    await expect(
+      setEventRsvpByAdmin(ownerId, communityId, event.id, memberId, { status: "NOT_GOING" }),
     ).rejects.toMatchObject({ code: "EVENT_CANCELLED" });
     expect(await prisma.eventRsvp.count({ where: { eventId: event.id } })).toBe(1);
   });

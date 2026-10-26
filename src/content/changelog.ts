@@ -10,6 +10,19 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.26.0",
+    releasedAt: "2026-10-26",
+    title: "Respostas de eventos pela administração",
+    summary:
+      "Administradores agora podem registrar e corrigir a participação nos eventos em nome dos membros.",
+    highlights: [
+      "Owners e administradores podem escolher entre Vou, Talvez e Não vou para qualquer membro da comunidade.",
+      "Pessoas que ainda não responderam também aparecem no novo painel de gerenciamento do evento.",
+      "Dias específicos são preservados ao alternar entre Vou e Talvez e removidos ao marcar Não vou.",
+      "As permissões, o estado do evento e a disponibilidade da opção Talvez continuam protegidos no servidor.",
+    ],
+  },
+  {
     version: "0.25.1",
     releasedAt: "2026-10-25",
     title: "Atualização de segurança",
