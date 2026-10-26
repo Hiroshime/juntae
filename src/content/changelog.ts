@@ -10,6 +10,18 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.25.1",
+    releasedAt: "2026-10-25",
+    title: "Atualização de segurança",
+    summary:
+      "Dependências do aplicativo e pacotes da imagem Docker foram atualizados para versões corrigidas.",
+    highlights: [
+      "Next.js foi atualizado para 15.5.28, corrigindo vulnerabilidades críticas e de alta severidade.",
+      "Zod e Nodemailer receberam as correções de segurança mais recentes.",
+      "A imagem Docker agora atualiza os pacotes Alpine e exige a versão corrigida do musl durante o build.",
+    ],
+  },
+  {
     version: "0.25.0",
     releasedAt: "2026-10-25",
     title: "Votações podem ser reabertas",

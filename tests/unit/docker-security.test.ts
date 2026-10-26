@@ -15,4 +15,10 @@ describe("segurança da imagem Docker", () => {
     expect(dockerfile.match(/'zlib>=1\.3\.2-r1'/g)).toHaveLength(3);
     expect(dockerfile).not.toContain("zlib=1.3.2-r0");
   });
+
+  it("atualiza o Alpine e exige a versão corrigida do musl em todos os estágios", () => {
+    expect(dockerfile.match(/apk upgrade --no-cache/g)).toHaveLength(3);
+    expect(dockerfile.match(/'musl>=1\.2\.5-r24'/g)).toHaveLength(3);
+    expect(dockerfile).not.toContain("musl=1.2.5-r23");
+  });
 });
