@@ -762,6 +762,14 @@ e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso norma
 
 ## Votações com sugestões e várias perguntas
 
+Votações também podem ser vinculadas opcionalmente a eventos. Na criação ou edição, use **Evento
+relacionado (opcional)**; **Sem evento** mantém a votação independente. A página do evento oferece
+**Criar votação** com o vínculo pré-selecionado e mostra suas votações abertas e encerradas.
+Criadores e administradores podem trocar ou remover o vínculo enquanto aberta, sem perder votos,
+perguntas ou álbuns. Todos os membros da comunidade continuam podendo participar, independentemente do RSVP.
+A migration `0044_event_polls` preserva as votações existentes e é aplicada pelo fluxo Docker ou por
+`npm run db:migrate` no desenvolvimento. Excluir um evento preserva suas votações sem vínculo.
+
 Ao criar ou editar uma votação, marque **Permitir que membros adicionem opções** para abrir sugestões
 à comunidade. A configuração começa desligada. Com ela ativa, cada membro encontra **Adicionar opção**
 na página da votação e pode acrescentar alternativas enquanto estiver aberta. O criador e

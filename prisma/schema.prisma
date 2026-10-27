@@ -1233,6 +1233,7 @@ model Event {
   payments               EventPayment[]
   fundEntries            CommunityFundEntry[]
   packingLists           PackingList[]
+  polls                  Poll[]
 
   @@index([communityId, startsAt])
   @@index([communityId, status, startsAt])
@@ -1442,6 +1443,7 @@ model CommunityFundEntry {
 model Poll {
   id                 String         @id @default(uuid()) @db.Uuid
   communityId        String         @db.Uuid
+  eventId            String?        @db.Uuid
   createdById        String         @db.Uuid
   title              String         @db.VarChar(160)
   description        String?        @db.Text
@@ -1455,6 +1457,7 @@ model Poll {
   createdAt          DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime       @updatedAt @db.Timestamptz(6)
   community          Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  event              Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   createdBy          User           @relation("PollCreator", fields: [createdById], references: [id], onDelete: Restrict)
   options            PollOption[]
   questions          PollQuestion[]
@@ -1462,6 +1465,7 @@ model Poll {
 
   @@index([communityId, status])
   @@index([communityId, status, closesAt])
+  @@index([eventId])
 }
 
 model PollQuestion {

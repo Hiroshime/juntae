@@ -299,6 +299,7 @@ async function buildCommunityContext(
           description: true,
           type: true,
           closesAt: true,
+          event: { select: { title: true } },
           options: {
             orderBy: { sortOrder: "asc" },
             select: {
@@ -456,6 +457,7 @@ async function buildCommunityContext(
       ? {
           openPolls: polls.map((poll) => ({
             title: poll.title,
+            ...(poll.event ? { event: poll.event.title } : {}),
             description: shortText(poll.description),
             type: poll.type,
             closesAt: poll.closesAt?.toISOString() ?? null,

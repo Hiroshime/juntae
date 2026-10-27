@@ -60,6 +60,10 @@ const base = {
   description: optionalText,
   allowVoteChange: z.boolean().default(true),
   allowMemberOptions: z.boolean().optional(),
+  eventId: z
+    .union([z.string().uuid("Selecione um evento válido."), z.literal(""), z.null()])
+    .transform((value) => value || null)
+    .optional(),
   closesAt: optionalDateTime,
 };
 
@@ -223,6 +227,7 @@ export const reopenPollSchema = z
   .strict();
 
 export const pollListQuerySchema = z.object({
+  eventId: z.string().uuid().optional(),
   scope: z.enum(["OPEN", "CLOSED", "ALL"]).default("OPEN"),
   take: z.coerce.number().int().min(1).max(100).default(50),
   page: z.coerce.number().int().min(1).max(10_000).default(1),

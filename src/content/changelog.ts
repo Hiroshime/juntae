@@ -10,6 +10,20 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.28.0",
+    releasedAt: "2026-10-27",
+    title: "Votações vinculadas a eventos",
+    summary:
+      "Reúna as decisões de cada passeio na página do evento, mantendo a opção de criar votações independentes.",
+    highlights: [
+      "Todos os tipos de votação podem ser associados opcionalmente a um evento da mesma comunidade.",
+      "A página do evento permite criar uma votação com o vínculo pré-selecionado e consultar suas votações abertas e encerradas.",
+      "Criadores e administradores podem trocar ou remover o evento relacionado enquanto a votação estiver aberta, preservando votos, perguntas e álbuns.",
+      "Filtros e paginação mantêm o evento selecionado, e todos os membros da comunidade continuam podendo votar independentemente do RSVP.",
+      "Excluir um evento preserva suas votações e respostas, removendo apenas o vínculo.",
+    ],
+  },
+  {
     version: "0.27.0",
     releasedAt: "2026-10-27",
     title: "Listas e votações colaborativas",

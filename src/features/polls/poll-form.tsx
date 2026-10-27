@@ -7,6 +7,7 @@ import { zonedDateTimeToUtc } from "@/lib/dates/civil-date";
 import { PollOptionsEditor, emptyOption, type DraftOption } from "./poll-options-editor";
 import { PollQuestionsEditor, initialQuestions, type DraftQuestion } from "./poll-questions-editor";
 import { createPollSchema } from "@/lib/validation/poll";
+import { PollEventField, type PollEventSource } from "./poll-event-field";
 
 type SuggestedDate = {
   date: string;
@@ -27,12 +28,16 @@ export function PollForm({
   timezone,
   suggestions,
   preferredDate,
+  events,
+  initialEventId,
 }: {
   communityId: string;
   communitySlug: string;
   timezone: string;
   suggestions: SuggestedDate[];
   preferredDate?: string;
+  events: PollEventSource[];
+  initialEventId?: string;
 }) {
   const router = useRouter();
   const [type, setType] = useState<PollType>("SINGLE_CHOICE");
@@ -73,6 +78,7 @@ export function PollForm({
         type,
         allowVoteChange: form.get("allowVoteChange") === "on",
         allowMemberOptions: form.get("allowMemberOptions") === "on",
+        eventId: String(form.get("eventId") || ""),
         closesAt: closesAt ? localDateTimeToUtc(closesAt, timezone) : null,
       };
       const publishedOptions = activeOptions.filter((option) => option.label.trim());
@@ -173,6 +179,7 @@ export function PollForm({
         <label htmlFor="poll-description">Descrição</label>
         <textarea id="poll-description" name="description" maxLength={5000} rows={4} />
       </div>
+      <PollEventField events={events} initialEventId={initialEventId} />
       <div className="field">
         <label htmlFor="poll-type">Tipo de votação</label>
         <select

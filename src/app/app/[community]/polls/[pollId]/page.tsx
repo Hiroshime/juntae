@@ -60,6 +60,11 @@ export default async function PollPage({
                 <span className="role-badge">{pollTypeLabels[poll.type]}</span>
               </div>
               <h1>{poll.title}</h1>
+              {poll.event && (
+                <Link href={`/app/${slug}/events/${poll.event.id}`}>
+                  Evento: {poll.event.title} →
+                </Link>
+              )}
               {poll.description && <p className="lead">{poll.description}</p>}
               <p className="muted small">
                 Criada por {poll.createdBy.name}

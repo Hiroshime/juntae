@@ -5,7 +5,7 @@ import { PollSettingsForm } from "@/features/polls/poll-actions";
 import { requirePageUser } from "@/lib/auth/page-session";
 import { dateTimeLocalInTimeZone } from "@/lib/dates/civil-date";
 import { getMembershipBySlug } from "@/server/services/community-service";
-import { getPoll } from "@/server/services/poll-service";
+import { getPoll, getPollEventSources } from "@/server/services/poll-service";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,7 @@ export default async function EditPollPage({
   if (!membership) notFound();
   const poll = await getPoll(user.id, membership.communityId, pollId).catch(() => null);
   if (!poll || !poll.canManage || poll.status !== "OPEN") notFound();
+  const events = await getPollEventSources(user.id, membership.communityId, poll.eventId);
 
   return (
     <main className="shell">
@@ -37,11 +38,13 @@ export default async function EditPollPage({
             communitySlug={slug}
             pollId={poll.id}
             timezone={user.timezone}
+            events={events}
             initial={{
               title: poll.title,
               description: poll.description ?? "",
               allowVoteChange: poll.allowVoteChange,
               allowMemberOptions: poll.allowMemberOptions,
+              eventId: poll.eventId,
               closesAt: poll.closesAt ? dateTimeLocalInTimeZone(poll.closesAt, user.timezone) : "",
             }}
           />

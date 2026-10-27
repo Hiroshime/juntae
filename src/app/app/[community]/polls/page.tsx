@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import { AppHeader } from "@/components/app-header";
 import { formatPollDeadline, pollStatusLabels, pollTypeLabels } from "@/features/polls/status";
 import { requirePageUser } from "@/lib/auth/page-session";
 import { getMembershipBySlug } from "@/server/services/community-service";
-import { listPolls } from "@/server/services/poll-service";
+import { getPollEventSources, listPolls } from "@/server/services/poll-service";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +14,20 @@ export default async function PollsPage({
   searchParams,
 }: {
   params: Promise<{ community: string }>;
-  searchParams: Promise<{ scope?: string; page?: string }>;
+  searchParams: Promise<{ scope?: string; page?: string; event?: string }>;
 }) {
   const { community: slug } = await params;
   const user = await requirePageUser(`/app/${slug}/polls`);
   const membership = await getMembershipBySlug(user.id, slug);
   if (!membership) notFound();
   const search = await searchParams;
+  if (search.event && !z.string().uuid().safeParse(search.event).success) notFound();
+  const selectedEvent = search.event
+    ? (await getPollEventSources(user.id, membership.communityId, search.event)).find(
+        (event) => event.id === search.event,
+      )
+    : null;
+  if (search.event && !selectedEvent) notFound();
   const scope = search.scope === "CLOSED" || search.scope === "ALL" ? search.scope : "OPEN";
   const parsedPage = Number(search.page);
   const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -28,16 +36,19 @@ export default async function PollsPage({
     scope,
     take: pageSize + 1,
     skip: (page - 1) * pageSize,
+    eventId: selectedEvent?.id,
   });
   const hasNextPage = results.length > pageSize;
   const polls = results.slice(0, pageSize);
-  const pageHref = (targetPage: number) => {
+  const pageHref = (targetPage: number, targetScope = scope) => {
     const query = new URLSearchParams();
-    if (scope !== "OPEN") query.set("scope", scope);
+    if (targetScope !== "OPEN") query.set("scope", targetScope);
+    if (selectedEvent) query.set("event", selectedEvent.id);
     if (targetPage > 1) query.set("page", String(targetPage));
     const suffix = query.toString();
     return `/app/${slug}/polls${suffix ? `?${suffix}` : ""}`;
   };
+  const createHref = `/app/${slug}/polls/new${selectedEvent ? `?event=${selectedEvent.id}` : ""}`;
 
   return (
     <main className="shell">
@@ -48,25 +59,28 @@ export default async function PollsPage({
             <div>
               <div className="eyebrow">Votações</div>
               <h1>Decidir em conjunto</h1>
+              {selectedEvent && (
+                <p>
+                  Votações de {selectedEvent.title} ·{" "}
+                  <Link href={`/app/${slug}/polls?scope=ALL`}>Ver toda a comunidade</Link>
+                </p>
+              )}
               <p className="lead">
                 Escolha opções, atividades ou as melhores datas em poucos toques.
               </p>
             </div>
-            <Link className="button" href={`/app/${slug}/polls/new`}>
+            <Link className="button" href={createHref}>
               Criar votação
             </Link>
           </div>
           <nav className="event-filters" aria-label="Filtrar votações">
-            <Link className={scope === "OPEN" ? "active" : ""} href={`/app/${slug}/polls`}>
+            <Link className={scope === "OPEN" ? "active" : ""} href={pageHref(1, "OPEN")}>
               Abertas
             </Link>
-            <Link
-              className={scope === "CLOSED" ? "active" : ""}
-              href={`/app/${slug}/polls?scope=CLOSED`}
-            >
+            <Link className={scope === "CLOSED" ? "active" : ""} href={pageHref(1, "CLOSED")}>
               Encerradas
             </Link>
-            <Link className={scope === "ALL" ? "active" : ""} href={`/app/${slug}/polls?scope=ALL`}>
+            <Link className={scope === "ALL" ? "active" : ""} href={pageHref(1, "ALL")}>
               Todas
             </Link>
           </nav>
@@ -85,6 +99,7 @@ export default async function PollsPage({
                     <span className="muted small">{pollTypeLabels[poll.type]}</span>
                   </div>
                   <h2>{poll.title}</h2>
+                  {poll.event && <p className="muted small">Evento: {poll.event.title}</p>}
                   {poll.type === "GROUPED" && (
                     <p className="muted small">
                       {poll.questionCount} perguntas · respostas separadas
@@ -119,7 +134,7 @@ export default async function PollsPage({
               <span className="empty-icon">🗳️</span>
               <h2>Nenhuma votação aqui</h2>
               <p className="muted">Crie uma pergunta para a comunidade decidir junta.</p>
-              <Link className="button" href={`/app/${slug}/polls/new`}>
+              <Link className="button" href={createHref}>
                 Criar a primeira votação
               </Link>
             </div>

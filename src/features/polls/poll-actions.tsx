@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { PollType } from "@prisma/client";
+import { PollEventField, type PollEventSource } from "./poll-event-field";
 import { zonedDateTimeToUtc } from "@/lib/dates/civil-date";
 import {
   PollOptionContent,
@@ -325,16 +326,19 @@ export function PollSettingsForm({
   pollId,
   timezone,
   initial,
+  events,
 }: {
   communityId: string;
   communitySlug: string;
   pollId: string;
   timezone: string;
+  events: PollEventSource[];
   initial: {
     title: string;
     description: string;
     allowVoteChange: boolean;
     allowMemberOptions: boolean;
+    eventId: string | null;
     closesAt: string;
   };
 }) {
@@ -356,6 +360,7 @@ export function PollSettingsForm({
         description: String(form.get("description") || ""),
         allowVoteChange: form.get("allowVoteChange") === "on",
         allowMemberOptions: form.get("allowMemberOptions") === "on",
+        eventId: String(form.get("eventId") || ""),
         closesAt: closesAt ? localDateTimeToUtc(closesAt, timezone) : null,
       }),
     });
@@ -384,6 +389,7 @@ export function PollSettingsForm({
           rows={4}
         />
       </div>
+      <PollEventField events={events} initialEventId={initial.eventId} />
       <div className="field">
         <label htmlFor="poll-closes">Prazo para votar (opcional)</label>
         <input

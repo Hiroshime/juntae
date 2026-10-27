@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import { AppHeader } from "@/components/app-header";
 import { PollForm } from "@/features/polls/poll-form";
 import { requirePageUser } from "@/lib/auth/page-session";
 import { addCivilDays, civilDateInTimeZone } from "@/lib/dates/civil-date";
 import { getBestDates } from "@/server/services/availability-service";
 import { getMembershipBySlug } from "@/server/services/community-service";
+import { getPollEventSources } from "@/server/services/poll-service";
 
 export const dynamic = "force-dynamic";
 
@@ -13,21 +15,28 @@ export default async function NewPollPage({
   searchParams,
 }: {
   params: Promise<{ community: string }>;
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; event?: string }>;
 }) {
   const { community: slug } = await params;
   const user = await requirePageUser(`/app/${slug}/polls/new`);
   const membership = await getMembershipBySlug(user.id, slug);
   if (!membership) notFound();
+  const search = await searchParams;
+  if (search.event && !z.string().uuid().safeParse(search.event).success) notFound();
   const today = civilDateInTimeZone(new Date(), user.timezone);
-  const rankedDates = await getBestDates(user.id, membership.communityId, {
-    startDate: today,
-    endDate: addCivilDays(today, 60),
-    onlyWeekends: false,
-    minPeople: 0,
-    periodOfDay: "ALL",
-  });
-  const requestedDate = (await searchParams).date;
+  const [events, rankedDates] = await Promise.all([
+    getPollEventSources(user.id, membership.communityId, search.event),
+    getBestDates(user.id, membership.communityId, {
+      startDate: today,
+      endDate: addCivilDays(today, 60),
+      onlyWeekends: false,
+      minPeople: 0,
+      periodOfDay: "ALL",
+    }),
+  ]);
+  const initialEventId = events.find((event) => event.id === search.event)?.id;
+  if (search.event && !initialEventId) notFound();
+  const requestedDate = search.date;
   const preferredDate = rankedDates.find((item) => item.date === requestedDate)?.date;
   const preferredSuggestion = rankedDates.find((item) => item.date === preferredDate);
   const suggestions = preferredSuggestion
@@ -55,6 +64,8 @@ export default async function NewPollPage({
             preferredDate={preferredDate}
             suggestions={suggestions}
             timezone={user.timezone}
+            events={events}
+            initialEventId={initialEventId}
           />
         </section>
       </div>

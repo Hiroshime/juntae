@@ -33,6 +33,8 @@ import { getCommunityCalendar } from "@/server/services/availability-service";
 const pollListSelection = {
   id: true,
   communityId: true,
+  eventId: true,
+  event: { select: { id: true, title: true } },
   createdById: true,
   title: true,
   description: true,
@@ -63,6 +65,40 @@ async function requireMembership(userId: string, communityId: string) {
     }),
     "Você não participa desta comunidade.",
   );
+}
+
+async function assertPollEvent(
+  db: Prisma.TransactionClient,
+  communityId: string,
+  eventId?: string | null,
+) {
+  if (!eventId) return;
+  if (!(await db.event.findFirst({ where: { id: eventId, communityId }, select: { id: true } }))) {
+    throw new AppError("Evento não encontrado nesta comunidade.", 400, "INVALID_EVENT");
+  }
+}
+
+export async function getPollEventSources(
+  userId: string,
+  communityId: string,
+  selectedEventId?: string | null,
+) {
+  await requireMembership(userId, communityId);
+  const select = { id: true, title: true, startsAt: true, timezone: true } as const;
+  const events = await prisma.event.findMany({
+    where: { communityId },
+    orderBy: [{ startsAt: "desc" }, { id: "desc" }],
+    take: 200,
+    select,
+  });
+  if (selectedEventId && !events.some((event) => event.id === selectedEventId)) {
+    const selected = await prisma.event.findFirst({
+      where: { id: selectedEventId, communityId },
+      select,
+    });
+    if (selected) events.unshift(selected);
+  }
+  return events.map((event) => ({ ...event, startsAt: event.startsAt.toISOString() }));
 }
 
 function canManagePoll(actorId: string, role: CommunityRole, poll: { createdById: string }) {
@@ -132,6 +168,8 @@ function toPollSummary(poll: PollListRecord, userId: string) {
   return {
     id: poll.id,
     communityId: poll.communityId,
+    eventId: poll.eventId,
+    event: poll.event,
     createdById: poll.createdById,
     title: poll.title,
     description: poll.description,
@@ -165,6 +203,7 @@ export async function createPoll(
   imageUploads: PollImageUpload[] = [],
 ) {
   await requireMembership(userId, communityId);
+  await assertPollEvent(prisma, communityId, input.eventId);
   if (input.type === "DATE_OPTIONS" && imageUploads.length) {
     throw new AppError(
       "Votações de data não aceitam álbuns nas opções.",
@@ -174,6 +213,7 @@ export async function createPoll(
   }
   const data = {
     communityId,
+    eventId: input.eventId ?? null,
     createdById: userId,
     title: input.title,
     description: input.description,
@@ -221,13 +261,14 @@ export async function createPoll(
 export async function listPolls(
   userId: string,
   communityId: string,
-  options: { scope: "OPEN" | "CLOSED" | "ALL"; take: number; skip?: number },
+  options: { scope: "OPEN" | "CLOSED" | "ALL"; take: number; skip?: number; eventId?: string },
 ) {
   await requireMembership(userId, communityId);
   const now = new Date();
   const polls = await prisma.poll.findMany({
     where: {
       communityId,
+      ...(options.eventId ? { eventId: options.eventId } : {}),
       ...(options.scope === "OPEN"
         ? {
             status: "OPEN" as PollStatus,
@@ -253,6 +294,7 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
     await prisma.poll.findFirst({
       where: { id: pollId, communityId },
       include: {
+        event: { select: { id: true, title: true } },
         createdBy: { select: { name: true, avatarUrl: true } },
         questions: { orderBy: { sortOrder: "asc" } },
         options: {
@@ -325,6 +367,8 @@ export async function getPoll(userId: string, communityId: string, pollId: strin
   return {
     id: poll.id,
     communityId: poll.communityId,
+    eventId: poll.eventId,
+    event: poll.event,
     createdById: poll.createdById,
     title: poll.title,
     description: poll.description,
@@ -582,10 +626,12 @@ export async function updatePoll(
     if (effectivePollStatus(poll.status, poll.closesAt) === "CLOSED") {
       throw new AppError("Votações encerradas não podem ser editadas.", 409, "POLL_CLOSED");
     }
+    await assertPollEvent(tx, communityId, input.eventId);
     return tx.poll.update({
       where: { id: pollId },
       data: {
         title: input.title,
+        eventId: input.eventId,
         description: input.description,
         allowVoteChange: input.allowVoteChange,
         allowMemberOptions: input.allowMemberOptions,

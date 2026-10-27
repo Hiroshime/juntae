@@ -1,4 +1,5 @@
 import { hash } from "bcryptjs";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 import { addPollOptionSchema, createPollSchema } from "@/lib/validation/poll";
@@ -10,6 +11,7 @@ import {
   createPoll,
   deletePollOptionImage,
   getPoll,
+  getPollEventSources,
   getPollOptionImage,
   listPolls,
   removeVote,
@@ -54,6 +56,15 @@ describe("poll services", () => {
     });
   const newOption = (label: string, questionId?: string) =>
     addPollOptionSchema.parse({ label, questionId });
+  const eventFixture = (title = "Chácara") =>
+    prisma.event.create({
+      data: {
+        communityId,
+        createdById: ownerId,
+        title,
+        startsAt: new Date("2030-09-10T12:00:00Z"),
+      },
+    });
 
   beforeAll(async () => {
     const passwordHash = await hash("senha-de-teste", 4);
@@ -98,6 +109,157 @@ describe("poll services", () => {
     if (communityId) await prisma.community.deleteMany({ where: { id: communityId } });
     await prisma.user.deleteMany({
       where: { id: { in: [ownerId, adminId, memberId, outsiderId] } },
+    });
+  });
+
+  it("vincula todos os tipos e filtra as várias votações do evento", async () => {
+    const event = await eventFixture();
+    const other = await eventFixture("Outro passeio");
+    const independent = await createPoll(memberId, communityId, simpleInput);
+    expect((await getPoll(memberId, communityId, independent.id)).event).toBeNull();
+    const inputs = [
+      simpleInput,
+      { ...simpleInput, type: "MULTIPLE_CHOICE" as const },
+      groupedInput(),
+      createPollSchema.parse({
+        ...simpleInput,
+        type: "DATE_OPTIONS",
+        dates: ["2030-09-10", "2030-09-11"],
+      }),
+    ];
+    for (const input of inputs) {
+      const poll = await createPoll(memberId, communityId, { ...input, eventId: event.id });
+      expect((await getPoll(ownerId, communityId, poll.id)).event).toEqual({
+        id: event.id,
+        title: "Chácara",
+      });
+    }
+    await createPoll(ownerId, communityId, { ...simpleInput, eventId: other.id });
+    const polls = await listPolls(memberId, communityId, {
+      scope: "ALL",
+      take: 20,
+      eventId: event.id,
+    });
+    expect(polls).toHaveLength(4);
+    expect(polls.every((poll) => poll.eventId === event.id)).toBe(true);
+    expect(
+      await listPolls(memberId, communityId, { scope: "ALL", take: 2, skip: 2, eventId: event.id }),
+    ).toHaveLength(2);
+  });
+
+  it("troca/remove vínculo preservando votos, perguntas e álbum; omissão mantém o evento", async () => {
+    const first = await eventFixture();
+    const second = await eventFixture("Praia");
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    const poll = await createPoll(ownerId, communityId, { ...groupedInput(), eventId: first.id }, [
+      {
+        optionIndex: 0,
+        data: bytes,
+        sizeBytes: bytes.length,
+        originalName: "almoco.png",
+        contentType: "image/png",
+        sortOrder: 0,
+      },
+    ]);
+    const before = await getPoll(memberId, communityId, poll.id);
+    await castVote(memberId, communityId, poll.id, [poll.options[0].id], before.questions[0].id);
+    await expect(
+      updatePoll(memberId, communityId, poll.id, { ...simpleInput, eventId: second.id }),
+    ).rejects.toMatchObject({ status: 403 });
+    await updatePoll(adminId, communityId, poll.id, { ...simpleInput, eventId: second.id });
+    await updatePoll(ownerId, communityId, poll.id, simpleInput);
+    const changed = await getPoll(memberId, communityId, poll.id);
+    expect(changed.eventId).toBe(second.id);
+    expect(changed.myOptionIds).toEqual([poll.options[0].id]);
+    expect(changed.questions.map((question) => question.id)).toEqual(
+      before.questions.map((question) => question.id),
+    );
+    expect(changed.options[0].images).toEqual(before.options[0].images);
+    await updatePoll(ownerId, communityId, poll.id, { ...simpleInput, eventId: null });
+    expect((await getPoll(memberId, communityId, poll.id)).event).toBeNull();
+    await closePoll(ownerId, communityId, poll.id);
+    await expect(
+      updatePoll(ownerId, communityId, poll.id, { ...simpleInput, eventId: first.id }),
+    ).rejects.toMatchObject({ code: "POLL_CLOSED" });
+  });
+
+  it("recusa evento inexistente ou de outra comunidade mesmo para membro de ambas", async () => {
+    const foreign = await prisma.community.create({
+      data: {
+        name: "Outra turma",
+        slug: `poll-foreign-${randomUUID()}`,
+        createdById: outsiderId,
+        members: { create: [{ userId: outsiderId, role: "OWNER" }, { userId: ownerId }] },
+      },
+    });
+    try {
+      const event = await prisma.event.create({
+        data: {
+          communityId: foreign.id,
+          createdById: outsiderId,
+          title: "Privado",
+          startsAt: new Date("2030-09-10T12:00:00Z"),
+        },
+      });
+      await expect(
+        createPoll(ownerId, communityId, { ...simpleInput, eventId: event.id }),
+      ).rejects.toMatchObject({ code: "INVALID_EVENT" });
+      await expect(
+        createPoll(ownerId, communityId, { ...simpleInput, eventId: randomUUID() }),
+      ).rejects.toMatchObject({ code: "INVALID_EVENT" });
+      const poll = await createPoll(ownerId, communityId, simpleInput);
+      await expect(
+        updatePoll(ownerId, communityId, poll.id, { ...simpleInput, eventId: event.id }),
+      ).rejects.toMatchObject({ code: "INVALID_EVENT" });
+      expect((await getPoll(ownerId, communityId, poll.id)).event).toBeNull();
+      expect(
+        (await getPollEventSources(ownerId, communityId, event.id)).some(
+          (item) => item.id === event.id,
+        ),
+      ).toBe(false);
+      await createPoll(outsiderId, foreign.id, { ...simpleInput, eventId: event.id });
+      expect(
+        await listPolls(ownerId, communityId, { scope: "ALL", take: 20, eventId: event.id }),
+      ).toEqual([]);
+      await expect(getPollEventSources(outsiderId, communityId)).rejects.toMatchObject({
+        status: 404,
+      });
+    } finally {
+      await prisma.community.delete({ where: { id: foreign.id } });
+    }
+  });
+
+  it("não depende de RSVP/status do evento e preserva votação quando ele é excluído", async () => {
+    const event = await eventFixture();
+    const poll = await createPoll(ownerId, communityId, { ...simpleInput, eventId: event.id });
+    await prisma.event.update({ where: { id: event.id }, data: { status: "CANCELLED" } });
+    await castVote(memberId, communityId, poll.id, [poll.options[0].id]);
+    await prisma.event.delete({ where: { id: event.id } });
+    expect(await getPoll(memberId, communityId, poll.id)).toMatchObject({
+      eventId: null,
+      event: null,
+      status: "OPEN",
+      totalVoters: 1,
+      myOptionIds: [poll.options[0].id],
+    });
+  });
+
+  it("mantém evento antigo selecionável fora dos 200 mais recentes", async () => {
+    const event = await eventFixture("Evento antigo");
+    await prisma.event.createMany({
+      data: Array.from({ length: 201 }, () => ({
+        communityId,
+        createdById: ownerId,
+        title: "Mais recente",
+        startsAt: new Date("2035-01-01T12:00:00Z"),
+      })),
+    });
+    expect(await getPollEventSources(memberId, communityId)).toHaveLength(200);
+    expect(await getPollEventSources(memberId, communityId, event.id)).toContainEqual({
+      id: event.id,
+      title: event.title,
+      startsAt: event.startsAt.toISOString(),
+      timezone: event.timezone,
     });
   });
 

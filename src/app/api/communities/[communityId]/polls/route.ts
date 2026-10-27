@@ -58,6 +58,7 @@ export async function GET(request: Request, { params }: Context) {
     const { communityId } = await params;
     const search = new URL(request.url).searchParams;
     const parsed = pollListQuerySchema.safeParse({
+      eventId: search.get("event") ?? undefined,
       scope: search.get("scope") ?? "OPEN",
       take: search.get("take") ?? 50,
       page: search.get("page") ?? 1,

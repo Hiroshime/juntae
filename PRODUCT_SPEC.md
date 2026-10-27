@@ -665,6 +665,7 @@ GROUPED
 ```text
 id
 community_id
+event_id nullable
 created_by
 title
 description
@@ -793,6 +794,26 @@ Isso é uma feature importante do produto.
   voto único/múltiplo por pergunta; alteração/remoção independente; percentuais e progresso corretos;
   fechamento/reabertura preservando votos; adições concorrentes sem duplicar ou ultrapassar limites;
   compatibilidade com votações simples, datas, álbuns e visualização mobile.
+
+## 11.9 Vínculo opcional com eventos
+
+- Qualquer tipo de votação pode existir sem evento ou estar associado a um evento da mesma comunidade.
+  Um evento pode ter várias votações, sem alterar RSVPs, participantes ou as regras de voto.
+- Criação e edição oferecem **Evento relacionado (opcional)**, incluindo **Sem evento**. Criador,
+  `OWNER` e `ADMIN` podem trocar/remover o vínculo enquanto a votação estiver aberta, preservando
+  perguntas, alternativas, álbuns e votos. Clientes antigos que omitem `eventId` na edição mantêm o vínculo.
+- O servidor valida participação na comunidade e a propriedade do evento. Um identificador de evento
+  inexistente ou de outra comunidade é recusado. O vínculo não concede acesso a pessoas de fora.
+- A página do evento permite criar uma votação com o evento pré-selecionado e mostra até dez votações
+  vinculadas, abertas ou encerradas, com acesso à listagem paginada completa. Filtros de estado e
+  paginação preservam o filtro por evento. A votação e seu card identificam o evento relacionado.
+- Cancelar ou concluir o evento não encerra automaticamente suas votações. Excluir o evento remove
+  apenas o vínculo; a votação e seus votos permanecem. Excluir a comunidade continua removendo tudo.
+- A migration `0044_event_polls` adiciona `Poll.eventId`, seu índice e a relação com `ON DELETE SET NULL`;
+  votações existentes permanecem sem evento. Nenhuma nova variável de ambiente ou seed é necessária.
+- Aceite: criar com/sem evento em todos os tipos; alterar/remover vínculo autorizado; impedir vínculos
+  entre comunidades e alterações em votações encerradas; preservar votos/álbuns e compatibilidade de
+  clientes antigos; navegar em ambos os sentidos e manter filtros; excluir evento sem perder a votação.
 
 ---
 

@@ -323,11 +323,15 @@ describe("assistente contextual privado", () => {
   });
 
   it("identifica a pergunta de cada alternativa no contexto das votações agrupadas", async () => {
+    const event = await prisma.event.findFirstOrThrow({
+      where: { communityId, title: "Churrasco da turma" },
+    });
     const poll = await createPoll(
       ownerId,
       communityId,
       createPollSchema.parse({
         title: "Refeições da turma",
+        eventId: event.id,
         type: "GROUPED",
         description: "",
         closesAt: null,
@@ -347,6 +351,7 @@ describe("assistente contextual privado", () => {
       );
       const context = captured.at(-1)?.[0].content ?? "";
       expect(context).toContain('"question":"Almoço"');
+      expect(context).toContain('"event":"Churrasco da turma"');
       expect(context).toContain('"question":"Jantar"');
       expect(context).toContain('"selectionType":"MULTIPLE_CHOICE"');
       await deleteAiConversation(memberId, communityId, result.conversation.id);

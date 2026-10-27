@@ -4,6 +4,7 @@ import {
   addPollOptionSchema,
   castVoteSchema,
   createPollSchema,
+  pollListQuerySchema,
   updatePollSchema,
 } from "@/lib/validation/poll";
 
@@ -15,6 +16,20 @@ const base = {
 };
 
 describe("poll validation", () => {
+  it("aceita vínculo opcional, distingue remoção de omissão e valida o filtro por evento", () => {
+    const eventId = "b0d93d29-9ccc-4f65-a746-daa5e5f1978e";
+    expect(
+      createPollSchema.parse({ ...base, type: "SINGLE_CHOICE", options: ["Sim", "Não"], eventId })
+        .eventId,
+    ).toBe(eventId);
+    expect(updatePollSchema.parse({ ...base, eventId: "" }).eventId).toBeNull();
+    expect(updatePollSchema.parse({ ...base, eventId: null }).eventId).toBeNull();
+    expect(updatePollSchema.parse(base).eventId).toBeUndefined();
+    expect(updatePollSchema.safeParse({ ...base, eventId: "evento-inválido" }).success).toBe(false);
+    expect(updatePollSchema.safeParse({ ...base, eventId: 1 }).success).toBe(false);
+    expect(pollListQuerySchema.parse({ eventId }).eventId).toBe(eventId);
+    expect(pollListQuerySchema.safeParse({ eventId: "bad" }).success).toBe(false);
+  });
   const grouped = {
     ...base,
     type: "GROUPED",

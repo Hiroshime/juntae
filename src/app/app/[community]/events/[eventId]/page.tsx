@@ -17,6 +17,8 @@ import { requirePageUser } from "@/lib/auth/page-session";
 import { getMembershipBySlug } from "@/server/services/community-service";
 import { getEvent } from "@/server/services/event-service";
 import { listPackingLists } from "@/server/services/packing-list-service";
+import { listPolls } from "@/server/services/poll-service";
+import { pollStatusLabels, pollTypeLabels } from "@/features/polls/status";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,11 @@ export default async function EventPage({
   const acceptsRsvp = event.status === "PUBLISHED";
   const account = await getEventAccount(user.id, membership.communityId, eventId);
   const packingLists = await listPackingLists(user.id, membership.communityId, 1, eventId);
+  const polls = await listPolls(user.id, membership.communityId, {
+    scope: "ALL",
+    take: 10,
+    eventId,
+  });
 
   return (
     <main className="shell">
@@ -81,6 +88,9 @@ export default async function EventPage({
               href={`/app/${slug}/packing-lists?event=${event.id}`}
             >
               Criar lista
+            </Link>
+            <Link className="button secondary" href={`/app/${slug}/polls/new?event=${event.id}`}>
+              Criar votação
             </Link>
           </div>
           {event.status === "CANCELLED" && (
@@ -217,6 +227,40 @@ export default async function EventPage({
             ) : (
               <p className="muted">
                 Organize comidas, bebidas e outros itens criando uma lista para este evento.
+              </p>
+            )}
+          </section>
+          <section className="participants-section" aria-label="Votações deste evento">
+            <div className="card-header">
+              <h2>Votações deste evento</h2>
+              <Link href={`/app/${slug}/polls?event=${event.id}&scope=ALL`}>
+                Ver todas as votações
+              </Link>
+            </div>
+            {polls.length ? (
+              <div className="poll-grid">
+                {polls.map((poll) => (
+                  <Link
+                    className="card poll-card"
+                    key={poll.id}
+                    href={`/app/${slug}/polls/${poll.id}`}
+                  >
+                    <div className="card-header">
+                      <span className={`poll-status poll-status-${poll.status.toLowerCase()}`}>
+                        {pollStatusLabels[poll.status]}
+                      </span>
+                      <span className="muted small">{pollTypeLabels[poll.type]}</span>
+                    </div>
+                    <h3>{poll.title}</h3>
+                    <p className="small muted">
+                      {poll.totalVoters} {poll.totalVoters === 1 ? "votante" : "votantes"}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">
+                Crie uma votação para decidir os detalhes deste evento com a comunidade.
               </p>
             )}
           </section>
