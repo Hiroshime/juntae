@@ -31,6 +31,8 @@ export function PollVoteForm({
   canVote,
   allowVoteChange,
   isOpen,
+  questionId,
+  questionTitle,
 }: {
   communityId: string;
   pollId: string;
@@ -40,6 +42,8 @@ export function PollVoteForm({
   canVote: boolean;
   allowVoteChange: boolean;
   isOpen: boolean;
+  questionId?: string;
+  questionTitle?: string;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState(() => new Set(initialOptionIds));
@@ -64,7 +68,7 @@ export function PollVoteForm({
     const response = await fetch(`/api/communities/${communityId}/polls/${pollId}/vote`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ optionIds: [...selected] }),
+      body: JSON.stringify({ optionIds: [...selected], questionId }),
     });
     const result = (await response.json().catch(() => ({}))) as { error?: string };
     setPending(false);
@@ -82,9 +86,12 @@ export function PollVoteForm({
   async function remove() {
     setPending(true);
     setMessage(null);
-    const response = await fetch(`/api/communities/${communityId}/polls/${pollId}/vote`, {
-      method: "DELETE",
-    });
+    const response = await fetch(
+      `/api/communities/${communityId}/polls/${pollId}/vote${questionId ? `?questionId=${questionId}` : ""}`,
+      {
+        method: "DELETE",
+      },
+    );
     const result = (await response.json().catch(() => ({}))) as { error?: string };
     setPending(false);
     if (!response.ok) {
@@ -97,10 +104,14 @@ export function PollVoteForm({
   }
 
   return (
-    <form className="card poll-vote-form" onSubmit={submit}>
+    <form
+      className="card poll-vote-form"
+      onSubmit={submit}
+      aria-label={questionTitle ? `Votar: ${questionTitle}` : "Seu voto"}
+    >
       <div className="card-header">
         <div>
-          <h2>Seu voto</h2>
+          <h2>{questionTitle || "Seu voto"}</h2>
           <p className="muted small">
             {isSingle ? "Escolha uma opção." : "Selecione todas as opções que você prefere."}
           </p>
@@ -120,7 +131,7 @@ export function PollVoteForm({
                 id={`poll-vote-${option.id}`}
                 checked={selected.has(option.id)}
                 disabled={!canVote || pending}
-                name="poll-vote"
+                name={`poll-vote-${questionId || pollId}`}
                 onChange={() => select(option.id)}
                 type={isSingle ? "radio" : "checkbox"}
                 value={option.id}
@@ -323,6 +334,7 @@ export function PollSettingsForm({
     title: string;
     description: string;
     allowVoteChange: boolean;
+    allowMemberOptions: boolean;
     closesAt: string;
   };
 }) {
@@ -343,6 +355,7 @@ export function PollSettingsForm({
         title: String(form.get("title")),
         description: String(form.get("description") || ""),
         allowVoteChange: form.get("allowVoteChange") === "on",
+        allowMemberOptions: form.get("allowMemberOptions") === "on",
         closesAt: closesAt ? localDateTimeToUtc(closesAt, timezone) : null,
       }),
     });
@@ -385,7 +398,18 @@ export function PollSettingsForm({
         <input defaultChecked={initial.allowVoteChange} name="allowVoteChange" type="checkbox" />
         Permitir que membros alterem o voto
       </label>
-      <p className="field-help">As opções ficam fixas após a publicação para preservar os votos.</p>
+      <label className="toggle-row">
+        <input
+          defaultChecked={initial.allowMemberOptions}
+          name="allowMemberOptions"
+          type="checkbox"
+        />
+        Permitir que membros adicionem opções
+      </label>
+      <p className="field-help">
+        As opções e perguntas publicadas são preservadas. Novas alternativas podem ser acrescentadas
+        na página da votação enquanto estiver aberta.
+      </p>
       {error && (
         <div className="error" role="alert">
           {error}

@@ -301,7 +301,12 @@ async function buildCommunityContext(
           closesAt: true,
           options: {
             orderBy: { sortOrder: "asc" },
-            select: { label: true, dateValue: true, votes: { select: { userId: true } } },
+            select: {
+              label: true,
+              dateValue: true,
+              question: { select: { title: true, type: true } },
+              votes: { select: { userId: true } },
+            },
           },
         },
       })
@@ -456,6 +461,9 @@ async function buildCommunityContext(
             closesAt: poll.closesAt?.toISOString() ?? null,
             options: poll.options.map((option) => ({
               label: option.label,
+              ...(option.question
+                ? { question: option.question.title, selectionType: option.question.type }
+                : {}),
               date: option.dateValue ? formatCivilDate(option.dateValue) : null,
               votes: option.votes.map((vote) => names.get(vote.userId) ?? "Membro"),
             })),

@@ -59,6 +59,7 @@ const base = {
   title: z.string().trim().min(2, "Informe o título da votação.").max(160),
   description: optionalText,
   allowVoteChange: z.boolean().default(true),
+  allowMemberOptions: z.boolean().optional(),
   closesAt: optionalDateTime,
 };
 
@@ -102,21 +103,54 @@ export const createPollSchema = z
     z.object({ ...base, type: z.literal("MULTIPLE_CHOICE"), options }),
     z.object({
       ...base,
+      type: z.literal("GROUPED"),
+      questions: z
+        .array(
+          z.object({
+            title: z.string().trim().min(2, "Informe o título de cada pergunta.").max(160),
+            type: z.enum(["SINGLE_CHOICE", "MULTIPLE_CHOICE"]),
+            options,
+          }),
+        )
+        .min(2, "Inclua pelo menos duas perguntas.")
+        .max(10, "Use no máximo 10 perguntas."),
+    }),
+    z.object({
+      ...base,
       type: z.literal("DATE_OPTIONS"),
       dates,
       timezone: timezone.default("America/Sao_Paulo"),
     }),
   ])
   .superRefine((value, context) => {
-    const values = value.type === "DATE_OPTIONS" ? value.dates : value.options;
-    const normalized = values.map((item) =>
-      (typeof item === "string" ? item : item.label).toLocaleLowerCase("pt-BR"),
-    );
-    if (new Set(normalized).size !== values.length) {
+    const groups =
+      value.type === "GROUPED"
+        ? value.questions.map((question) => question.options)
+        : [value.type === "DATE_OPTIONS" ? value.dates : value.options];
+    for (const [index, values] of groups.entries()) {
+      const normalized = values.map((item) =>
+        (typeof item === "string" ? item : item.label).toLocaleLowerCase("pt-BR"),
+      );
+      if (new Set(normalized).size !== values.length) {
+        context.addIssue({
+          code: "custom",
+          message: "As opções não podem se repetir.",
+          path:
+            value.type === "GROUPED"
+              ? ["questions", index, "options"]
+              : [value.type === "DATE_OPTIONS" ? "dates" : "options"],
+        });
+      }
+    }
+    if (
+      value.type === "GROUPED" &&
+      new Set(value.questions.map((question) => question.title.toLocaleLowerCase("pt-BR"))).size !==
+        value.questions.length
+    ) {
       context.addIssue({
         code: "custom",
-        message: "As opções não podem se repetir.",
-        path: [value.type === "DATE_OPTIONS" ? "dates" : "options"],
+        message: "As perguntas devem ter títulos diferentes.",
+        path: ["questions"],
       });
     }
     if (value.type === "DATE_OPTIONS") {
@@ -167,7 +201,16 @@ export const updatePollSchema = z.object(base).superRefine((value, context) => {
 
 export const castVoteSchema = z.object({
   optionIds: z.array(z.string().uuid()).min(1).max(20),
+  questionId: z.string().uuid().optional(),
 });
+
+export const voteQuestionQuerySchema = z.object({ questionId: z.string().uuid().optional() });
+
+export const addPollOptionSchema = pollOptionDetails.extend({
+  questionId: z.string().uuid().optional(),
+  dateValue: civilDate.optional(),
+});
+export type AddPollOptionInput = z.infer<typeof addPollOptionSchema>;
 
 export const reopenPollSchema = z
   .object({

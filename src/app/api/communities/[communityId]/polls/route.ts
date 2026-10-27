@@ -24,7 +24,8 @@ async function readCreatePollRequest(request: Request) {
 
   const form = await readBoundedFormData(request, MAX_POLL_MULTIPART_BYTES);
   const serialized = form.get("payload");
-  if (typeof serialized !== "string" || serialized.length > 100_000) {
+  // Up to 200 rich options across ten questions; the whole upload is still bounded to 32 MB.
+  if (typeof serialized !== "string" || serialized.length > 3_000_000) {
     throw new AppError("Dados da votação inválidos.", 400, "INVALID_POLL_PAYLOAD");
   }
 
@@ -93,7 +94,11 @@ export async function POST(request: Request, { params }: Context) {
     try {
       images = validatePollImageUploads(
         requestData.rawImages,
-        parsed.data.type === "DATE_OPTIONS" ? 0 : parsed.data.options.length,
+        parsed.data.type === "DATE_OPTIONS"
+          ? 0
+          : parsed.data.type === "GROUPED"
+            ? parsed.data.questions.reduce((count, question) => count + question.options.length, 0)
+            : parsed.data.options.length,
       );
     } catch (error) {
       throwPollImageUploadError(error);

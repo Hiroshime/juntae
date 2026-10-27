@@ -350,6 +350,140 @@
   }
 }
 
+.poll-questions-editor,
+.poll-vote-column,
+.poll-add-fields {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.poll-question-editor > .field,
+.poll-question-editor > fieldset {
+  margin-bottom: 1rem;
+}
+
+.poll-question-section {
+  margin-bottom: 2.5rem;
+  min-width: 0;
+}
+
+.poll-question-title {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.poll-add-option > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.poll-add-option > form {
+  margin-top: 1rem;
+}
+
+.poll-add-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.packing-manager,
+.packing-fields,
+.packing-list-cards {
+  display: grid;
+  gap: 1rem;
+}
+
+.packing-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.packing-layout {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
+  align-items: start;
+}
+
+.packing-add {
+  position: sticky;
+  top: 1rem;
+}
+
+.packing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.packing-actions .button {
+  white-space: normal;
+}
+
+.packing-summary p {
+  margin-top: 0;
+}
+
+.packing-items,
+.packing-item,
+.packing-list-cards > a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.packing-group h2 {
+  margin-top: 1rem;
+}
+
+.packing-item {
+  margin-bottom: 0.75rem;
+}
+
+.packing-item h3 {
+  margin: 0;
+}
+
+.packing-item .card-header {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.packing-note {
+  white-space: pre-wrap;
+}
+
+.packing-delivered {
+  border-style: dashed;
+}
+
+.packing-item .status-dot.inactive,
+.packing-list-cards .status-dot.inactive {
+  color: var(--foreground);
+  background: var(--surface-muted);
+}
+
+.packing-manager > .grid:has(> .packing-items:only-child) {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 760px) {
+  .packing-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .packing-add {
+    position: static;
+  }
+
+  .packing-item .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .arena-avatar-injury {
     animation: none;

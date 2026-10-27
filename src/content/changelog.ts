@@ -10,6 +10,21 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.27.0",
+    releasedAt: "2026-10-27",
+    title: "Listas e votações colaborativas",
+    summary:
+      "Organize quem leva o quê nos encontros e reúna várias decisões em uma votação com sugestões da turma.",
+    highlights: [
+      "Listas podem existir sozinhas ou vinculadas a eventos, com itens, quantidades, observações e responsáveis por pessoa, casal ou grupo.",
+      "Cada membro pode assumir itens livres com Eu levo, liberar suas contribuições e marcar o que já foi levado.",
+      "A visualização por responsável facilita conferir os combinados; organizadores podem fechar e reabrir as listas.",
+      "Criadores podem habilitar ou desabilitar sugestões de novas opções pelos membros enquanto a votação estiver aberta.",
+      "O novo tipo Várias perguntas reúne escolhas como Almoço e Jantar, com escolha única ou múltipla e resultados independentes em cada pergunta.",
+      "Novas alternativas e reaberturas preservam os votos e álbuns já publicados.",
+    ],
+  },
+  {
     version: "0.26.0",
     releasedAt: "2026-10-26",
     title: "Respostas de eventos pela administração",

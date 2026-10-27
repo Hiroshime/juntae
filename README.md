@@ -760,6 +760,38 @@ scores, quantidades e posições, mesmo após alterações de perfil ou remoçã
 o ranking é provisório. Desafios cancelados não têm resultado final. Histórico e resultado não guardam
 e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso normalmente.
 
+## Votações com sugestões e várias perguntas
+
+Ao criar ou editar uma votação, marque **Permitir que membros adicionem opções** para abrir sugestões
+à comunidade. A configuração começa desligada. Com ela ativa, cada membro encontra **Adicionar opção**
+na página da votação e pode acrescentar alternativas enquanto estiver aberta. O criador e
+administradores podem acrescentar mesmo com sugestões desativadas. Os votos existentes são preservados.
+
+O tipo **Várias perguntas** reúne decisões como **Refeições → Almoço / Jantar** em uma só página.
+Cada pergunta pode ter escolha única ou múltipla, com votos e resultados independentes. A página mostra
+seu progresso; você pode responder uma pergunta agora e outra depois. Prazo e encerramento são comuns.
+São permitidas de 2 a 10 perguntas e até 20 alternativas por pergunta. Perguntas já publicadas ficam
+fixas; as alternativas podem crescer conforme a permissão de sugestões. Álbuns continuam disponíveis.
+
+A migration `0043_grouped_collaborative_polls` preserva as votações existentes e é aplicada pelo fluxo
+Docker ou por `npm run db:migrate` no desenvolvimento. Não exige seed nem novas variáveis de ambiente.
+
+## Listas: quem leva o quê?
+
+Acesse **Listas** no menu da comunidade (no celular, **Mais → Listas: quem leva o quê**).
+Crie uma lista como “Café da manhã na chácara”, com evento opcional, e adicione itens com quantidade
+e observação. Use **Eu levo** nos itens livres ou escolha um responsável ao organizar a lista.
+Para casais e grupos, selecione uma pessoa de contato e informe um nome como “Luiz e Ana”.
+
+Cada pessoa cuida das próprias contribuições; o criador da lista e administradores podem distribuir
+itens entre os membros. A visualização por responsável mostra o que cada pessoa ou casal combinou.
+É possível liberar itens e marcar o que já foi levado. Fechar a lista bloqueia alterações até reabrir.
+A página do evento oferece **Criar lista** e mostra suas listas vinculadas; podem existir várias
+listas por evento ou listas independentes. Compartilhar o link mantém o acesso privado.
+
+A migration `0042_packing_lists` cria as tabelas e é aplicada pelo fluxo Docker habitual ou por
+`npm run db:migrate` no desenvolvimento. Não exige seed nem novas variáveis de ambiente.
+
 ## Decisões técnicas
 
 - Next.js App Router + React para manter frontend e backend no monólito recomendado;

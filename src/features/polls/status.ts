@@ -4,6 +4,7 @@ export const pollTypeLabels: Record<PollType, string> = {
   SINGLE_CHOICE: "Escolha única",
   MULTIPLE_CHOICE: "Múltipla escolha",
   DATE_OPTIONS: "Votação de datas",
+  GROUPED: "Várias perguntas",
 };
 
 export const pollStatusLabels: Record<PollStatus, string> = {

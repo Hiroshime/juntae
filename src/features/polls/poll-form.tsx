@@ -4,12 +4,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import type { PollType } from "@prisma/client";
 import { zonedDateTimeToUtc } from "@/lib/dates/civil-date";
-import {
-  MAX_POLL_ALBUM_BYTES,
-  MAX_POLL_IMAGE_BYTES,
-  MAX_POLL_OPTION_IMAGES,
-  POLL_IMAGE_ACCEPT,
-} from "@/lib/polls/images";
+import { PollOptionsEditor, emptyOption, type DraftOption } from "./poll-options-editor";
+import { PollQuestionsEditor, initialQuestions, type DraftQuestion } from "./poll-questions-editor";
+import { createPollSchema } from "@/lib/validation/poll";
 
 type SuggestedDate = {
   date: string;
@@ -18,26 +15,6 @@ type SuggestedDate = {
   score: number;
   totalMembers: number;
 };
-
-type DraftOption = {
-  label: string;
-  description: string;
-  imageUrl: string;
-  websiteUrl: string;
-  location: string;
-  images: File[];
-};
-
-type DraftOptionTextField = Exclude<keyof DraftOption, "images">;
-
-const emptyOption = (): DraftOption => ({
-  label: "",
-  description: "",
-  imageUrl: "",
-  websiteUrl: "",
-  location: "",
-  images: [],
-});
 
 function localDateTimeToUtc(value: string, timezone: string) {
   const [date, time] = value.split("T");
@@ -60,6 +37,13 @@ export function PollForm({
   const router = useRouter();
   const [type, setType] = useState<PollType>("SINGLE_CHOICE");
   const [options, setOptions] = useState([emptyOption(), emptyOption(), emptyOption()]);
+  const [questions, setQuestions] = useState<DraftQuestion[]>(initialQuestions);
+  const activeOptions =
+    type === "GROUPED" ? questions.flatMap((question) => question.options) : options;
+  const albumBytes = activeOptions.reduce(
+    (sum, option) => sum + option.images.reduce((total, image) => total + image.size, 0),
+    0,
+  );
   const [selectedDates, setSelectedDates] = useState(() => {
     const orderedDates = [
       ...(preferredDate ? [preferredDate] : []),
@@ -81,61 +65,93 @@ export function PollForm({
     const form = new FormData(event.currentTarget);
     setPending(true);
     setError(null);
-    const closesAt = String(form.get("closesAt") || "");
-    const common = {
-      title: String(form.get("title")),
-      description: String(form.get("description") || ""),
-      type,
-      allowVoteChange: form.get("allowVoteChange") === "on",
-      closesAt: closesAt ? localDateTimeToUtc(closesAt, timezone) : null,
-    };
-    const publishedOptions = options.filter((option) => option.label.trim());
-    const body =
-      type === "DATE_OPTIONS"
-        ? {
-            ...common,
-            dates: Array.from(new Set([...selectedDates, ...manualDates.filter(Boolean)])).sort(),
-          }
-        : {
-            ...common,
-            options: publishedOptions.map((option) => ({
-              label: option.label.trim(),
-              description: option.description.trim(),
-              imageUrl: option.imageUrl.trim(),
-              websiteUrl: option.websiteUrl.trim(),
-              location: option.location.trim(),
-            })),
-          };
-    const hasImages =
-      type !== "DATE_OPTIONS" && publishedOptions.some((option) => option.images.length);
-    const upload = new FormData();
-    if (hasImages) {
-      upload.set("payload", JSON.stringify(body));
-      publishedOptions.forEach((option, optionIndex) => {
-        option.images.forEach((image) => upload.append(`optionImages:${optionIndex}`, image));
+    try {
+      const closesAt = String(form.get("closesAt") || "");
+      const common = {
+        title: String(form.get("title")),
+        description: String(form.get("description") || ""),
+        type,
+        allowVoteChange: form.get("allowVoteChange") === "on",
+        allowMemberOptions: form.get("allowMemberOptions") === "on",
+        closesAt: closesAt ? localDateTimeToUtc(closesAt, timezone) : null,
+      };
+      const publishedOptions = activeOptions.filter((option) => option.label.trim());
+      const optionInput = (option: DraftOption) => ({
+        label: option.label.trim(),
+        description: option.description.trim(),
+        imageUrl: option.imageUrl.trim(),
+        websiteUrl: option.websiteUrl.trim(),
+        location: option.location.trim(),
       });
+      const body =
+        type === "DATE_OPTIONS"
+          ? {
+              ...common,
+              dates: Array.from(new Set([...selectedDates, ...manualDates.filter(Boolean)])).sort(),
+              timezone,
+            }
+          : type === "GROUPED"
+            ? {
+                ...common,
+                questions: questions.map((question) => ({
+                  title: question.title,
+                  type: question.type,
+                  options: question.options
+                    .filter((option) => option.label.trim())
+                    .map(optionInput),
+                })),
+              }
+            : {
+                ...common,
+                options: publishedOptions.map((option) => ({
+                  label: option.label.trim(),
+                  description: option.description.trim(),
+                  imageUrl: option.imageUrl.trim(),
+                  websiteUrl: option.websiteUrl.trim(),
+                  location: option.location.trim(),
+                })),
+              };
+      const parsed = createPollSchema.safeParse(body);
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message || "Confira os campos.");
+        setPending(false);
+        return;
+      }
+      const hasImages =
+        type !== "DATE_OPTIONS" && publishedOptions.some((option) => option.images.length);
+      const upload = new FormData();
+      if (hasImages) {
+        upload.set("payload", JSON.stringify(body));
+        publishedOptions.forEach((option, optionIndex) => {
+          option.images.forEach((image) => upload.append(`optionImages:${optionIndex}`, image));
+        });
+      }
+      const response = await fetch(
+        `/api/communities/${communityId}/polls`,
+        hasImages
+          ? { method: "POST", body: upload }
+          : {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            },
+      );
+      const result = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        poll?: { id: string };
+      };
+      setPending(false);
+      if (!response.ok || !result.poll) {
+        setError(result.error ?? "Não foi possível criar a votação.");
+        return;
+      }
+      router.push(`/app/${communitySlug}/polls/${result.poll.id}`);
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível criar a votação.");
+    } finally {
+      setPending(false);
     }
-    const response = await fetch(
-      `/api/communities/${communityId}/polls`,
-      hasImages
-        ? { method: "POST", body: upload }
-        : {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(body),
-          },
-    );
-    const result = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      poll?: { id: string };
-    };
-    setPending(false);
-    if (!response.ok || !result.poll) {
-      setError(result.error ?? "Não foi possível criar a votação.");
-      return;
-    }
-    router.push(`/app/${communitySlug}/polls/${result.poll.id}`);
-    router.refresh();
   }
 
   function toggleDate(date: string) {
@@ -145,53 +161,6 @@ export function PollForm({
       else next.add(date);
       return next;
     });
-  }
-
-  function updateOption(index: number, field: DraftOptionTextField, value: string) {
-    setOptions((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
-    );
-  }
-
-  function addOptionImages(index: number, selected: File[]) {
-    const optionImages = [...options[index].images, ...selected];
-    if (optionImages.length > MAX_POLL_OPTION_IMAGES) {
-      setError(`Cada opção pode ter no máximo ${MAX_POLL_OPTION_IMAGES} fotos.`);
-      return;
-    }
-    if (selected.some((file) => file.size === 0 || file.size > MAX_POLL_IMAGE_BYTES)) {
-      setError("Cada foto deve ter entre 1 byte e 6 MB.");
-      return;
-    }
-    const totalBytes = options.reduce(
-      (total, option, optionIndex) =>
-        total +
-        (optionIndex === index ? optionImages : option.images).reduce(
-          (subtotal, file) => subtotal + file.size,
-          0,
-        ),
-      0,
-    );
-    if (totalBytes > MAX_POLL_ALBUM_BYTES) {
-      setError("Os álbuns da votação podem ter no máximo 30 MB no total.");
-      return;
-    }
-    setError(null);
-    setOptions((current) =>
-      current.map((option, optionIndex) =>
-        optionIndex === index ? { ...option, images: optionImages } : option,
-      ),
-    );
-  }
-
-  function removeOptionImage(optionIndex: number, imageIndex: number) {
-    setOptions((current) =>
-      current.map((option, index) =>
-        index === optionIndex
-          ? { ...option, images: option.images.filter((_, fileIndex) => fileIndex !== imageIndex) }
-          : option,
-      ),
-    );
   }
 
   return (
@@ -214,13 +183,16 @@ export function PollForm({
           <option value="SINGLE_CHOICE">Escolha única</option>
           <option value="MULTIPLE_CHOICE">Múltipla escolha</option>
           <option value="DATE_OPTIONS">Datas sugeridas</option>
+          <option value="GROUPED">Várias perguntas</option>
         </select>
         <span className="field-help">
           {type === "SINGLE_CHOICE"
             ? "Cada membro escolhe uma opção."
             : type === "MULTIPLE_CHOICE"
               ? "Cada membro pode selecionar várias opções."
-              : "Cada membro marca todas as datas que funcionam para ele."}
+              : type === "GROUPED"
+                ? "Reúna perguntas como Almoço e Jantar, cada uma com suas próprias opções e votos."
+                : "Cada membro marca todas as datas que funcionam para ele."}
         </span>
       </div>
       {type === "DATE_OPTIONS" ? (
@@ -303,131 +275,20 @@ export function PollForm({
             <span className="field-help">{selectedCount} datas selecionadas.</span>
           </div>
         </fieldset>
+      ) : type === "GROUPED" ? (
+        <PollQuestionsEditor
+          questions={questions}
+          onChange={setQuestions}
+          albumBytes={albumBytes}
+          setError={setError}
+        />
       ) : (
-        <fieldset className="poll-options-fieldset">
-          <legend>Opções</legend>
-          <div className="poll-option-editors">
-            {options.map((option, index) => (
-              <div className="poll-option-editor" key={index}>
-                <div className="option-editor-row">
-                  <div className="field">
-                    <label htmlFor={`poll-option-${index}`}>Opção {index + 1}</label>
-                    <input
-                      id={`poll-option-${index}`}
-                      maxLength={160}
-                      onChange={(event) => updateOption(index, "label", event.target.value)}
-                      placeholder="Ex.: Chácara Recanto Verde"
-                      required={index < 2}
-                      value={option.label}
-                    />
-                  </div>
-                  {options.length > 2 && (
-                    <button
-                      aria-label={`Remover opção ${index + 1}`}
-                      className="button ghost"
-                      onClick={() =>
-                        setOptions((current) =>
-                          current.filter((_, itemIndex) => itemIndex !== index),
-                        )
-                      }
-                      type="button"
-                    >
-                      Remover
-                    </button>
-                  )}
-                </div>
-                <details className="poll-option-details">
-                  <summary>Adicionar álbum, descrição, página ou local</summary>
-                  <div className="field">
-                    <label htmlFor={`poll-option-images-${index}`}>Fotos do álbum</label>
-                    <input
-                      accept={POLL_IMAGE_ACCEPT}
-                      id={`poll-option-images-${index}`}
-                      multiple
-                      onChange={(event) => {
-                        addOptionImages(index, Array.from(event.target.files ?? []));
-                        event.target.value = "";
-                      }}
-                      type="file"
-                    />
-                    <span className="field-help">
-                      Até 6 fotos por opção, 6 MB por foto. JPEG, PNG, WebP, GIF ou AVIF.
-                    </span>
-                    {option.images.length > 0 && (
-                      <div className="poll-image-file-list" aria-label="Fotos selecionadas">
-                        {option.images.map((image, imageIndex) => (
-                          <span key={`${image.name}-${image.lastModified}-${imageIndex}`}>
-                            <span title={image.name}>{image.name}</span>
-                            <button
-                              aria-label={`Remover foto ${image.name}`}
-                              onClick={() => removeOptionImage(index, imageIndex)}
-                              type="button"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="field">
-                    <label htmlFor={`poll-option-description-${index}`}>Descrição da opção</label>
-                    <textarea
-                      id={`poll-option-description-${index}`}
-                      maxLength={1500}
-                      onChange={(event) => updateOption(index, "description", event.target.value)}
-                      rows={3}
-                      value={option.description}
-                    />
-                  </div>
-                  <div className="form-row">
-                    <div className="field">
-                      <label htmlFor={`poll-option-image-${index}`}>URL de foto externa</label>
-                      <input
-                        id={`poll-option-image-${index}`}
-                        maxLength={2000}
-                        onChange={(event) => updateOption(index, "imageUrl", event.target.value)}
-                        placeholder="https://"
-                        type="url"
-                        value={option.imageUrl}
-                      />
-                    </div>
-                    <div className="field">
-                      <label htmlFor={`poll-option-website-${index}`}>Página web</label>
-                      <input
-                        id={`poll-option-website-${index}`}
-                        maxLength={2000}
-                        onChange={(event) => updateOption(index, "websiteUrl", event.target.value)}
-                        placeholder="https://"
-                        type="url"
-                        value={option.websiteUrl}
-                      />
-                    </div>
-                  </div>
-                  <div className="field">
-                    <label htmlFor={`poll-option-location-${index}`}>Local ou endereço</label>
-                    <input
-                      id={`poll-option-location-${index}`}
-                      maxLength={300}
-                      onChange={(event) => updateOption(index, "location", event.target.value)}
-                      placeholder="Cidade, bairro ou endereço"
-                      value={option.location}
-                    />
-                  </div>
-                </details>
-              </div>
-            ))}
-          </div>
-          {options.length < 20 && (
-            <button
-              className="button secondary"
-              onClick={() => setOptions((current) => [...current, emptyOption()])}
-              type="button"
-            >
-              Adicionar opção
-            </button>
-          )}
-        </fieldset>
+        <PollOptionsEditor
+          options={options}
+          onChange={setOptions}
+          albumBytes={albumBytes}
+          setError={setError}
+        />
       )}
       <div className="field">
         <label htmlFor="poll-closes">Prazo para votar (opcional)</label>
@@ -438,6 +299,13 @@ export function PollForm({
         <input defaultChecked name="allowVoteChange" type="checkbox" />
         Permitir que membros alterem o voto
       </label>
+      <label className="toggle-row">
+        <input name="allowMemberOptions" type="checkbox" />
+        Permitir que membros adicionem opções
+      </label>
+      <p className="field-help">
+        Novas alternativas podem ser incluídas enquanto a votação estiver aberta.
+      </p>
       {error && (
         <div className="error" role="alert">
           {error}

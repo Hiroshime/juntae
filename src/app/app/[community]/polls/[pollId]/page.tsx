@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
-import { Avatar } from "@/components/avatar";
 import { ShareActions } from "@/components/share-actions";
 import { PollManagement, PollVoteForm } from "@/features/polls/poll-actions";
-import { PollOptionContent, PollOptionLinks } from "@/features/polls/poll-option-card";
+import { PollResults } from "@/features/polls/poll-results";
+import { AddPollOptionForm } from "@/features/polls/add-poll-option-form";
 import { formatPollDeadline, pollStatusLabels, pollTypeLabels } from "@/features/polls/status";
 import { requirePageUser } from "@/lib/auth/page-session";
 import { getMembershipBySlug } from "@/server/services/community-service";
@@ -23,6 +23,25 @@ export default async function PollPage({
   if (!membership) notFound();
   const poll = await getPoll(user.id, membership.communityId, pollId).catch(() => null);
   if (!poll) notFound();
+  const sections =
+    poll.type === "GROUPED"
+      ? poll.questions.map((question) => ({
+          ...question,
+          questionId: question.id,
+          options: poll.options.filter((option) => option.questionId === question.id),
+        }))
+      : [
+          {
+            id: poll.id,
+            questionId: undefined,
+            title: undefined,
+            type: poll.type,
+            canVote: poll.canVote,
+            myOptionIds: poll.myOptionIds,
+            totalVoters: poll.totalVoters,
+            options: poll.options,
+          },
+        ];
 
   return (
     <main className="shell">
@@ -65,75 +84,51 @@ export default async function PollPage({
               title={poll.title}
             />
           </div>
-          <div className="poll-detail-layout">
-            <PollVoteForm
-              allowVoteChange={poll.allowVoteChange}
-              canVote={poll.canVote}
-              communityId={membership.communityId}
-              initialOptionIds={poll.myOptionIds}
-              isOpen={poll.status === "OPEN"}
-              options={poll.options}
-              pollId={poll.id}
-              type={poll.type}
-            />
-            <section className="poll-results">
-              <div className="card-header">
-                <div>
-                  <div className="eyebrow">Resultado</div>
-                  <h2>
-                    {poll.totalVoters} {poll.totalVoters === 1 ? "votante" : "votantes"}
-                  </h2>
+          {poll.type === "GROUPED" && (
+            <p className="poll-question-progress">
+              {poll.totalVoters}{" "}
+              {poll.totalVoters === 1 ? "pessoa já participou" : "pessoas já participaram"} · Você
+              respondeu{" "}
+              {poll.questions.filter((question) => question.myOptionIds.length > 0).length} de{" "}
+              {poll.questions.length} perguntas.
+            </p>
+          )}
+          {sections.map((section) => (
+            <section
+              className="poll-question-section"
+              key={section.id}
+              aria-label={section.title ? `Pergunta: ${section.title}` : "Votação"}
+            >
+              {section.title && <h2 className="poll-question-title">{section.title}</h2>}
+              <div className="poll-detail-layout">
+                <div className="poll-vote-column">
+                  <PollVoteForm
+                    allowVoteChange={poll.allowVoteChange}
+                    canVote={section.canVote}
+                    communityId={membership.communityId}
+                    initialOptionIds={section.myOptionIds}
+                    isOpen={poll.status === "OPEN"}
+                    options={section.options}
+                    pollId={poll.id}
+                    type={section.type}
+                    questionId={section.questionId}
+                    questionTitle={section.title}
+                  />
+                  {poll.canAddOptions && (
+                    <AddPollOptionForm
+                      communityId={membership.communityId}
+                      pollId={poll.id}
+                      questionId={section.questionId}
+                      questionTitle={section.title}
+                      isDate={poll.type === "DATE_OPTIONS"}
+                      optionCount={section.options.length}
+                    />
+                  )}
                 </div>
-                <span className="muted small">Atualizado agora</span>
-              </div>
-              <div className="poll-result-list">
-                {poll.options.map((option) => (
-                  <article className="card poll-result" key={option.id}>
-                    <div className="poll-result-title">
-                      <PollOptionContent option={option} />
-                      <span>
-                        {option.voteCount} {option.voteCount === 1 ? "voto" : "votos"} ·{" "}
-                        {option.percentage}%
-                      </span>
-                    </div>
-                    <PollOptionLinks option={option} />
-                    <div
-                      aria-label={`${option.percentage}% dos votantes`}
-                      aria-valuemax={100}
-                      aria-valuemin={0}
-                      aria-valuenow={option.percentage}
-                      className="poll-progress"
-                      role="progressbar"
-                    >
-                      <span style={{ width: `${option.percentage}%` }} />
-                    </div>
-                    {option.availability && (
-                      <div className="date-availability-result">
-                        <span>
-                          <strong>{option.availability.fullAvailableCount}</strong> disponíveis
-                        </span>
-                        <span>
-                          <strong>{option.availability.unknownCount}</strong> sem informação
-                        </span>
-                        <span>
-                          <strong>{option.availability.score}</strong> score
-                        </span>
-                      </div>
-                    )}
-                    <div className="poll-voters">
-                      {option.voters.map((voter) => (
-                        <span key={voter.userId} title={voter.name}>
-                          <Avatar name={voter.name} url={voter.avatarUrl} size="small" />
-                          <small>{voter.name}</small>
-                        </span>
-                      ))}
-                      {!option.voters.length && <small className="muted">Nenhum voto ainda.</small>}
-                    </div>
-                  </article>
-                ))}
+                <PollResults options={section.options} totalVoters={section.totalVoters} />
               </div>
             </section>
-          </div>
+          ))}
         </section>
       </div>
     </main>

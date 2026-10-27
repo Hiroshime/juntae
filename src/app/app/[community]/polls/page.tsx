@@ -85,6 +85,11 @@ export default async function PollsPage({
                     <span className="muted small">{pollTypeLabels[poll.type]}</span>
                   </div>
                   <h2>{poll.title}</h2>
+                  {poll.type === "GROUPED" && (
+                    <p className="muted small">
+                      {poll.questionCount} perguntas · respostas separadas
+                    </p>
+                  )}
                   {poll.description && (
                     <p className="muted poll-description-preview">{poll.description}</p>
                   )}

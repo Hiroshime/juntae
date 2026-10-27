@@ -55,6 +55,12 @@ enum PollType {
   SINGLE_CHOICE
   MULTIPLE_CHOICE
   DATE_OPTIONS
+  GROUPED
+}
+
+enum PollQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
 }
 
 enum PollStatus {
@@ -290,6 +296,9 @@ model User {
   fundSettingsUpdated      CommunityFundSettings[]  @relation("CommunityFundSettingsUpdater")
   aiSettingsUpdated        CommunityAiSettings[]    @relation("CommunityAiSettingsUpdater")
   aiConversations          AiConversation[]
+  packingListsCreated      PackingList[]            @relation("PackingListCreator")
+  packingItemsCreated      PackingItem[]            @relation("PackingItemCreator")
+  packingItemsAssigned     PackingItem[]            @relation("PackingItemResponsible")
 }
 
 model RateLimitBucket {
@@ -345,6 +354,7 @@ model Community {
   fundEntries     CommunityFundEntry[]
   aiSettings      CommunityAiSettings?
   aiConversations AiConversation[]
+  packingLists    PackingList[]
 
   @@index([createdById])
 }
@@ -1222,9 +1232,51 @@ model Event {
   accountSnapshot        Json?
   payments               EventPayment[]
   fundEntries            CommunityFundEntry[]
+  packingLists           PackingList[]
 
   @@index([communityId, startsAt])
   @@index([communityId, status, startsAt])
+}
+
+model PackingList {
+  id          String        @id @default(uuid()) @db.Uuid
+  communityId String        @db.Uuid
+  eventId     String?       @db.Uuid
+  createdById String        @db.Uuid
+  title       String        @db.VarChar(160)
+  description String?       @db.VarChar(2000)
+  closed      Boolean       @default(false)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+  community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  event       Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy   User          @relation("PackingListCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items       PackingItem[]
+
+  @@index([communityId, createdAt, id])
+  @@index([eventId])
+  @@index([createdById])
+}
+
+model PackingItem {
+  id                String      @id @default(uuid()) @db.Uuid
+  listId            String      @db.Uuid
+  createdById       String      @db.Uuid
+  name              String      @db.VarChar(160)
+  quantity          String?     @db.VarChar(100)
+  note              String?     @db.VarChar(500)
+  responsibleUserId String?     @db.Uuid
+  responsibleLabel  String?     @db.VarChar(160)
+  delivered         Boolean     @default(false)
+  createdAt         DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @db.Timestamptz(6)
+  list              PackingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  createdBy         User        @relation("PackingItemCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  responsible       User?       @relation("PackingItemResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+
+  @@index([listId, createdAt, id])
+  @@index([createdById])
+  @@index([responsibleUserId])
 }
 
 model EventPayment {
@@ -1388,39 +1440,58 @@ model CommunityFundEntry {
 }
 
 model Poll {
-  id              String       @id @default(uuid()) @db.Uuid
-  communityId     String       @db.Uuid
-  createdById     String       @db.Uuid
-  title           String       @db.VarChar(160)
-  description     String?      @db.Text
-  type            PollType
-  allowVoteChange Boolean      @default(true)
-  closesAt        DateTime?    @db.Timestamptz(6)
-  closedAt        DateTime?    @db.Timestamptz(6)
-  status          PollStatus   @default(OPEN)
-  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime     @updatedAt @db.Timestamptz(6)
-  community       Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  createdBy       User         @relation("PollCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  options         PollOption[]
-  votes           PollVote[]
+  id                 String         @id @default(uuid()) @db.Uuid
+  communityId        String         @db.Uuid
+  createdById        String         @db.Uuid
+  title              String         @db.VarChar(160)
+  description        String?        @db.Text
+  type               PollType
+  allowVoteChange    Boolean        @default(true)
+  allowMemberOptions Boolean        @default(false)
+  timezone           String         @default("America/Sao_Paulo") @db.VarChar(64)
+  closesAt           DateTime?      @db.Timestamptz(6)
+  closedAt           DateTime?      @db.Timestamptz(6)
+  status             PollStatus     @default(OPEN)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime       @updatedAt @db.Timestamptz(6)
+  community          Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy          User           @relation("PollCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  options            PollOption[]
+  questions          PollQuestion[]
+  votes              PollVote[]
 
   @@index([communityId, status])
   @@index([communityId, status, closesAt])
 }
 
+model PollQuestion {
+  id        String           @id @default(uuid()) @db.Uuid
+  pollId    String           @db.Uuid
+  title     String           @db.VarChar(160)
+  type      PollQuestionType
+  sortOrder Int              @default(0)
+  poll      Poll             @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  options   PollOption[]
+
+  @@unique([id, pollId])
+  @@index([pollId, sortOrder])
+}
+
 model PollOption {
-  id        String            @id @default(uuid()) @db.Uuid
-  pollId    String            @db.Uuid
-  label     String            @db.VarChar(160)
-  sortOrder Int               @default(0)
-  dateValue DateTime?         @db.Date
-  metadata  Json?
-  poll      Poll              @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  votes     PollVote[]
-  images    PollOptionImage[]
+  id         String            @id @default(uuid()) @db.Uuid
+  pollId     String            @db.Uuid
+  questionId String?           @db.Uuid
+  label      String            @db.VarChar(160)
+  sortOrder  Int               @default(0)
+  dateValue  DateTime?         @db.Date
+  metadata   Json?
+  poll       Poll              @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  question   PollQuestion?     @relation(fields: [questionId, pollId], references: [id, pollId], onDelete: Cascade)
+  votes      PollVote[]
+  images     PollOptionImage[]
 
   @@index([pollId, sortOrder])
+  @@index([questionId, pollId])
 }
 
 model PollOptionImage {

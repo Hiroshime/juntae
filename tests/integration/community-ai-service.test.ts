@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db/prisma";
+import { createPollSchema } from "@/lib/validation/poll";
+import { createPoll } from "@/server/services/poll-service";
 import type { CommunityAiSettingsInput } from "@/lib/validation/community-ai";
 import type { OllamaClient, OllamaChatMessage } from "@/server/ollama";
 import {
@@ -318,6 +320,39 @@ describe("assistente contextual privado", () => {
       "USER",
       "ASSISTANT",
     ]);
+  });
+
+  it("identifica a pergunta de cada alternativa no contexto das votações agrupadas", async () => {
+    const poll = await createPoll(
+      ownerId,
+      communityId,
+      createPollSchema.parse({
+        title: "Refeições da turma",
+        type: "GROUPED",
+        description: "",
+        closesAt: null,
+        questions: [
+          { title: "Almoço", type: "SINGLE_CHOICE", options: ["Arroz", "Macarrão"] },
+          { title: "Jantar", type: "MULTIPLE_CHOICE", options: ["Pizza", "Sanduíche"] },
+        ],
+      }),
+    );
+    try {
+      await saveCommunityAiSettings(ownerId, communityId, settings);
+      const result = await sendCommunityAiMessage(
+        memberId,
+        communityId,
+        { message: "Quais votações estão abertas?" },
+        fakeClient,
+      );
+      const context = captured.at(-1)?.[0].content ?? "";
+      expect(context).toContain('"question":"Almoço"');
+      expect(context).toContain('"question":"Jantar"');
+      expect(context).toContain('"selectionType":"MULTIPLE_CHOICE"');
+      await deleteAiConversation(memberId, communityId, result.conversation.id);
+    } finally {
+      await prisma.poll.delete({ where: { id: poll.id } });
+    }
   });
 
   it("aplica os limites de conversas e mensagens no servidor", async () => {

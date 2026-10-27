@@ -16,6 +16,7 @@ import {
 import { requirePageUser } from "@/lib/auth/page-session";
 import { getMembershipBySlug } from "@/server/services/community-service";
 import { getEvent } from "@/server/services/event-service";
+import { listPackingLists } from "@/server/services/packing-list-service";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function EventPage({
   if (!event) notFound();
   const acceptsRsvp = event.status === "PUBLISHED";
   const account = await getEventAccount(user.id, membership.communityId, eventId);
+  const packingLists = await listPackingLists(user.id, membership.communityId, 1, eventId);
 
   return (
     <main className="shell">
@@ -73,6 +75,12 @@ export default async function EventPage({
             />
             <Link className="button secondary" href={`/app/${slug}/cost-shares?event=${event.id}`}>
               Criar rateio
+            </Link>
+            <Link
+              className="button secondary"
+              href={`/app/${slug}/packing-lists?event=${event.id}`}
+            >
+              Criar lista
             </Link>
           </div>
           {event.status === "CANCELLED" && (
@@ -181,6 +189,37 @@ export default async function EventPage({
             communitySlug={slug}
             eventId={eventId}
           />
+          <section className="participants-section">
+            <div className="card-header">
+              <div>
+                <div className="eyebrow">Quem leva o quê?</div>
+                <h2>Listas deste evento</h2>
+              </div>
+              <Link href={`/app/${slug}/packing-lists?event=${event.id}`}>
+                Ver listas ({packingLists.count})
+              </Link>
+            </div>
+            {packingLists.lists.length ? (
+              <div className="packing-list-cards">
+                {packingLists.lists.map((list) => (
+                  <Link
+                    className="card cost-share-card"
+                    key={list.id}
+                    href={`/app/${slug}/packing-lists/${list.id}`}
+                  >
+                    <h3>{list.title}</h3>
+                    <span>
+                      {list._count.items} itens · {list.closed ? "Fechada" : "Aberta"}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">
+                Organize comidas, bebidas e outros itens criando uma lista para este evento.
+              </p>
+            )}
+          </section>
           {event.canManageRsvps && acceptsRsvp && (
             <section className="participants-section">
               <div className="card-header">

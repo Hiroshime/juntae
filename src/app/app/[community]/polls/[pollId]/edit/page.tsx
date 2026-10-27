@@ -41,6 +41,7 @@ export default async function EditPollPage({
               title: poll.title,
               description: poll.description ?? "",
               allowVoteChange: poll.allowVoteChange,
+              allowMemberOptions: poll.allowMemberOptions,
               closesAt: poll.closesAt ? dateTimeLocalInTimeZone(poll.closesAt, user.timezone) : "",
             }}
           />
@@ -50,7 +51,9 @@ export default async function EditPollPage({
               pollId={poll.id}
               options={poll.options.map((option) => ({
                 id: option.id,
-                label: option.label,
+                label: option.questionId
+                  ? `${poll.questions.find((question) => question.id === option.questionId)?.title}: ${option.label}`
+                  : option.label,
                 images: option.images,
               }))}
             />

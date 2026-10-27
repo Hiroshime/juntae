@@ -657,6 +657,7 @@ Enum:
 SINGLE_CHOICE
 MULTIPLE_CHOICE
 DATE_OPTIONS
+GROUPED
 ```
 
 ## 11.2 Campos
@@ -669,6 +670,8 @@ title
 description
 type
 allow_vote_change
+allow_member_options
+timezone
 closes_at
 closed_at nullable
 status
@@ -747,6 +750,49 @@ Além dos votos, mostrar:
 - score de disponibilidade.
 
 Isso é uma feature importante do produto.
+
+## 11.7 Votações com várias perguntas
+
+- O tipo **Várias perguntas** (`GROUPED`) reúne de 2 a 10 perguntas em uma única votação.
+  Exemplo: **Refeições** → **Almoço** (Churrasco, Macarrão, Yakisoba) e **Jantar** (Pizza,
+  Cachorro-quente). Cada pergunta tem título próprio e de 2 a 20 alternativas iniciais.
+- Cada pergunta define escolha única ou múltipla. As perguntas e alternativas publicadas são
+  preservadas; novas alternativas podem ser acrescentadas conforme a seção 11.8.
+- Cada resposta é registrada e removida separadamente. Votar ou remover o voto no almoço nunca
+  modifica o jantar. Opções de perguntas diferentes não podem ser combinadas na mesma resposta.
+- A configuração de alteração de voto vale por pergunta: bloquear uma resposta já enviada não
+  impede responder às demais. Reenvios idênticos continuam idempotentes.
+- Resultados, percentuais e votantes são calculados por pergunta. O total geral conta pessoas
+  distintas que responderam a pelo menos uma pergunta, sem somar uma pessoa várias vezes.
+  A interface mostra quantas perguntas o usuário já respondeu. Não há uma alternativa líder global.
+- Prazo, encerramento, reabertura e permissões de administração são compartilhados pela votação.
+  Reabrir preserva perguntas, alternativas, álbuns e todos os votos. Detalhes e álbuns privados
+  continuam disponíveis também nas opções de cada pergunta.
+
+## 11.8 Alternativas sugeridas pelos membros
+
+- A configuração **Permitir que membros adicionem opções** começa desativada, inclusive nas
+  votações existentes. Criador, `OWNER` e `ADMIN` podem ativar/desativar enquanto aberta.
+  Clientes antigos que omitem o campo na edição preservam sua configuração atual.
+- Enquanto aberta, criador e administradores podem acrescentar alternativas. Com a configuração
+  ativada, qualquer membro da comunidade também pode acrescentar. Desativar impede novas sugestões
+  dos membros e preserva as alternativas e votos já publicados.
+- A nova alternativa entra diretamente na votação, sem aprovação prévia e sem gerar voto automático.
+  Pode incluir descrição, página e local opcionais. Fotos continuam sob administração dos álbuns.
+  Adicionar alternativas não permite renomear/remover as anteriores nem alterar votos alheios.
+- Em votações agrupadas, a alternativa pertence a uma pergunta existente da mesma votação.
+  Repetições de texto, ignorando maiúsculas e espaços externos, são rejeitadas dentro da pergunta;
+  a mesma alternativa pode existir em perguntas diferentes. O limite é 20 opções por pergunta.
+- Em votações de datas, o membro informa uma data civil. Ela deve ser atual ou futura no fuso
+  persistido da votação, ser distinta e manter todas as opções dentro do intervalo de 367 dias.
+- Votações encerradas por ação ou prazo recusam adições, mesmo por administradores. Transações
+  coordenam sugestões, limites, votos, desativação da permissão e encerramento concorrentes.
+- A migration `0043_grouped_collaborative_polls` adiciona a configuração, o fuso, o tipo agrupado,
+  `PollQuestion` e o vínculo opcional em `PollOption`, preservando opções/votos antigos sem perguntas.
+- Aceite: sugestão habilitada/desabilitada; administração autorizada; isolamento entre comunidades;
+  voto único/múltiplo por pergunta; alteração/remoção independente; percentuais e progresso corretos;
+  fechamento/reabertura preservando votos; adições concorrentes sem duplicar ou ultrapassar limites;
+  compatibilidade com votações simples, datas, álbuns e visualização mobile.
 
 ---
 
@@ -3349,6 +3395,39 @@ confirma ou exclui registros e não substitui as páginas originais como fonte d
   tipos, testes e build.
 
 ---
+
+### 30.16 Listas — quem leva o quê?
+
+- O módulo privado **Listas** organiza contribuições de comidas, bebidas, equipamentos ou outros
+  itens, sem valores financeiros. Qualquer membro pode criar e consultar listas da comunidade.
+- Cada lista tem título, descrição opcional e vínculo opcional a um evento da mesma comunidade.
+  Um evento pode ter várias listas; o vínculo pode ser alterado ou removido pelo organizador.
+  A página do evento oferece criação e acesso às listas. O módulo também aparece em **Mais** no celular.
+- Cada item tem nome, quantidade livre opcional (por exemplo, `2 litros`), observação opcional,
+  responsável opcional e indicação de que já foi levado. Uma lista aceita até 300 itens.
+- O responsável é um membro da comunidade. Um nome opcional como `Luiz e Ana` representa um casal
+  ou grupo; o membro selecionado continua sendo o contato e quem pode cuidar do item. Não é necessário
+  cadastrar casais ou contas para acompanhantes. O contato permanece visível mesmo com nome de grupo.
+- Qualquer membro pode adicionar itens livres ou sob sua própria responsabilidade e assumir itens
+  livres com **Eu levo**. Pode editar/remover itens sob sua responsabilidade ou itens livres que criou.
+  Não pode atribuir itens a terceiros nem alterar contribuições assumidas por outras pessoas.
+- O criador da lista, `OWNER` e `ADMIN` podem organizar todos os itens e atribuir responsáveis.
+  O responsável ou organizador pode liberar o item e marcar/desmarcar como levado. Liberar ou trocar
+  o contato remove a marcação de levado; um item sem responsável nunca pode ser marcado como levado.
+- Disputas pelo mesmo item são resolvidas atomicamente: apenas uma pessoa consegue assumi-lo.
+  Fechamento e mutações de itens também são coordenados por transações no servidor.
+- Somente organizadores editam os dados da lista e podem fechar/reabrir. Fechada, a lista preserva
+  os itens e bloqueia todas as alterações até reabrir. O estado independe do RSVP e do status do evento.
+- Itens podem ser visualizados individualmente ou agrupados por responsável. O resumo mostra totais,
+  itens a combinar e levados. Links compartilhados continuam exigindo autenticação e participação.
+- A remoção de um membro preserva suas contribuições e identifica a saída; organizadores podem
+  reatribuir/liberar seus itens. Excluir o evento preserva a lista sem vínculo; excluir a comunidade
+  remove suas listas e itens. Não altera automaticamente RSVPs, rateios nem sorteios de distribuição.
+- As tabelas `PackingList` e `PackingItem`, com datas de criação/atualização e índices, são criadas
+  pela migration `0042_packing_lists`. A listagem usa páginas de 20 listas.
+- Aceite: criar lista com/sem evento; criar várias no evento; atribuir pessoa/casal; assumir/liberar;
+  editar/remover contribuições autorizadas; marcar levado; agrupar; fechar/reabrir; impedir acesso
+  entre comunidades, atribuições indevidas e dupla reserva concorrente; funcionar em desktop/mobile.
 
 # 31. Integração futura com calendários externos
 

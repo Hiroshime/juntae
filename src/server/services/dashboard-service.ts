@@ -107,9 +107,11 @@ export async function getCommunityDashboard(
   const polls = storedPolls.map((poll) => {
     const results = summarizePollResults(poll.options);
     const leadingOption =
-      poll.options
-        .map((option) => ({ label: option.label, voteCount: option.votes.length }))
-        .sort((first, second) => second.voteCount - first.voteCount)[0] ?? null;
+      poll.type === "GROUPED"
+        ? null
+        : (poll.options
+            .map((option) => ({ label: option.label, voteCount: option.votes.length }))
+            .sort((first, second) => second.voteCount - first.voteCount)[0] ?? null);
     return {
       id: poll.id,
       title: poll.title,

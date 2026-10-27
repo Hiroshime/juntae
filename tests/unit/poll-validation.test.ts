@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { addCivilDays, civilDateInTimeZone } from "@/lib/dates/civil-date";
-import { createPollSchema } from "@/lib/validation/poll";
+import {
+  addPollOptionSchema,
+  castVoteSchema,
+  createPollSchema,
+  updatePollSchema,
+} from "@/lib/validation/poll";
 
 const base = {
   title: "Próximo passeio",
@@ -10,6 +15,70 @@ const base = {
 };
 
 describe("poll validation", () => {
+  const grouped = {
+    ...base,
+    type: "GROUPED",
+    questions: [
+      { title: "Almoço", type: "SINGLE_CHOICE", options: ["Churrasco", "Macarrão"] },
+      { title: "Jantar", type: "MULTIPLE_CHOICE", options: ["Pizza", "Macarrão"] },
+    ],
+  };
+
+  it("valida perguntas independentes e permite a mesma alternativa em perguntas diferentes", () => {
+    const parsed = createPollSchema.parse({ ...grouped, allowMemberOptions: true });
+    expect(parsed).toMatchObject({
+      allowMemberOptions: true,
+      questions: [
+        { options: [{ label: "Churrasco" }, { label: "Macarrão" }] },
+        { title: "Jantar" },
+      ],
+    });
+    expect(
+      createPollSchema.safeParse({ ...grouped, questions: [grouped.questions[0]] }).success,
+    ).toBe(false);
+    expect(
+      createPollSchema.safeParse({
+        ...grouped,
+        questions: [grouped.questions[0], { ...grouped.questions[1], title: " almoço " }],
+      }).success,
+    ).toBe(false);
+    expect(
+      createPollSchema.safeParse({
+        ...grouped,
+        questions: [grouped.questions[0], { ...grouped.questions[1], options: ["Pizza", "pizza"] }],
+      }).success,
+    ).toBe(false);
+    expect(
+      createPollSchema.safeParse({
+        ...grouped,
+        questions: [grouped.questions[0], { ...grouped.questions[1], type: "DATE_OPTIONS" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("valida sugestões, configuração booleana e identificador da pergunta", () => {
+    expect(addPollOptionSchema.parse({ label: " Yakisoba " })).toMatchObject({ label: "Yakisoba" });
+    expect(addPollOptionSchema.safeParse({ label: " " }).success).toBe(false);
+    expect(addPollOptionSchema.safeParse({ label: "Teste", questionId: "bad" }).success).toBe(
+      false,
+    );
+    expect(
+      addPollOptionSchema.safeParse({ label: "Teste", websiteUrl: "javascript:alert(1)" }).success,
+    ).toBe(false);
+    expect(addPollOptionSchema.safeParse({ label: "Data", dateValue: "2030-02-30" }).success).toBe(
+      false,
+    );
+    expect(
+      castVoteSchema.safeParse({
+        optionIds: ["b0d93d29-9ccc-4f65-a746-daa5e5f1978e"],
+        questionId: "bad",
+      }).success,
+    ).toBe(false);
+    expect(createPollSchema.safeParse({ ...grouped, allowMemberOptions: "true" }).success).toBe(
+      false,
+    );
+    expect(updatePollSchema.parse(base).allowMemberOptions).toBeUndefined();
+  });
   it("normaliza votação simples e rejeita opções repetidas", () => {
     expect(
       createPollSchema.parse({

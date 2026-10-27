@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertSameOrigin, routeErrorResponse } from "@/lib/http/route";
-import { castVoteSchema } from "@/lib/validation/poll";
+import { castVoteSchema, voteQuestionQuerySchema } from "@/lib/validation/poll";
 import { requireAuthenticatedUser } from "@/server/authorization";
 import { castVote, removeVote } from "@/server/services/poll-service";
 
@@ -15,7 +15,9 @@ export async function PUT(request: Request, { params }: Context) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
     }
-    return NextResponse.json(await castVote(user.id, communityId, pollId, parsed.data.optionIds));
+    return NextResponse.json(
+      await castVote(user.id, communityId, pollId, parsed.data.optionIds, parsed.data.questionId),
+    );
   } catch (error) {
     return routeErrorResponse(error);
   }
@@ -26,7 +28,13 @@ export async function DELETE(request: Request, { params }: Context) {
     assertSameOrigin(request);
     const user = await requireAuthenticatedUser();
     const { communityId, pollId } = await params;
-    return NextResponse.json(await removeVote(user.id, communityId, pollId));
+    const parsed = voteQuestionQuerySchema.safeParse({
+      questionId: new URL(request.url).searchParams.get("questionId") ?? undefined,
+    });
+    if (!parsed.success) return NextResponse.json({ error: "Pergunta inválida." }, { status: 400 });
+    return NextResponse.json(
+      await removeVote(user.id, communityId, pollId, parsed.data.questionId),
+    );
   } catch (error) {
     return routeErrorResponse(error);
   }
