@@ -84,6 +84,18 @@ enum CostShareStatus {
   CLOSED
 }
 
+enum EventBillingMode {
+  EQUAL
+  DAY
+  NIGHT
+}
+
+enum CostShareAllocation {
+  SELECTED
+  EVENT
+  DAY
+}
+
 enum CommunityFundEntryType {
   DEPOSIT
   USAGE
@@ -1216,6 +1228,8 @@ model Event {
   locationAddress        String?              @db.Text
   locationUrl            String?              @db.Text
   estimatedCost          Decimal?             @db.Decimal(10, 2)
+  billingMode            EventBillingMode     @default(EQUAL)
+  billingParticipants    Json?
   currency               String               @default("BRL") @db.Char(3)
   participantLimit       Int?
   allowMaybe             Boolean              @default(true)
@@ -1342,21 +1356,24 @@ model CommunityHoliday {
 }
 
 model CostShare {
-  id           String                 @id @default(uuid()) @db.Uuid
-  communityId  String                 @db.Uuid
-  eventId      String?                @db.Uuid
-  createdById  String                 @db.Uuid
-  title        String                 @db.VarChar(160)
-  description  String?                @db.Text
-  currency     String                 @default("BRL") @db.Char(3)
-  status       CostShareStatus        @default(OPEN)
-  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime               @updatedAt @db.Timestamptz(6)
-  community    Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  event        Event?                 @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  createdBy    User                   @relation("CostShareCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  participants CostShareParticipant[]
-  expenses     CostShareExpense[]
+  id                  String                 @id @default(uuid()) @db.Uuid
+  communityId         String                 @db.Uuid
+  eventId             String?                @db.Uuid
+  createdById         String                 @db.Uuid
+  title               String                 @db.VarChar(160)
+  description         String?                @db.Text
+  currency            String                 @default("BRL") @db.Char(3)
+  status              CostShareStatus        @default(OPEN)
+  allocationType      CostShareAllocation    @default(SELECTED)
+  allocationDate      DateTime?              @db.Date
+  calculationSnapshot Json?
+  createdAt           DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime               @updatedAt @db.Timestamptz(6)
+  community           Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  event               Event?                 @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy           User                   @relation("CostShareCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  participants        CostShareParticipant[]
+  expenses            CostShareExpense[]
 
   @@index([communityId, createdAt])
   @@index([eventId])

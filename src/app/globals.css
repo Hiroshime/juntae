@@ -350,6 +350,70 @@
   }
 }
 
+.event-billing {
+  margin-block: 1rem;
+}
+
+.billing-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.billing-editor > form {
+  margin-top: 1rem;
+}
+
+.billing-periods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+
+.billing-period {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.billing-period legend {
+  font-weight: 700;
+}
+
+.billing-period label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.billing-period > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.event-account .status-dot.inactive {
+  color: #526074;
+}
+
+.billing-period ul {
+  padding-left: 1.2rem;
+}
+
+.billing-preview {
+  background: var(--surface-muted);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
 .poll-questions-editor,
 .poll-vote-column,
 .poll-add-fields {

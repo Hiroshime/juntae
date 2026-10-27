@@ -10,6 +10,21 @@ export type ChangelogEntry = {
 // O teste unitário falha quando uma nova versão é criada sem atualizar este histórico.
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.29.0",
+    releasedAt: "2026-10-27",
+    title: "Rateio por dias e noites",
+    summary:
+      "Divida o custo de cada período entre quem participa e aplique despesas ao evento inteiro, a um dia ou a pessoas selecionadas.",
+    highlights: [
+      "Eventos permitem escolher divisão igual, por dia ou por noite, com prévia dos valores por pessoa e seleção de participantes em cada período.",
+      "Presenças parciais ajudam a sugerir os participantes dos dias; a organização revisa as pernoites sem alterar as confirmações de presença.",
+      "Rateios vinculados podem acompanhar os períodos do evento, usar um dia específico ou manter uma seleção própria de pessoas.",
+      "Quem adiantou uma compra recebe crédito integral, mesmo quando não participa daquela despesa.",
+      "Períodos com custo sem participantes geram pendências antes do acerto; pagamentos e créditos do Fundão continuam preservados.",
+      "O fechamento preserva cotas e detalhamento por período, e a conta fechada bloqueia alterações financeiras nos rateios vinculados até reabrir.",
+    ],
+  },
+  {
     version: "0.28.0",
     releasedAt: "2026-10-27",
     title: "Votações vinculadas a eventos",

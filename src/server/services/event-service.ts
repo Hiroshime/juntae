@@ -11,6 +11,7 @@ import {
   summarizeRsvps,
 } from "@/server/domain/events";
 import { AppError, assertFound } from "@/server/errors";
+import { billingDates } from "@/server/domain/event-billing";
 
 const eventListSelection = {
   id: true,
@@ -24,6 +25,7 @@ const eventListSelection = {
   timezone: true,
   locationName: true,
   estimatedCost: true,
+  billingMode: true,
   currency: true,
   participantLimit: true,
   allowMaybe: true,
@@ -78,6 +80,7 @@ function eventData(input: EventInput) {
     locationAddress: input.locationAddress,
     locationUrl: input.locationUrl,
     estimatedCost: input.estimatedCost,
+    billingMode: input.billingMode,
     currency: input.currency,
     participantLimit: input.participantLimit,
     allowMaybe: input.allowMaybe,
@@ -93,10 +96,13 @@ function toEventSummary(event: EventListRecord, userId: string) {
   return {
     ...event,
     estimatedCost,
-    estimatedCostPerConfirmed: estimatedCostPerConfirmed(
-      estimatedCost == null ? null : Number(estimatedCost),
-      rsvpSummary.GOING,
-    ),
+    estimatedCostPerConfirmed:
+      event.billingMode === "EQUAL"
+        ? estimatedCostPerConfirmed(
+            estimatedCost == null ? null : Number(estimatedCost),
+            rsvpSummary.GOING,
+          )
+        : null,
     rsvpSummary,
     myRsvp: event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null,
     remainingSpots: remainingParticipantSpots(event.participantLimit, rsvpSummary.GOING),
@@ -268,10 +274,14 @@ export async function getEvent(userId: string, communityId: string, eventId: str
     locationAddress: event.locationAddress,
     locationUrl: event.locationUrl,
     estimatedCost,
-    estimatedCostPerConfirmed: estimatedCostPerConfirmed(
-      estimatedCost == null ? null : Number(estimatedCost),
-      rsvpSummary.GOING,
-    ),
+    billingMode: event.billingMode,
+    estimatedCostPerConfirmed:
+      event.billingMode === "EQUAL"
+        ? estimatedCostPerConfirmed(
+            estimatedCost == null ? null : Number(estimatedCost),
+            rsvpSummary.GOING,
+          )
+        : null,
     currency: event.currency,
     participantLimit: event.participantLimit,
     allowMaybe: event.allowMaybe,
@@ -345,7 +355,12 @@ export async function updateEvent(
     await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
     const current = await tx.event.findUniqueOrThrow({
       where: { id: eventId },
-      select: { currency: true },
+      select: {
+        currency: true,
+        billingMode: true,
+        accountClosedAt: true,
+        billingParticipants: true,
+      },
     });
     if (
       current.currency !== input.currency &&
@@ -357,7 +372,52 @@ export async function updateEvent(
         "ACCOUNT_HAS_PAYMENTS",
       );
     }
-    const updated = await tx.event.update({ where: { id: eventId }, data: eventData(input) });
+    const modeChanged =
+      input.billingMode !== undefined && input.billingMode !== current.billingMode;
+    if (modeChanged && current.accountClosedAt)
+      throw new AppError(
+        "Reabra a conta antes de alterar a divisão do custo.",
+        409,
+        "ACCOUNT_CLOSED",
+      );
+    const effectiveMode = input.billingMode ?? current.billingMode;
+    if (effectiveMode !== "EQUAL") {
+      try {
+        if (
+          !billingDates(
+            {
+              ...input,
+              startsAt: new Date(input.startsAt),
+              endsAt: input.endsAt ? new Date(input.endsAt) : null,
+            },
+            effectiveMode,
+          ).length
+        )
+          throw new Error("NO_NIGHTS");
+      } catch {
+        throw new AppError(
+          "Confira o período do evento: são aceitos até 366 dias e noites exigem pelo menos uma pernoite.",
+          400,
+          "INVALID_BILLING_PERIODS",
+        );
+      }
+    }
+    const updated = await tx.event.update({
+      where: { id: eventId },
+      data: {
+        ...eventData(input),
+        ...(modeChanged || attendancePeriodChanged
+          ? {
+              billingParticipants:
+                attendancePeriodChanged &&
+                current.billingParticipants &&
+                (input.billingMode ?? current.billingMode) !== "EQUAL"
+                  ? { mode: input.billingMode ?? current.billingMode, periods: [] }
+                  : Prisma.DbNull,
+            }
+          : {}),
+      },
+    });
     if (!input.allowPartialAttendance || attendancePeriodChanged) {
       await tx.eventRsvpDay.deleteMany({ where: { eventId } });
       await tx.eventRsvp.updateMany({

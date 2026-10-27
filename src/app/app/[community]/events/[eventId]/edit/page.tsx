@@ -53,6 +53,7 @@ export default async function EditEventPage({
               locationAddress: event.locationAddress ?? "",
               locationUrl: event.locationUrl ?? "",
               estimatedCost: event.estimatedCost ?? "",
+              billingMode: event.billingMode,
               currency: event.currency,
               participantLimit: event.participantLimit?.toString() ?? "",
               allowMaybe: event.allowMaybe,

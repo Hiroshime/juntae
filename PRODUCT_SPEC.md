@@ -2447,16 +2447,19 @@ Sistema calcula rateio.
 ### 30.3.1 Regras do primeiro módulo
 
 - qualquer membro pode criar um rateio;
-- o criador seleciona pelo menos dois participantes da comunidade;
+- o criador seleciona pelo menos dois participantes em rateios independentes; rateios de evento
+  aceitam uma pessoa e a aplicação por períodos descrita na seção 30.3.4;
 - ao selecionar um evento, a interface pré-seleciona os participantes com RSVP `GOING`, mas guarda
   uma lista própria que pode ser ajustada;
 - cada despesa possui descrição, valor, data e uma pessoa pagadora;
 - participantes podem adicionar as próprias compras;
 - criador do rateio, `OWNER` e `ADMIN` podem lançar compra em nome de qualquer participante;
 - somente o pagador, criador do rateio ou administrador pode remover uma despesa;
-- participantes que já possuem despesas não podem ser removidos enquanto essas despesas existirem;
+- em rateios independentes, participantes com despesas não podem ser removidos enquanto elas existirem;
+  em rateios de evento, pagadores e beneficiários são separados, preservando os créditos;
 - rateio `CLOSED` preserva o resultado e bloqueia alterações; o criador ou administrador pode reabrir;
-- todos os itens são divididos igualmente entre os participantes do rateio nesta primeira versão;
+- por padrão, os itens são divididos igualmente entre as pessoas selecionadas; rateios de evento
+  também admitem divisão por períodos ou a seleção de um dia específico;
 - valores indivisíveis em centavos distribuem o resto deterministicamente, sem perder ou criar valor;
 - o resultado mostra total comprado, cota individual, quanto cada pessoa pagou, saldo e uma lista
   reduzida de transferências “quem paga quem”;
@@ -2475,9 +2478,9 @@ membro não participante -> visualizar o rateio da própria comunidade, sem lan�
 
 - O criador do evento e administradores podem habilitar opcionalmente a conta na página do evento;
   eventos existentes começam com o controle desabilitado.
-- A conta soma o custo base do evento, dividido igualmente entre RSVPs `GOING`, e cada rateio
-  vinculado, respeitando os participantes próprios de cada rateio. Presença parcial não altera a
-  cota base nesta versão. Não repetir o custo base como despesa nos rateios.
+- A conta soma o custo base do evento conforme a divisão configurada (igual, por dia ou por noite)
+  e os rateios vinculados conforme sua aplicação. A seção 30.3.4 define o cálculo por períodos.
+  Não repetir o custo base como despesa nos rateios.
 - Compras adiantadas abatem a obrigação da pessoa. No cálculo interno, saldo devido positivo
   significa que falta pagar; saldo devido negativo significa crédito a favor e reembolso devido
   pela organização do evento. Exemplo: custo base
@@ -2505,6 +2508,49 @@ membro não participante -> visualizar o rateio da própria comunidade, sem lan�
   salva um snapshot com nomes, moeda, composição e valores, imune a mudanças posteriores das
   fontes. O status financeiro é separado do status do evento. Reabrir recalcula com as fontes
   atuais mantendo o histórico. Contas com histórico de pagamentos não podem ser desabilitadas.
+
+### 30.3.4 Dias, noites e aplicação dos rateios
+
+- O evento usa `EQUAL` (igual entre confirmados, padrão preservado), `DAY` ou `NIGHT`. O formulário
+  e a seção **Divisão do custo do evento** permitem escolher. O valor informado continua sendo o total.
+- Divide-se o total igualmente entre os períodos e, depois, cada parcela entre as pessoas incluídas.
+  R$ 1.200 em duas noites com três pessoas na primeira e duas na segunda resulta em R$ 200 e R$ 300
+  por pessoa em cada noite; quem participa de ambas paga R$ 500. Centavos são distribuídos em ordem
+  cronológica entre períodos e por ID entre pessoas, sem perder ou criar valor.
+- Dias são datas civis no fuso do evento e respeitam seu término exclusivo. Noites usam a data de
+  saída em eventos com horário; em eventos de dia inteiro, o último dia inclusivo é a saída.
+  Sexta a domingo de dia inteiro são três dias ou duas noites. Não contar blocos de 24 horas.
+  São aceitos até 366 dias; noites exigem pelo menos uma pernoite.
+- Apenas `GOING` entra na cota base. Dias sugerem os presentes em cada data. Noites sugerem quem
+  confirmou o evento inteiro; presença parcial exige revisão e salvamento pela organização.
+  Não inferir pernoites dos dias selecionados nem acrescentar perguntas ao RSVP. Quem só passa
+  o dia pode ficar fora de todas as noites e participar normalmente de despesas selecionadas.
+- Criador do evento e administradores ajustam nomes por caixas de seleção, veem a prévia e salvam.
+  Seleção financeira não altera RSVP. Uma seleção manual salva não inclui novos confirmados
+  automaticamente; a organização deve revisá-la. Pessoas que deixaram de confirmar geram pendência.
+  Alterar datas/fuso ou modo remove a seleção manual e preserva os pagamentos existentes.
+- Rateios de evento têm **Pessoas selecionadas** (`SELECTED`, divisão igual), **Evento inteiro**
+  (`EVENT`, mesmos períodos/participantes da divisão base) e **Dia específico** (`DAY`, data válida
+  e lista própria igualmente dividida). O dia sugere quem confirmou aquela data ou o evento inteiro;
+  os nomes podem ser ajustados antes de salvar, sem sincronização automática posterior com RSVPs.
+- Nos rateios de evento, qualquer membro registra sua própria compra, mesmo fora da seleção;
+  criador do rateio e administradores podem indicar outro membro como pagador. Quem comprou recebe
+  crédito integral sem ganhar uma cota só por pagar. Rateios independentes preservam a regra anterior.
+- Períodos com custo sem pessoas, pernoites sem revisão necessária e dias fora do intervalo geram
+  pendência visível. Não redistribuir esses custos a outros períodos. A prévia mostra o valor não
+  dividido; pagamentos e fechamento da conta ficam bloqueados até corrigir.
+- Rateios fechados salvam um snapshot de cotas, compras e acerto, preservado até reabrir. Snapshots
+  antigos continuam legíveis; a conta usa o resultado congelado dos rateios fechados. Com a conta do
+  evento fechada, compras e configurações dos rateios ficam bloqueadas até reabrir a conta. O snapshot
+  da própria conta também preserva períodos e valores. Trocar modo/seleção exige reabrir a conta.
+- A tela explicita períodos, nomes e cotas e mantém a composição: evento + despesas − compras −
+  pagamentos − créditos do Fundão + reembolsos. Transações coordenam alterações com o fechamento;
+  revisões desatualizadas são recusadas no servidor.
+- A migration `0045_event_period_billing` adiciona modo/seleção, aplicação/data e snapshot do rateio;
+  não requer seed ou novas variáveis. Existentes mantêm `EQUAL`/`SELECTED` e contas fechadas intactas.
+- Aceite: dias/noites/fuso/horário de verão; 500/500/200; centavos e totais; visitantes sem pernoite;
+  seleção e mudanças de RSVP/datas; pagadores fora da seleção; três aplicações; períodos sem pessoas;
+  autorização/isolamento/concorrência; snapshots antigos/fechados; pagamentos/Fundão; desktop/mobile.
 
 ## 30.4 Interesses
 

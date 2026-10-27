@@ -1,8 +1,16 @@
 import { z } from "zod";
-import { calculateCostShare, type CostShareCalculationParticipant } from "./cost-shares";
+import {
+  calculateCostShare,
+  type CostShareCalculation,
+  type CostShareCalculationParticipant,
+} from "./cost-shares";
+import { allocateByPeriods, periodAllocationSchema, type BillingPeriod } from "./event-billing";
 
 const cents = z.number().int().safe();
 export const eventAccountSummarySchema = z.object({
+  billingMode: z.enum(["EQUAL", "DAY", "NIGHT"]).default("EQUAL"),
+  periods: periodAllocationSchema.array().default([]),
+  unallocatedCents: cents.default(0),
   currency: z.string(),
   eventCostCents: cents,
   sharesTotalCents: cents,
@@ -45,12 +53,15 @@ export function calculateEventAccount(input: {
   currency: string;
   eventCostCents: number;
   confirmed: Person[];
+  billing?: { mode: "EQUAL" | "DAY" | "NIGHT"; periods: BillingPeriod[]; issues: string[] };
   shares: Array<{
     id: string;
     title: string;
     currency: string;
     participants: Person[];
     expenses: Array<{ payerId: string; amountCents: number }>;
+    calculation?: CostShareCalculation;
+    issues?: string[];
   }>;
   payments: Array<AccountPayment & { name: string }>;
   fundCredits?: Array<AccountFundCredit & { name: string }>;
@@ -70,16 +81,21 @@ export function calculateEventAccount(input: {
       });
     return people.get(person.id)!;
   };
-  const issues: string[] = [];
+  const issues: string[] = [...(input.billing?.issues || [])];
   if (input.eventCostCents > 0 && !input.confirmed.length) {
     issues.push("Confirme pelo menos uma pessoa para dividir o custo do evento.");
   }
   const confirmed = [...input.confirmed].sort((a, b) => a.id.localeCompare(b.id));
-  confirmed.forEach((person, index) => {
-    ensure(person).eventShareCents =
-      Math.floor(input.eventCostCents / confirmed.length) +
-      (index < input.eventCostCents % confirmed.length ? 1 : 0);
-  });
+  const allocation = allocateByPeriods(
+    input.eventCostCents,
+    input.billing?.periods || [{ date: "", label: "Evento inteiro", participants: confirmed }],
+  );
+  confirmed.forEach(ensure);
+  for (const period of allocation.breakdown)
+    for (const person of period.participants) {
+      ensure(person).eventShareCents += person.shareCents;
+    }
+  if (input.billing) issues.push(...allocation.issues);
   const shares: EventAccountSummary["shares"] = [];
   for (const share of input.shares) {
     if (share.currency !== input.currency) {
@@ -88,7 +104,8 @@ export function calculateEventAccount(input: {
       );
       continue;
     }
-    const calculation = calculateCostShare(share.participants, share.expenses);
+    const calculation = share.calculation || calculateCostShare(share.participants, share.expenses);
+    issues.push(...(share.issues || []));
     shares.push({ id: share.id, title: share.title, totalCents: calculation.totalCents });
     for (const balance of calculation.balances) {
       const person = ensure(balance);
@@ -120,6 +137,21 @@ export function calculateEventAccount(input: {
   const sharesTotalCents = shares.reduce((sum, share) => sum + share.totalCents, 0);
   const fundCreditsTotalCents = rows.reduce((sum, person) => sum + person.fundCreditCents, 0);
   const summary = eventAccountSummarySchema.parse({
+    billingMode: input.billing?.mode || "EQUAL",
+    periods: allocation.breakdown,
+    unallocatedCents:
+      allocation.unallocatedCents +
+      input.shares
+        .filter((share) => share.currency === input.currency)
+        .reduce(
+          (sum, share) =>
+            sum +
+            (share.calculation
+              ? share.calculation.totalCents -
+                share.calculation.balances.reduce((total, person) => total + person.shareCents, 0)
+              : 0),
+          0,
+        ),
     currency: input.currency,
     eventCostCents: input.eventCostCents,
     sharesTotalCents,

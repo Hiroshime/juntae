@@ -2,9 +2,16 @@ import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { formatCivilDate } from "@/lib/dates/civil-date";
 import { prisma } from "@/lib/db/prisma";
+import { isTransactionConflict } from "@/lib/db/transaction-conflict";
 import { eventAccountActionSchema, type EventAccountAction } from "@/lib/validation/event-account";
 import { calculateEventAccount, eventAccountSummarySchema } from "@/server/domain/event-account";
 import { AppError, assertFound } from "@/server/errors";
+import { allocateByPeriods, resolveEventBilling } from "@/server/domain/event-billing";
+import {
+  calculateFinancialShare,
+  financialEventInclude,
+  financialShareInclude,
+} from "./financial-calculation";
 
 export async function loadEventAccount(
   tx: Prisma.TransactionClient,
@@ -28,13 +35,10 @@ export async function loadEventAccount(
     await tx.event.findFirst({
       where: { id: eventId, communityId },
       include: {
-        rsvps: { where: { status: "GOING" }, include: { user: { select: personSelection } } },
+        ...financialEventInclude(communityId),
         costShares: {
           orderBy: { id: "asc" },
-          include: {
-            participants: { include: { user: { select: personSelection } } },
-            expenses: { select: { payerId: true, amount: true } },
-          },
+          include: financialShareInclude(communityId),
         },
         payments: {
           orderBy: [{ createdAt: "desc" }, { id: "asc" }],
@@ -83,6 +87,25 @@ export async function loadEventAccount(
     effectiveDate: formatCivilDate(entry.effectiveDate),
     recordedBy: entry.submittedBy.name,
   }));
+  const billing = resolveEventBilling(event);
+  const baseAllocation = allocateByPeriods(
+    Math.round(Number(event.estimatedCost || 0) * 100),
+    billing.periods,
+  );
+  const billingView = {
+    ...billing,
+    eventDates: {
+      startsAt: event.startsAt.toISOString(),
+      endsAt: event.endsAt?.toISOString() || null,
+      allDay: event.allDay,
+      timezone: event.timezone,
+    },
+    amountCents: Math.round(Number(event.estimatedCost || 0) * 100),
+    currency: event.currency,
+    breakdown: baseAllocation.breakdown,
+    unallocatedCents: baseAllocation.unallocatedCents,
+    issues: [...new Set([...billing.issues, ...baseAllocation.issues])],
+  };
   const calculation = !event.paymentTrackingEnabled
     ? null
     : event.accountClosedAt
@@ -91,7 +114,9 @@ export async function loadEventAccount(
           currency: event.currency,
           eventCostCents: Math.round(Number(event.estimatedCost ?? 0) * 100),
           confirmed: event.rsvps.map((rsvp) => person(rsvp.user)),
+          billing,
           shares: event.costShares.map((share) => ({
+            ...calculateFinancialShare(share, billing),
             id: share.id,
             title: share.title,
             currency: share.currency,
@@ -105,6 +130,7 @@ export async function loadEventAccount(
           fundCredits,
         });
   return {
+    billing: billingView,
     enabled: event.paymentTrackingEnabled,
     closedAt: event.accountClosedAt?.toISOString() ?? null,
     canManage,
@@ -113,7 +139,7 @@ export async function loadEventAccount(
     payments,
     fundCredits,
     revision: createHash("sha256")
-      .update(JSON.stringify({ calculation, payments, fundCredits }))
+      .update(JSON.stringify({ calculation, payments, fundCredits, billing: billingView }))
       .digest("hex"),
   };
 }
@@ -147,6 +173,59 @@ export async function changeEventAccount(
             403,
             "FORBIDDEN",
           );
+        if (input.action === "CONFIGURE") {
+          if (account.closedAt)
+            throw new AppError("Reabra a conta antes de alterar a divisão.", 409, "ACCOUNT_CLOSED");
+          if (input.revision !== account.revision)
+            throw new AppError(
+              "Os participantes ou valores mudaram. Atualize a página e revise a divisão.",
+              409,
+              "ACCOUNT_CHANGED",
+            );
+          const event = await tx.event.findUniqueOrThrow({
+            where: { id: eventId },
+            include: financialEventInclude(communityId),
+          });
+          const target = resolveEventBilling({
+            ...event,
+            billingMode: input.mode,
+            billingParticipants: null,
+          });
+          if (
+            input.mode !== "EQUAL" &&
+            (!target.periods.length ||
+              input.periods.length !== target.periods.length ||
+              input.periods.some(
+                (period) => !target.periods.some((candidate) => candidate.date === period.date),
+              ))
+          ) {
+            throw new AppError(
+              "Selecione todos os períodos válidos do evento. Noites exigem pelo menos uma pernoite.",
+              400,
+              "INVALID_BILLING_PERIODS",
+            );
+          }
+          const confirmed = new Set(target.confirmed.map((person) => person.id));
+          if (input.periods.some((period) => period.userIds.some((id) => !confirmed.has(id))))
+            throw new AppError(
+              "A divisão do evento aceita apenas membros confirmados. Revise os participantes.",
+              400,
+              "INVALID_BILLING_PARTICIPANTS",
+            );
+          if (input.mode === "EQUAL" && input.periods.length)
+            throw new AppError("A divisão igual não usa períodos personalizados.");
+          await tx.event.update({
+            where: { id: eventId },
+            data: {
+              billingMode: input.mode,
+              billingParticipants:
+                input.mode === "EQUAL"
+                  ? Prisma.DbNull
+                  : { mode: input.mode, periods: input.periods },
+            },
+          });
+          return;
+        }
         if (input.action === "ENABLE") {
           await tx.event.update({ where: { id: eventId }, data: { paymentTrackingEnabled: true } });
           return;
@@ -242,7 +321,7 @@ export async function changeEventAccount(
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+    if (isTransactionConflict(error)) {
       throw new AppError(
         "Outra alteração ocorreu ao mesmo tempo. Atualize a página e tente novamente.",
         409,

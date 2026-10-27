@@ -136,11 +136,23 @@ export default async function EventPage({
                       <dd>{formatCurrency(event.estimatedCost, event.currency)}</dd>
                     </div>
                     <div>
-                      <dt>Por pessoa confirmada</dt>
+                      <dt>
+                        {event.billingMode === "EQUAL"
+                          ? "Por pessoa confirmada"
+                          : "Divisão do custo"}
+                      </dt>
                       <dd>
-                        {event.estimatedCostPerConfirmed == null
-                          ? "Aguardando confirmações"
-                          : formatCurrency(event.estimatedCostPerConfirmed, event.currency)}
+                        {event.estimatedCostPerConfirmed == null ? (
+                          event.billingMode === "EQUAL" ? (
+                            "Aguardando confirmações"
+                          ) : (
+                            <a href="#divisao">
+                              Ver divisão por {event.billingMode === "NIGHT" ? "noites" : "dias"}
+                            </a>
+                          )
+                        ) : (
+                          formatCurrency(event.estimatedCostPerConfirmed, event.currency)
+                        )}
                       </dd>
                     </div>
                   </>

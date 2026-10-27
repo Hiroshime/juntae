@@ -83,7 +83,10 @@ export default async function CostSharesPage({
                       <div className="cost-share-card-total">
                         <strong>{money(share.totalCents, share.currency)}</strong>
                         <span>
-                          {share.participantCount} pessoas · {share.expenseCount} itens
+                          {share.allocationType === "EVENT"
+                            ? "Divisão do evento"
+                            : `${share.participantCount} pessoas`}{" "}
+                          · {share.expenseCount} itens
                         </span>
                       </div>
                     </Link>

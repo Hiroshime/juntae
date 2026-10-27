@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import type { EventAccountView } from "@/server/services/event-account-service";
 import type { EventAccountAction } from "@/lib/validation/event-account";
+import { EventBillingManager } from "./event-billing-manager";
 
 type PaymentDirection = "RECEIVED" | "REFUNDED";
 type EditingPayment = { userId: string; direction: PaymentDirection };
@@ -84,7 +85,19 @@ export function EventAccount({
     );
   }
 
-  if (!account.enabled && !account.canManage) return null;
+  const billingPanel = (
+    <EventBillingManager
+      key={account.revision}
+      billing={account.billing}
+      canManage={account.canManage}
+      closed={!!account.closedAt}
+      snapshot={summary}
+      revision={account.revision}
+      pending={pending}
+      onSave={act}
+    />
+  );
+  if (!account.enabled && !account.canManage) return billingPanel;
   return (
     <section className="card event-account" id="conta" aria-labelledby="event-account-title">
       <div className="card-header">
@@ -98,6 +111,7 @@ export function EventAccount({
           {!account.enabled ? "Desabilitada" : account.closedAt ? "Fechada" : "Aberta"}
         </span>
       </div>
+      {billingPanel}
       {!account.enabled ? (
         <>
           <p className="muted">
@@ -116,9 +130,10 @@ export function EventAccount({
       ) : (
         <>
           <p className="muted small">
-            Acerto centralizado com a organização do evento. O custo do evento é dividido igualmente
-            entre os confirmados, mesmo com presença parcial. Cada rateio usa sua própria lista de
-            participantes. Compras já pagas são descontadas da cota.
+            Acerto centralizado com a organização do evento. O custo segue a divisão configurada
+            acima. Cada rateio usa sua aplicação: evento inteiro, dia específico ou pessoas
+            selecionadas. Compras já pagas são descontadas da cota, inclusive de quem adiantou
+            valores sem participar daquela despesa.
           </p>
           <p className="muted small">
             Informe no custo do evento apenas o valor base (como a locação), sem repetir despesas

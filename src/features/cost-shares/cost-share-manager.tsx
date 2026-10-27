@@ -3,26 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Avatar } from "@/components/avatar";
+import { AllocationFields, type AllocationType } from "./allocation-fields";
+import type { getCostShare } from "@/server/services/cost-share-service";
 
 type Participant = { id: string; name: string; avatarUrl: string | null };
-type Expense = {
-  id: string;
-  payerId: string;
-  payerName: string;
-  description: string;
-  amountCents: number;
-  purchasedAt: string;
-  canEdit: boolean;
-};
-type Balance = Participant & { paidCents: number; shareCents: number; balanceCents: number };
-type Transfer = {
-  fromUserId: string;
-  fromName: string;
-  toUserId: string;
-  toName: string;
-  amountCents: number;
-};
-
 export function CostShareManager({
   communityId,
   currentUserId,
@@ -36,23 +20,7 @@ export function CostShareManager({
   currentUserId: string;
   today: string;
   allMembers: Participant[];
-  costShare: {
-    id: string;
-    title: string;
-    description: string | null;
-    currency: string;
-    status: "OPEN" | "CLOSED";
-    canManage: boolean;
-    currentUserIsParticipant: boolean;
-    participants: Participant[];
-    expenses: Expense[];
-    calculation: {
-      totalCents: number;
-      averagePerPersonCents: number;
-      balances: Balance[];
-      transfers: Transfer[];
-    };
-  };
+  costShare: Awaited<ReturnType<typeof getCostShare>>;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -61,10 +29,13 @@ export function CostShareManager({
     costShare.participants.map((item) => item.id),
   );
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
-  const open = costShare.status === "OPEN";
+  const open = costShare.status === "OPEN" && !costShare.accountClosed;
+  const [allocationType, setAllocationType] = useState<AllocationType>(costShare.allocationType);
+  const [allocationDate, setAllocationDate] = useState(costShare.allocationDate || "");
+  const allowedPayers = costShare.event ? allMembers : costShare.participants;
   const payerOptions = costShare.canManage
-    ? costShare.participants
-    : costShare.participants.filter((participant) => participant.id === currentUserId);
+    ? allowedPayers
+    : allowedPayers.filter((person) => person.id === currentUserId);
 
   function money(cents: number) {
     return new Intl.NumberFormat("pt-BR", {
@@ -170,6 +141,8 @@ export function CostShareManager({
         title: String(form.get("title")),
         description: String(form.get("description") ?? ""),
         participantIds,
+        allocationType,
+        allocationDate: allocationType === "DAY" ? allocationDate : null,
       });
       setMessage({ kind: "success", text: "Rateio atualizado e valores recalculados." });
       router.refresh();
@@ -213,6 +186,25 @@ export function CostShareManager({
           {message.text}
         </div>
       )}
+      {costShare.accountClosed && (
+        <p className="muted">
+          A conta do evento está fechada. Reabra a conta no evento para alterar este rateio.
+        </p>
+      )}
+      {costShare.issues.length > 0 && (
+        <div className="error" role="alert">
+          {costShare.issues.join(" ")} Revise a configuração antes do acerto.
+        </div>
+      )}
+      {costShare.allocationType !== "SELECTED" && (
+        <p className="muted">
+          Aplicação:{" "}
+          {costShare.allocationType === "EVENT"
+            ? "evento inteiro, conforme a divisão por períodos"
+            : `dia ${costShare.allocationDate}`}
+          .
+        </p>
+      )}
       <section className="cost-share-metrics">
         <div className="card">
           <span>Total comprado</span>
@@ -228,6 +220,27 @@ export function CostShareManager({
         </div>
       </section>
 
+      {costShare.allocationType !== "SELECTED" && costShare.periods.length > 0 && (
+        <details className="card">
+          <summary>Ver divisão deste rateio por período</summary>
+          <div className="billing-periods">
+            {costShare.periods.map((period) => (
+              <article className="billing-period" key={period.date}>
+                <h3>
+                  {period.label} · {money(period.amountCents)}
+                </h3>
+                <ul>
+                  {period.participants.map((person) => (
+                    <li key={person.id}>
+                      {person.name}: {money(person.shareCents)}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </details>
+      )}
       <div className="grid cost-share-detail-grid">
         <section className="card">
           <div className="card-header">
@@ -242,6 +255,10 @@ export function CostShareManager({
               O acerto deste rateio está centralizado na conta do evento. Abra o evento pelo link
               acima para consultar o saldo total e os pagamentos. As compras já pagas são
               descontadas lá, junto com os demais rateios e o custo do evento.
+            </p>
+          ) : costShare.issues.length ? (
+            <p className="muted">
+              O acerto estará disponível após resolver as pendências da divisão.
             </p>
           ) : costShare.calculation.transfers.length ? (
             <div className="settlement-list">
@@ -294,7 +311,7 @@ export function CostShareManager({
         </section>
       </div>
 
-      {open && (costShare.canManage || costShare.currentUserIsParticipant) && (
+      {open && costShare.canAddExpense && (
         <section className="card">
           <div className="card-header">
             <div>
@@ -427,8 +444,19 @@ export function CostShareManager({
                         defaultValue={expense.payerId}
                       >
                         {(costShare.canManage
-                          ? costShare.participants
-                          : costShare.participants.filter(
+                          ? [
+                              ...allowedPayers,
+                              ...(!allowedPayers.some((person) => person.id === expense.payerId)
+                                ? [
+                                    {
+                                      id: expense.payerId,
+                                      name: expense.payerName,
+                                      avatarUrl: null,
+                                    },
+                                  ]
+                                : []),
+                            ]
+                          : allowedPayers.filter(
                               (participant) => participant.id === expense.payerId,
                             )
                         ).map((participant) => (
@@ -472,11 +500,11 @@ export function CostShareManager({
             </div>
             <button
               className="button secondary"
-              disabled={pending}
+              disabled={pending || costShare.accountClosed}
               onClick={changeStatus}
               type="button"
             >
-              {open ? "Fechar rateio" : "Reabrir rateio"}
+              {costShare.status === "OPEN" ? "Fechar rateio" : "Reabrir rateio"}
             </button>
           </div>
           {open && (
@@ -499,27 +527,49 @@ export function CostShareManager({
                   rows={2}
                 />
               </div>
-              <fieldset className="member-filter cost-share-member-picker">
-                <legend>Participantes ({participantIds.length})</legend>
-                <div>
-                  {allMembers.map((member) => (
-                    <label key={member.id}>
-                      <input
-                        checked={participantIds.includes(member.id)}
-                        onChange={() =>
-                          setParticipantIds((current) =>
-                            current.includes(member.id)
-                              ? current.filter((id) => id !== member.id)
-                              : [...current, member.id],
-                          )
-                        }
-                        type="checkbox"
-                      />
-                      <span>{member.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              <AllocationFields
+                hasEvent={!!costShare.event}
+                days={costShare.eventDays}
+                type={allocationType}
+                date={allocationDate}
+                onType={(value) => {
+                  setAllocationType(value);
+                  if (value === "DAY") {
+                    const day = costShare.eventDays[0];
+                    setAllocationDate(day?.date || "");
+                    setParticipantIds(day?.participantIds || []);
+                  } else if (value === "EVENT") setParticipantIds([]);
+                }}
+                onDate={(value) => {
+                  setAllocationDate(value);
+                  setParticipantIds(
+                    costShare.eventDays.find((day) => day.date === value)?.participantIds || [],
+                  );
+                }}
+              />
+              {allocationType !== "EVENT" && (
+                <fieldset className="member-filter cost-share-member-picker">
+                  <legend>Participantes ({participantIds.length})</legend>
+                  <div>
+                    {allMembers.map((member) => (
+                      <label key={member.id}>
+                        <input
+                          checked={participantIds.includes(member.id)}
+                          onChange={() =>
+                            setParticipantIds((current) =>
+                              current.includes(member.id)
+                                ? current.filter((id) => id !== member.id)
+                                : [...current, member.id],
+                            )
+                          }
+                          type="checkbox"
+                        />
+                        <span>{member.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               <button className="button" disabled={pending} type="submit">
                 Salvar participantes
               </button>

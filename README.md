@@ -760,6 +760,32 @@ scores, quantidades e posições, mesmo após alterações de perfil ou remoçã
 o ranking é provisório. Desafios cancelados não têm resultado final. Histórico e resultado não guardam
 e-mails/fotos e são apagados com a comunidade; quem sai dela perde acesso normalmente.
 
+## Divisão do evento por dias ou noites
+
+No formulário do evento ou em **Divisão do custo do evento → Configurar divisão e participantes**,
+escolha divisão igual, por dia ou por noite. O valor informado é o total: o sistema divide esse valor
+entre os períodos e depois entre as pessoas de cada período. Uma estadia de sexta a domingo tem
+três dias ou duas noites; os centavos são preservados no cálculo.
+
+Dias sugerem os confirmados naquela data. Noites sugerem quem vai ao evento inteiro; se há presença
+parcial, a organização revisa as caixas de seleção e salva, sem acrescentar perguntas ao RSVP.
+Uma seleção manual salva é mantida até a próxima revisão, inclusive quando chegam novos confirmados.
+Quem só passa o dia pode ficar fora das noites e participar de compras de alimentação normalmente.
+A prévia mostra os valores por pessoa antes de salvar. Períodos com custo e sem pessoas geram
+pendência e bloqueiam pagamentos e fechamento até corrigir.
+
+Nos rateios de evento, escolha **Evento inteiro**, **Dia específico** ou **Pessoas selecionadas**.
+O evento inteiro acompanha a configuração por períodos; o dia específico sugere seus presentes e
+permite ajustar nomes; a seleção manual divide igualmente. Pagadores podem ser outros membros da
+comunidade: quem adiantou uma compra recebe crédito integral sem ser incluído na cota por isso.
+O acerto consolidado continua abatendo compras, pagamentos e créditos do Fundão.
+
+Fechar um rateio preserva seu cálculo até reabrir. Uma conta do evento fechada preserva seus valores
+e bloqueia as alterações dos rateios vinculados até reabrir a conta. Eventos existentes mantêm a
+divisão igual e snapshots antigos permanecem válidos. Alterar datas ou modo limpa a seleção dos períodos.
+A migration `0045_event_period_billing` é aplicada pelo fluxo Docker ou por `npm run db:migrate`;
+não há novas variáveis de ambiente nem necessidade de seed.
+
 ## Votações com sugestões e várias perguntas
 
 Votações também podem ser vinculadas opcionalmente a eventos. Na criação ou edição, use **Evento

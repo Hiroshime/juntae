@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { addCivilDays, zonedDateTimeToUtc } from "@/lib/dates/civil-date";
+import { eventSchema } from "@/lib/validation/event";
 
 type InitialEvent = {
   title: string;
@@ -14,6 +15,7 @@ type InitialEvent = {
   locationAddress: string;
   locationUrl: string;
   estimatedCost: string;
+  billingMode?: "EQUAL" | "DAY" | "NIGHT";
   currency: string;
   participantLimit: string;
   allowMaybe: boolean;
@@ -77,11 +79,17 @@ export function EventForm({
         locationAddress: String(form.get("locationAddress") || ""),
         locationUrl: String(form.get("locationUrl") || ""),
         estimatedCost: cost ? Number(cost) : null,
+        billingMode: String(form.get("billingMode") || "EQUAL"),
         currency: String(form.get("currency") || "BRL"),
         participantLimit: limit ? Number(limit) : null,
         allowMaybe: form.get("allowMaybe") === "on",
         allowPartialAttendance,
       };
+      const parsed = eventSchema.safeParse(body);
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message || "Confira os dados do evento.");
+        return;
+      }
       const response = await fetch(
         eventId
           ? `/api/communities/${communityId}/events/${eventId}`
@@ -89,7 +97,7 @@ export function EventForm({
         {
           method: eventId ? "PATCH" : "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify(parsed.data),
         },
       );
       const result = (await response.json().catch(() => ({}))) as {
@@ -183,6 +191,22 @@ export function EventForm({
           placeholder="https://"
           type="url"
         />
+      </div>
+      <div className="field">
+        <label htmlFor="event-billing-mode">Divisão do custo do evento</label>
+        <select
+          id="event-billing-mode"
+          name="billingMode"
+          defaultValue={initial.billingMode || "EQUAL"}
+        >
+          <option value="EQUAL">Igual entre confirmados</option>
+          <option value="DAY">Por dia</option>
+          <option value="NIGHT">Por noite</option>
+        </select>
+        <p className="field-help">
+          O total é dividido entre os períodos e, depois, entre as pessoas de cada período. Revise
+          os participantes na página do evento.
+        </p>
       </div>
       <div className="form-row event-numbers">
         <div className="field">

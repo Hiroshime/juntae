@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
+import { AllocationFields, type AllocationType } from "./allocation-fields";
 
 type Member = { id: string; name: string; avatarUrl: string | null };
 type EventSource = {
@@ -9,6 +10,7 @@ type EventSource = {
   title: string;
   startsAt: string;
   confirmedParticipantIds: string[];
+  days: { date: string; participantIds: string[] }[];
 };
 
 export function CostShareCreateForm({
@@ -27,6 +29,9 @@ export function CostShareCreateForm({
   const router = useRouter();
   const initialEvent = events.find((event) => event.id === initialEventId);
   const [eventId, setEventId] = useState(initialEvent?.id ?? "");
+  const [allocationType, setAllocationType] = useState<AllocationType>("SELECTED");
+  const [allocationDate, setAllocationDate] = useState("");
+  const selectedEvent = events.find((event) => event.id === eventId);
   const [participantIds, setParticipantIds] = useState<string[]>(
     initialEvent?.confirmedParticipantIds ?? [],
   );
@@ -36,6 +41,8 @@ export function CostShareCreateForm({
 
   function chooseEvent(value: string) {
     setEventId(value);
+    setAllocationType("SELECTED");
+    setAllocationDate("");
     const event = events.find((item) => item.id === value);
     if (event) setParticipantIds(event.confirmedParticipantIds);
   }
@@ -62,6 +69,8 @@ export function CostShareCreateForm({
         currency: String(form.get("currency") ?? "BRL"),
         eventId,
         participantIds,
+        allocationType,
+        allocationDate: allocationType === "DAY" ? allocationDate : null,
       }),
     });
     const result = (await response.json().catch(() => ({}))) as {
@@ -82,7 +91,7 @@ export function CostShareCreateForm({
       <div className="card-header">
         <div>
           <h2>Novo rateio</h2>
-          <p className="muted small">Escolha as pessoas; os itens serão divididos igualmente.</p>
+          <p className="muted small">Defina a aplicação da despesa e registre as compras.</p>
         </div>
         <span>÷</span>
       </div>
@@ -129,21 +138,45 @@ export function CostShareCreateForm({
           <label htmlFor="cost-share-description">Descrição</label>
           <textarea id="cost-share-description" name="description" maxLength={2000} rows={2} />
         </div>
-        <fieldset className="member-filter cost-share-member-picker">
-          <legend>Participantes ({participantIds.length})</legend>
-          <div>
-            {members.map((member) => (
-              <label key={member.id}>
-                <input
-                  checked={selected.has(member.id)}
-                  onChange={() => toggleParticipant(member.id)}
-                  type="checkbox"
-                />
-                <span>{member.name}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <AllocationFields
+          hasEvent={!!selectedEvent}
+          days={selectedEvent?.days || []}
+          type={allocationType}
+          date={allocationDate}
+          onType={(value) => {
+            setAllocationType(value);
+            if (value === "EVENT") setParticipantIds([]);
+            else if (value === "DAY") {
+              const day = selectedEvent?.days[0];
+              setAllocationDate(day?.date || "");
+              setParticipantIds(day?.participantIds || []);
+            } else if (!participantIds.length)
+              setParticipantIds(selectedEvent?.confirmedParticipantIds || []);
+          }}
+          onDate={(value) => {
+            setAllocationDate(value);
+            setParticipantIds(
+              selectedEvent?.days.find((day) => day.date === value)?.participantIds || [],
+            );
+          }}
+        />
+        {allocationType !== "EVENT" && (
+          <fieldset className="member-filter cost-share-member-picker">
+            <legend>Participantes ({participantIds.length})</legend>
+            <div>
+              {members.map((member) => (
+                <label key={member.id}>
+                  <input
+                    checked={selected.has(member.id)}
+                    onChange={() => toggleParticipant(member.id)}
+                    type="checkbox"
+                  />
+                  <span>{member.name}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         {error && (
           <div className="error" role="alert">
             {error}

@@ -20,7 +20,6 @@ const civilDate = z.string().refine((value) => {
 
 const participantIds = z
   .array(z.string().uuid())
-  .min(2, "Selecione pelo menos duas pessoas.")
   .max(500)
   .refine((values) => new Set(values).size === values.length, "Há participantes repetidos.");
 
@@ -34,12 +33,16 @@ export const createCostShareSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{3}$/, "Informe uma moeda válida."),
   participantIds,
+  allocationType: z.enum(["SELECTED", "EVENT", "DAY"]).optional(),
+  allocationDate: civilDate.nullable().optional(),
 });
 
 export const updateCostShareSchema = createCostShareSchema.pick({
   title: true,
   description: true,
   participantIds: true,
+  allocationType: true,
+  allocationDate: true,
 });
 
 export const costShareStatusSchema = z.object({ status: z.enum(["OPEN", "CLOSED"]) });

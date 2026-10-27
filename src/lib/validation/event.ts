@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { civilDateInTimeZone, daysBetweenCivilDates, parseCivilDate } from "@/lib/dates/civil-date";
+import { billingModeSchema } from "./event-billing";
+import { billingDates } from "@/server/domain/event-billing";
 
 function isIanaTimezone(value: string) {
   try {
@@ -47,6 +49,7 @@ export const eventSchema = z
     locationAddress: optionalText(1_000, "O endereço é muito longo."),
     locationUrl: optionalUrl,
     estimatedCost: z.union([z.number().min(0).max(99_999_999.99), z.null()]).default(null),
+    billingMode: billingModeSchema.optional(),
     currency: z
       .string()
       .trim()
@@ -64,6 +67,33 @@ export const eventSchema = z
         path: ["endsAt"],
       });
       return;
+    }
+    if (value.billingMode && value.billingMode !== "EQUAL") {
+      try {
+        if (
+          !billingDates(
+            {
+              startsAt: new Date(value.startsAt),
+              endsAt: value.endsAt ? new Date(value.endsAt) : null,
+              timezone: value.timezone,
+              allDay: value.allDay,
+            },
+            value.billingMode,
+          ).length
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "A divisão por noites exige pelo menos uma pernoite.",
+            path: ["endsAt"],
+          });
+        }
+      } catch {
+        context.addIssue({
+          code: "custom",
+          message: "A divisão por períodos aceita até 366 dias.",
+          path: ["endsAt"],
+        });
+      }
     }
     if (!value.allowPartialAttendance) return;
     let duration: number;

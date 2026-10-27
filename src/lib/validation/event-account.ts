@@ -1,6 +1,11 @@
 import { z } from "zod";
+import { billingSelectionSchema } from "./event-billing";
 
 export const eventAccountActionSchema = z.discriminatedUnion("action", [
+  billingSelectionSchema.extend({
+    action: z.literal("CONFIGURE"),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
   z.object({ action: z.literal("ENABLE") }),
   z.object({ action: z.literal("DISABLE") }),
   z.object({ action: z.literal("REOPEN") }),
